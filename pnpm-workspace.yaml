@@ -1,0 +1,8 @@
+# pnpm workspace definition.
+# Note: apps/api (.NET 10) is intentionally EXCLUDED — the backend is fully
+# isolated from the JS toolchain. The shared contract is the committed
+# openapi.json, from which packages/api-client is generated JIT (ADR-ARCH-001).
+packages:
+  - "apps/web"
+  - "apps/mobile"
+  - "packages/*"

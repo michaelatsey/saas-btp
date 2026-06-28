@@ -1,0 +1,13 @@
+{
+  "name": "saas-btp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vertical B2B construction operations SaaS — monorepo root (JS workspace).",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "//": "Scripts added JIT per app/package as they are scaffolded."
+  }
+}

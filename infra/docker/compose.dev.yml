@@ -1,0 +1,15 @@
+# Local development stack — PLACEHOLDER.
+#
+# Intent: spin up the backing services needed to run the SaaS BTP locally.
+# Services are added just-in-time as the stack is built out. Planned:
+#   - postgres / supabase-local : PostgreSQL + Auth + Storage (Supabase) for dev
+#
+# No service definitions are committed yet on purpose — they will be added with
+# pinned images and explicit configuration when first needed, not invented here.
+#
+# Usage (once services exist):
+#   docker compose -f infra/docker/compose.dev.yml up -d
+
+name: saas-btp-dev
+
+services: {}

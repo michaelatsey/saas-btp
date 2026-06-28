@@ -1,0 +1,29 @@
+# EditorConfig — https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# C# / .NET (apps/api)
+[*.{cs,csx}]
+indent_size = 4
+
+[*.{csproj,props,targets,slnx}]
+indent_size = 2
+
+# Web / TypeScript / config
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,yaml,yml,md}]
+indent_size = 2
+
+# Markdown — keep trailing whitespace (hard line breaks)
+[*.md]
+trim_trailing_whitespace = false
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab

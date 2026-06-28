@@ -1,0 +1,7 @@
+<Solution>
+  <!--
+    .NET solution (slnx format).
+    Empty for now — projects under apps/api/ are added JIT with `dotnet sln add`
+    when the modular monolith bounded contexts are scaffolded.
+  -->
+</Solution>
