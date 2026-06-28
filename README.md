@@ -39,3 +39,13 @@ Project bootstrap — repository skeleton only, no application code yet.
 ## License
 
 Private and proprietary. All rights reserved. Not for distribution.
+
+
+## Setup dev
+
+Point important sur le partage du hook
+core.hooksPath est une config locale, pas committée. Donc le hook te suit (le fichier .githooks/pre-push est versionné), mais sur une nouvelle machine tu devras refaire une seule fois :
+
+```bash
+bashgit config core.hooksPath .githooks
+```
