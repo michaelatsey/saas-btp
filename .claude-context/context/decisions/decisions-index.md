@@ -41,4 +41,7 @@ Options rejected and why.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| (none yet) | | |
+| ADR-PROD-001 | Market entry through Safety (not Quality) | accepted |
+| ADR-ARCH-001 | TypeScript clients generated from OpenAPI, not from C# | accepted |
+| ADR-ARCH-002 | CorrectiveActions as a separate bounded context | accepted |
+| ADR-ARCH-003 | Increment 1 client = offline PWA (spike-gated), Expo in Phase 2 | accepted |

@@ -21,9 +21,10 @@ non-conformities, corrective actions, daily/weekly reporting, stock, offline-fir
 - Offline-first is a strategic differentiator, not an option.
 - Opinionated, simple, field-usable. Never ERP/BPM/config-software feel.
 
-## Related
+## Where things live
 
-- Scope of the current phase: `scope-phase-1.md`
-- Backlog / user stories: `backlog.md`
+- Phase 1 scope and increment sequence: `scope-phase-1.md`
+- Detailed feature specs (fields, rules): `specifications/`
+- User stories / backlog: GitHub Issues (NOT a repo file) — see issues-convention.md
 - Architecture: `../architecture/architecture.md`
-- Decisions: `../decisions/decisions-index.md`
+- Decisions (why): `../decisions/decisions-index.md`
