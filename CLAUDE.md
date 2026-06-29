@@ -34,7 +34,7 @@ This repository serves TWO pillars that must never be confused:
 | Modular monolith decomposition | `context/architecture/architecture.md` |
 | Naming conventions (all layers) | `context/architecture/conventions/naming.md` |
 | Any decision (why) | `context/decisions/decisions-index.md` |
-| What happened last | most recent file in `sessions/` |
+| What happened last | highest-seq file in `sessions/` |
 | Agent definitions | `.claude/agents/` |
 
 Always read the most recent `sessions/` file before starting work.
@@ -52,6 +52,8 @@ Always read the most recent `sessions/` file before starting work.
 - GitHub-versioned files: plain text, no decorative emojis (status icons allowed).
 - Sessions: committed, plain text (Option B — traceability is part of the asset).
   Private drafts go in `.claude-context/sessions/local/` (gitignored, emojis allowed).
+- Sessions filename: `<seq>-<date>-<subject>.md` (seq = 3-digit, zero-padded).
+  Latest session = highest seq. Read it first before any work.
 - GitHub operations: always `gh` CLI from WSL2, never the web UI unless necessary.
 - Coolify: this project = its own Coolify project (`saas-btp`), production + staging envs.
 - Credentials: saved in Bitwarden immediately on account creation.
