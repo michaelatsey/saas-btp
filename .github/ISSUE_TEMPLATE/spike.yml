@@ -1,0 +1,48 @@
+name: Spike
+description: A time-boxed technical investigation. No production code is the outcome.
+title: "[ctx:<context>] spike: <question to resolve>"
+labels: ["type:spike"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A spike answers one technical question within a time box. After creating the
+        issue, apply the matching `ctx:*` label (or none if infra) and a `prio:*` label,
+        and assign it to the current increment milestone.
+  - type: dropdown
+    id: context
+    attributes:
+      label: Primary context
+      description: One context, or "none" for cross-cutting/infra work.
+      options:
+        - ctx:access
+        - ctx:site
+        - ctx:safety
+        - ctx:corrective-actions
+        - ctx:media
+        - ctx:notifications
+        - none (cross-cutting / infra)
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to resolve
+      description: The single technical question this spike answers.
+    validations:
+      required: true
+  - type: input
+    id: timebox
+    attributes:
+      label: Time box
+      description: Maximum time allotted before stopping and reporting findings.
+      placeholder: e.g. 1 day
+    validations:
+      required: true
+  - type: textarea
+    id: exit-criteria
+    attributes:
+      label: Exit criteria
+      description: How we know the spike is done (decision reached, ADR to write, go/no-go).
+    validations:
+      required: true
