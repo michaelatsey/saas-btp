@@ -54,10 +54,10 @@ Last updated: 2026-07-03.
 
 ## Step 3 - Slice 1 into stories (Issues)
 
-- [ ] 3.1 Decompose slice 1 into vertical stories (offline capture -> corrective
-      lifecycle -> sync -> dashboard)
-- [ ] 3.2 Create Issues via gh, labeled + assigned to milestone
-- [ ] 3.3 Define attack order (first story to code)
+- [x] 3.1 Decompose slice 1 into vertical stories (spike + access -> offline capture
+      -> corrective lifecycle -> notifications -> dashboard)
+- [x] 3.2 Create Issues via gh (#3-#10), labeled + milestone #1 + added to board #9
+- [x] 3.3 Define attack order (first to code: #3 spike)
 
 ---
 
@@ -80,8 +80,10 @@ Last updated: 2026-07-03.
 
 ## Current position
 
-Step 2 complete (tracker foundation: convention, labels, templates, milestone, board).
-Next: Step 3 - decompose slice 1 into vertical stories as Issues.
+Step 3 complete: slice 1 decomposed into 8 issues (#3-#10), labeled + milestone #1 +
+board #9, all in Backlog. Attack order defined (first: #3 spike).
+Next: Step 4 - AI OS Palier 1 core btp-* agents (JIT), then Step 5 - first app code
++ PowerSync spike (#3) that gates ADR-ARCH-003.
 
 ## Open decisions still pending
 
