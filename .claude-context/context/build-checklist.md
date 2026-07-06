@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-03.
+Last updated: 2026-07-06.
 
 ---
 
@@ -71,7 +71,8 @@ Last updated: 2026-07-03.
 
 ## Step 5 - First application code (triggers JIT infra)
 
-- [ ] 5.0 Technical spike: PowerSync Web offline + camera on target Android (gates ADR-ARCH-003)
+- [x] 5.0 Technical spike PowerSync Web offline + camera - 3 gates PASS, ADR-ARCH-003
+      cleared, findings.md merged (PR #12), see session 005
 - [ ] 5.1 Scaffold apps/api (.NET 10 modular monolith) on the first bounded context
 - [ ] 5.2 CI path-filters (first workflow, scoped to api)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
@@ -80,10 +81,10 @@ Last updated: 2026-07-03.
 
 ## Current position
 
-Step 3 complete: slice 1 decomposed into 8 issues (#3-#10), labeled + milestone #1 +
-board #9, all in Backlog. Attack order defined (first: #3 spike).
-Next: Step 4 - AI OS Palier 1 core btp-* agents (JIT), then Step 5 - first app code
-+ PowerSync spike (#3) that gates ADR-ARCH-003.
+Step 5.0 complete: PowerSync Web offline + camera spike passed all 3 gates on the
+target device; ADR-ARCH-003 cleared (PWA retained, Expo stays Phase 2).
+Next: Step 5.1 - scaffold apps/api on the first bounded context; Step 4 - btp-* agents
+to emerge JIT from the first domain story.
 
 ## Open decisions still pending
 
