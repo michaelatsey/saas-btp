@@ -1,6 +1,6 @@
 # ADR-ARCH-003 — Increment 1 field client = offline PWA (not native Expo yet)
 
-Status: accepted (2026-06-28), gated by a technical spike (see Consequences)
+Status: accepted (2026-06-28); spike-gate cleared 2026-07-06 (see Consequences)
 Date: 2026-06-28
 
 ## Context
@@ -26,11 +26,23 @@ surfaces concrete PWA limitations.
   when real usage justifies it).
 - Harder / risk: offline PWA on low-end Android may be less reliable than native,
   risking a false-negative pilot (failing on tech, not product).
-- MITIGATION (gating): before the full increment-1 build, run a technical spike of
-  PowerSync Web offline + camera capture on a real target Android device. If the spike
-  shows offline web is not reliable on field devices, escalate to Expo for increment 1.
-  This ADR's "accepted" status is conditional on that spike passing.
+- MITIGATION (gating) — CLEARED 2026-07-06: a technical spike of PowerSync Web offline
+  + camera capture ran on a real target Android device (Redmi / Chrome / installed
+  WebAPK). All three gates passed — Gate 1 offline persistence + sync, Gate 2 offline
+  photo decoupled (2a latency / 2b sabotaged-upload retry / 2c volume + force-kill),
+  Gate 3 durability across full reboot. Every blocker en route was fixable harness/config,
+  never a platform limit; the flagged alpha @powersync/attachments risk proved mature on
+  web for the offline-capture / deferred-upload / retry / volume paths. The
+  escalate-to-Expo condition did not trigger. Findings:
+  docs/spikes/powersync-web/findings.md. The "accepted" status is no longer conditional —
+  the spike gate is satisfied.
 - Phase 2 native app is informed by pilot evidence (what the PWA could not do well).
+- BUILD CONSTRAINTS (from the spike, tolerable / documented): (1) online-first hydration
+  — one online launch to seed the precache + local DB before full offline; (2) SW/asset
+  config care — serve the production build, ship real >=512px manifest icons; (3) token
+  refresh after long offline sessions (platform-neutral architecture requirement); (4)
+  uninstalling the PWA wipes non-synced OPFS data (SW code updates do not); (5) multi-photo
+  per constat + gallery picker is standard PWA UI work to build. None weighs toward Expo.
 
 ## Rationale (verified 2026-06)
 
