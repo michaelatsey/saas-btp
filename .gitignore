@@ -60,3 +60,7 @@ Thumbs.db
 
 # Session local drafts (brouillons non versionnés)
 .claude-context/sessions/local/
+
+# Disposable spike harnesses (only findings.md is tracked)
+docs/spikes/powersync-web/
+!docs/spikes/powersync-web/findings.md
