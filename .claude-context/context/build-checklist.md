@@ -58,6 +58,9 @@ Last updated: 2026-07-08.
       -> corrective lifecycle -> notifications -> dashboard)
 - [x] 3.2 Create Issues via gh (#3-#10), labeled + milestone #1 + added to board #9
 - [x] 3.3 Define attack order (first to code: #3 spike)
+- [x] 3.4 Backlog re-split on bounded contexts (sessions 008, 009): Access/Site
+      separated (#4 closed on Access), then Site #17 split into Story A (CurrentSite,
+      #17) + Story B (Membership, #20, gated ADR-ARCH-004)
 
 ---
 
@@ -89,19 +92,29 @@ resolving { userId, email, tenantId, roles } from JWT claims (MicroKit.Auth +
 MicroKit.Tenancy, Supabase auth). Green: Release build (0 warnings), Architecture.Tests
 9/9, Access.UnitTests 8/8, OpenAPI 3.1.1 with /me present. Live Supabase /me is owner-run.
 Consumes MicroKit.Auth 1.0.0-preview.3 (the CS8852 fix #4 surfaced). See sessions 007
-(implementation) and 008 (merge + backlog re-split).
+(implementation), 008 (merge + initial re-split), 009 (Site story split).
 
-Backlog re-split on bounded contexts (session 008): #4's original siteId/site-scope
-criteria were a decomposition error (Access vs Site mixed in one story), not a blocker.
-#4 is CLOSED on its Access perimeter (auth, identity, tenant, claims, current user). Site
-scope moved to a new Site story #17 (membership + currentSite + resolution + switch), with
-ADR-ARCH-004 (membership ownership) to be settled at #17's threshold. Membership (durable
-user<->site<->role) and CurrentSite (switchable user session state, not a claim) are
-distinct models. Safety stories depend on Site.
+Site story split (session 009): the combined Site story #17 ("membership + currentSite +
+resolution + switch") was split into two bounded, differently-paced stories, because
+CurrentSite depends only on #4 while Membership is gated on ADR-ARCH-004 — keeping them
+together re-blocked Safety on a modeling decision it does not need.
+- #17 recadrée = Story A "Site Context: resolve current site (CurrentSite)" — execution
+  context (X-Site-Id header, GET /context, ISiteScopeProvider + provisional
+  ConfigurationSiteScopeProvider, site-in-tenant validation only, no EF, no Membership).
+  Depends on #4 only. Unblocks Safety. prio:high, milestone #1.
+- #20 = Story B "Site Membership: durable user-site-role model" — gated on
+  ADR-ARCH-004 (do not pre-decide the aggregate shape), first product DbContext, backlog,
+  prio:normal, NOT in milestone #1. Security hardening, off the Safety path.
+- Story C (Site Administration) NOT created — YAGNI, no consumer in increment 1.
+ADR-ARCH-004 stays intact/immutable; no ADR-ARCH-005 now (CurrentSite<->Membership
+independence stated in Story A's body). Membership (durable user<->site<->role) and
+CurrentSite (switchable session state, not a claim) remain distinct models. Safety
+depends on Story A (#17) only.
 
-Next: frame Story #17 (Site) - likely the first product persistence (first DbContext +
-Supabase schema + MicroKit.Persistence entry), larger than #4; OR clear the MicroKit
-follow-ups from #4 first. Decide at re-entry.
+Next: frame + implement Story A (#17, CurrentSite) — scaffold the Site module in apps/api
+(ISiteScopeProvider + ConfigurationSiteScopeProvider + CurrentSite middleware + GET
+/context), config/claims only, no EF, no Membership; OR clear the MicroKit follow-ups
+from #4 first. Decide at re-entry.
 
 JIT, still untriggered: Step 5.2 (CI path-filters), Step 5.3 (OpenAPI -> TS generator),
 Step 4 (btp-* agents emerge from the first domain story's friction).
