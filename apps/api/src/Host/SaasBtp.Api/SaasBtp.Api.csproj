@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- SaasBtp.Api — thin composition root / driving host. Wires the Access module and
+       native .NET 10 OpenAPI. No business logic lives here. Not a published library, so
+       XML documentation generation is disabled for the host. -->
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Access\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Overrides the transitive Microsoft.OpenApi 2.0.0 (GHSA-v5pm-xwqc-g5wc) with the patched
+         version pinned in Directory.Packages.props. -->
+    <PackageReference Include="Microsoft.OpenApi" />
+  </ItemGroup>
+
+</Project>

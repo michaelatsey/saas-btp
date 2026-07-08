@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-06.
+Last updated: 2026-07-08.
 
 ---
 
@@ -73,7 +73,9 @@ Last updated: 2026-07-06.
 
 - [x] 5.0 Technical spike PowerSync Web offline + camera - 3 gates PASS, ADR-ARCH-003
       cleared, findings.md merged (PR #12), see session 005
-- [ ] 5.1 Scaffold apps/api (.NET 10 modular monolith) on the first bounded context
+- [x] 5.1 Scaffold apps/api (.NET 10 modular monolith) on the first bounded context
+      - done as the FIRST ACT of Story #4 (Access): Access module + protected GET /me;
+        green build/arch/unit, uncommitted pending manual commit; see session 007
 - [ ] 5.2 CI path-filters (first workflow, scoped to api)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
 
@@ -81,11 +83,28 @@ Last updated: 2026-07-06.
 
 ## Current position
 
-Step 5.0 complete: PowerSync Web offline + camera spike passed all 3 gates on the
-target device; ADR-ARCH-003 cleared (PWA retained, Expo stays Phase 2).
-Next: Step 5.1 - scaffold apps/api on the first bounded context; Step 4 - btp-* agents
-to emerge JIT from the first domain story.
+Step 5.1 complete: apps/api (.NET 10 modular monolith) scaffolded as the FIRST ACT of
+Story #4 (Access), not a standalone step. The Access bounded context ships with a single
+protected endpoint GET /me resolving { userId, email, tenantId, roles } from JWT claims
+(MicroKit.Auth + MicroKit.Tenancy, Supabase auth). Green: Release build (0 warnings),
+Architecture.Tests 9/9, Access.UnitTests 8/8, OpenAPI 3.1.1 with /me present. Uncommitted
+pending manual commit (branch feature/access/scaffold-resolve-current-context). See
+session 007-2026-07-08-access-scaffold-me.md.
+
+The siteId / site-scope half of issue #4 is deliberately deferred (ADR-ARCH-004, membership
+ownership still open); issue #4 stays OPEN on that half - not closed by this scaffold.
+
+JIT, still untriggered: Step 5.2 (CI path-filters), Step 5.3 (OpenAPI -> TS generator),
+Step 4 (btp-* agents emerge from the first domain story's friction).
 
 ## Open decisions still pending
 
 - Offline conflict-resolution strategy for safety data (future ADR).
+
+## Carried debt (cross-repo / cleanup)
+
+- MicroKit follow-ups from Story #4 (findings 2-4 still open) - tracked in
+  docs/microkit-followups-from-story-4.md, to be ACTIONED in the MicroKit repo on branch
+  docs/findings-story-4-integration.
+- Remove the Microsoft.OpenApi 2.10.0 pin once Microsoft.AspNetCore.OpenApi ships a patched
+  transitive (NU1903).
