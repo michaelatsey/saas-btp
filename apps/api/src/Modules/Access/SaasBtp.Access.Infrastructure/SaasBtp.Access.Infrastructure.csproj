@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Access.Infrastructure — driving/driven adapters + composition (AddAccessModule /
+       UseAccessModule / MapAccessEndpoints), the Supabase AuthenticationHandler bridge,
+       and the GET /me endpoint. This is the only Access layer that touches ASP.NET Core. -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SaasBtp.Access.Application\SaasBtp.Access.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MicroKit.Auth" />
+    <PackageReference Include="MicroKit.Auth.AspNetCore" />
+    <PackageReference Include="MicroKit.Auth.Supabase" />
+    <PackageReference Include="MicroKit.Auth.Multitenancy" />
+    <PackageReference Include="MicroKit.Tenancy" />
+    <PackageReference Include="MicroKit.Tenancy.AspNetCore" />
+  </ItemGroup>
+
+</Project>
