@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Site.Infrastructure — driving/driven adapters + composition (AddSiteModule / UseSiteModule /
+       MapSiteEndpoints): the CurrentSite resolution middleware, the config-backed site scope
+       provider, and the GET /context endpoint. The only Site layer that touches ASP.NET Core.
+       It COMPOSES no auth/tenancy — it consumes the ITenantContext + current-user context the
+       Access module already populated (the Host runs UseSiteModule after UseAccessModule). It
+       therefore declares NO MicroKit package directly: the abstractions + Result it calls flow in
+       transitively via the Site.Application project reference (re-declaring them would be redundant). -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SaasBtp.Site.Application\SaasBtp.Site.Application.csproj" />
+  </ItemGroup>
+
+</Project>

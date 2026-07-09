@@ -23,15 +23,18 @@ This repository serves TWO pillars that must never be confused:
 
 | Need | Load |
 |------|------|
-| Product rules, scope, what NOT to build | `context/product/product-vision.md` (refs `CLAUDE-SAAS-BTP.md`) |
-| Current Phase 1 scope | `context/product/scope-phase-1.md` |
-| Backlog / user stories | `context/product/backlog.md` |
+| Product rules, what NOT to build | `context/product/product-vision.md` (refs `CLAUDE-SAAS-BTP.md`) |
+| Current Phase 1 scope + increments | `context/product/scope-phase-1.md` |
+| Detailed feature specs (fields, rules) | `context/product/specifications/` |
+| User stories / backlog | GitHub Issues (NOT a repo file) — see `context/product/issues-convention.md` |
+| Build progress (what's done / next) | `context/build-checklist.md` |
 | AI OS target & principles (north star) | `context/ai-os/ai-os-vision.md` |
 | Where we are on the AI OS journey | `context/ai-os/ai-os-roadmap.md` |
 | The documented method (career asset) | `context/ai-os/ai-os-method.md` |
 | Modular monolith decomposition | `context/architecture/architecture.md` |
+| Naming conventions (all layers) | `context/architecture/conventions/naming.md` |
 | Any decision (why) | `context/decisions/decisions-index.md` |
-| What happened last | most recent file in `sessions/` |
+| What happened last | highest-seq file in `sessions/` |
 | Agent definitions | `.claude/agents/` |
 
 Always read the most recent `sessions/` file before starting work.
@@ -43,26 +46,36 @@ Always read the most recent `sessions/` file before starting work.
 - Branches: `main` protected | `dev` integration | `feature/scope/desc` | `fix/scope/desc`
 - Conventional Commits: `feat(audit):` `fix(sync):` `docs(ai-os):` `chore(ci):`
 - ADRs: prefixed `ADR-PROD-*` / `ADR-ARCH-*` / `ADR-ORG-*` (see decisions-index.md)
-- GitHub-versioned files: plain text, no decorative emojis (status icons allowed)
-- Sessions and local notes: emojis allowed, never committed if marked local
-- GitHub operations: always `gh` CLI from WSL2, never the web UI unless necessary
-- Coolify: this project = its own Coolify project (`saas-btp`), production + staging envs
-- Credentials: saved in Bitwarden immediately on account creation
+- User stories / backlog: GitHub Issues (milestones = increments, labels = context/type/prio).
+  Never tracked in repo markdown. Repo holds durable specs and decisions only.
+- Language: all repo files in English. Sessions in English. UI labels localized (French first).
+- GitHub-versioned files: plain text, no decorative emojis (status icons allowed).
+- Sessions: committed, plain text (Option B — traceability is part of the asset).
+  Private drafts go in `.claude-context/sessions/local/` (gitignored, emojis allowed).
+- Sessions filename: `<seq>-<date>-<subject>.md` (seq = 3-digit, zero-padded).
+  Latest session = highest seq. Read it first before any work.
+- GitHub operations: always `gh` CLI from WSL2, never the web UI unless necessary.
+- Coolify: this project = its own Coolify project (`saas-btp`), production + staging envs.
+- Credentials: saved in Bitwarden immediately on account creation.
 
 ---
 
 ## Stack (validated)
 
 Backend: .NET 10 modular monolith — Hexagonal · DDD · CQRS · MicroKit ecosystem
-Web: Next.js 16+ · TypeScript · Shadcn/ui · TailwindCSS
+Web: Next.js 16+ · TypeScript · Shadcn/ui · TailwindCSS · offline-first via PowerSync Web (ADR-ARCH-003)
 Data: Supabase (PostgreSQL + Auth + Storage)
 Mobile (Phase 2): React Native (Expo) · offline-first via PowerSync
+Contract boundary: OpenAPI (ADR-ARCH-001)
 Infra: Hetzner VPS · Coolify · Cloudflare
 
 ---
 
 ## Current state
 
-- Phase: project bootstrap — structure stood up, scope Phase 1 not yet defined
-- AI OS palier: **Palier 1** (hub + core manual agents) — in progress
-- Next step: define Phase 1 vertical slice + modular monolith bounded contexts
+- Phase 1 scope and modular-monolith bounded contexts: DEFINED (Step 1 done).
+- Increment 1: Safety constat -> Corrective action -> dashboard (ADR-PROD-001),
+  shipped as an offline PWA (ADR-ARCH-003, spike-gated).
+- AI OS palier: Palier 1 (hub + core manual agents) — in progress.
+- Next step: GitHub Issues foundation (convention + labels + milestone + board),
+  then decompose increment 1 into stories. See `context/build-checklist.md`.

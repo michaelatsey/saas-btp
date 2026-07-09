@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Site.Domain — pure center (Hexagonal). References NOTHING (no MicroKit, no ASP.NET Core,
+    no EF), enforced by the architecture tests. Story A (#17) is config/claims-only: the Site
+    module owns NO Membership model and NO persistence (ADR-ARCH-004 guardrail extended here).
+    Holds the CurrentSite execution-context contract: SiteId, SiteScope, ICurrentSiteContext,
+    and the ISiteScopeProvider port (the seam Story B swaps).
+  -->
+
+</Project>

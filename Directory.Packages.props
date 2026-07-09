@@ -1,0 +1,53 @@
+<Project>
+
+  <!--
+    Central Package Management for apps/api/. Versions verified published on nuget.org.
+    Transitive pinning is intentionally OFF: only direct references need a version here.
+    MicroKit module versioning (confirmed against each package's nuspec on nuget.org):
+      - Auth family      = 1.0.0-preview.2 (all siblings released together)
+      - Tenancy family   = 1.0.0-preview.1 (only preview.1 exists for core + aspnetcore)
+      - Result           = 1.0.0-preview.2 (every MicroKit package pins exactly this — no NU1605)
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="MicroKit — Auth (1.0.0-preview.3)">
+    <PackageVersion Include="MicroKit.Auth.Abstractions" Version="1.0.0-preview.3" />
+    <PackageVersion Include="MicroKit.Auth" Version="1.0.0-preview.3" />
+    <PackageVersion Include="MicroKit.Auth.AspNetCore" Version="1.0.0-preview.3" />
+    <PackageVersion Include="MicroKit.Auth.Supabase" Version="1.0.0-preview.3" />
+    <PackageVersion Include="MicroKit.Auth.Multitenancy" Version="1.0.0-preview.3" />
+    <PackageVersion Include="MicroKit.Auth.Testing" Version="1.0.0-preview.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="MicroKit — Tenancy (1.0.0-preview.1)">
+    <PackageVersion Include="MicroKit.Tenancy.Abstractions" Version="1.0.0-preview.1" />
+    <PackageVersion Include="MicroKit.Tenancy" Version="1.0.0-preview.1" />
+    <PackageVersion Include="MicroKit.Tenancy.AspNetCore" Version="1.0.0-preview.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="MicroKit — Result (1.0.0-preview.2)">
+    <PackageVersion Include="MicroKit.Result" Version="1.0.0-preview.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="ASP.NET Core">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <!-- Microsoft.AspNetCore.OpenApi 10.0.9 pulls Microsoft.OpenApi 2.0.0 transitively, which has a
+         known high-severity advisory (GHSA-v5pm-xwqc-g5wc, parser DoS; patched in 2.7.5+). Pin the
+         latest patched 2.x so the vulnerable version is overridden rather than suppressed. Remove
+         this pin once a Microsoft.AspNetCore.OpenApi patch ships referencing a patched Microsoft.OpenApi. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Shouldly" Version="4.2.1" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+    <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+  </ItemGroup>
+
+</Project>

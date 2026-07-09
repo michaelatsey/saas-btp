@@ -1,0 +1,67 @@
+name: Story
+description: A user-facing vertical slice delivering business value.
+title: "[ctx:<context>] story: <imperative description>"
+labels: ["type:story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill this out per the issues convention. After creating the issue, apply the
+        matching `ctx:*` label (and `offline` if it touches sync), a `prio:*` label,
+        and assign it to the current increment milestone.
+  - type: dropdown
+    id: context
+    attributes:
+      label: Primary context
+      description: Exactly one bounded context owns this story. Apply the matching ctx:* label after creation.
+      options:
+        - ctx:access
+        - ctx:site
+        - ctx:safety
+        - ctx:corrective-actions
+        - ctx:media
+        - ctx:notifications
+    validations:
+      required: true
+  - type: textarea
+    id: business-value
+    attributes:
+      label: Business value
+      description: One sentence — why this matters to the field user.
+      placeholder: As a site supervisor, I can ... so that ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Testable criteria. One per line.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: offline-behavior
+    attributes:
+      label: Offline behavior
+      description: If this touches sync — what happens offline, and what happens on reconnect. Write "N/A" if it does not touch sync (and omit the offline label).
+      placeholder: Offline ... / On reconnect ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Blocking issues, specs, or ADRs. Link them.
+      placeholder: "Blocked by #.. / relates to ADR-.."
+    validations:
+      required: false
+  - type: checkboxes
+    id: dod
+    attributes:
+      label: Definition of Done acknowledgment
+      description: This story is not closed until all DoD items in issues-convention.md are met.
+      options:
+        - label: I understand this story follows the DoR/DoD defined in issues-convention.md
+          required: true

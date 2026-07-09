@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    Solution-wide MSBuild defaults for the .NET modular monolith under apps/api/.
+    Mirrors libraries/microkit/Directory.Build.props (the shared conventions), trimmed to
+    what a product host needs (no NuGet packaging metadata — nothing here is published).
+    Only affects MSBuild projects; the pnpm/Next.js side of the repo is untouched.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>
