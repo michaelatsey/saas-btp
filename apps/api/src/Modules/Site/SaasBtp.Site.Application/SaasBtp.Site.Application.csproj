@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Site.Application — use cases (Features/<UseCase>/). Host-agnostic: no ASP.NET Core.
+       Depends only on the Site domain + MicroKit *.Abstractions + Result (enforced by the
+       architecture tests). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\SaasBtp.Site.Domain\SaasBtp.Site.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MicroKit.Auth.Abstractions" />
+    <PackageReference Include="MicroKit.Tenancy.Abstractions" />
+    <PackageReference Include="MicroKit.Result" />
+  </ItemGroup>
+
+</Project>
