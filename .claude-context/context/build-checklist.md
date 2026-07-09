@@ -67,6 +67,9 @@ Last updated: 2026-07-08.
 ## Step 4 - AI OS Palier 1 tooling (JIT, after scope)
 
 - [ ] 4.1 Core btp-* agents (product, architect, implementer, reviewer, ux) - one by one
+      NOTE: post-code review (dependency-guardian, api-reviewer) ran as fresh-context
+      prompts on Story A #17 (first friction). Extraction to btp-* agent files deferred
+      to post-Safety (2 archetypes covered) - tracked as a JIT chore issue.
 - [ ] 4.2 (optional) Notion hub for steering
 - [ ] 4.3 First story implemented via agent flow -> observe where it hurts
 
@@ -79,6 +82,11 @@ Last updated: 2026-07-08.
 - [x] 5.1 Scaffold apps/api (.NET 10 modular monolith) on the first bounded context
       - done as the FIRST ACT of Story #4 (Access): Access module + protected GET /me;
         green build/arch/unit; committed and squash-merged to dev; see sessions 007, 008
+- [x] 5.1b Story A #17 (Site Context / CurrentSite): Site module + protected GET /context
+      (claims/config only, no EF, no Membership); 46 tests green; dependency-guardian +
+      api-reviewer PASS; squash-merged to dev (PR #23); #17 closed on CurrentSite perimeter.
+      Live end-to-end HTTP verification pending real Supabase token (harness:
+      apps/api/src/Host/SaasBtp.Api/SaasBtp.Api.http).
 - [ ] 5.2 CI path-filters (first workflow, scoped to api)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
 
@@ -86,47 +94,50 @@ Last updated: 2026-07-08.
 
 ## Current position
 
-Story #4 (Access) done and merged to dev: apps/api (.NET 10 modular monolith) scaffolded
-as its first act, Access bounded context shipping a single protected endpoint GET /me
-resolving { userId, email, tenantId, roles } from JWT claims (MicroKit.Auth +
-MicroKit.Tenancy, Supabase auth). Green: Release build (0 warnings), Architecture.Tests
-9/9, Access.UnitTests 8/8, OpenAPI 3.1.1 with /me present. Live Supabase /me is owner-run.
-Consumes MicroKit.Auth 1.0.0-preview.3 (the CS8852 fix #4 surfaced). See sessions 007
-(implementation), 008 (merge + initial re-split), 009 (Site story split).
+Story A #17 (Site Context / CurrentSite) DONE and merged to dev (PR #23): Site bounded
+context shipping a single protected endpoint GET /context resolving
+{ user, tenant, roles, currentSite?, availableSites[] } from JWT claims + a provisional
+config-seeded ISiteScopeProvider (ConfigurationSiteScopeProvider) - no EF, no Membership,
+no Site aggregate, no persistence. Mirrors the Access module; Site never couples Access;
+Host orchestrates pipeline order (UseSiteModule after UseAccessModule). Three-state
+resolution (SiteResolution public on the Infra impl, absent from the Domain interface;
+middleware resolves, endpoint maps to HTTP). Validation is site-belongs-to-tenant only,
+NOT user-belongs-to-site (accepted temporary over-permission, bounded by tenant isolation,
+tightened by Membership in #20). Green: Release build 0 warnings; 46 tests (Site 19 +
+Access 8 unchanged + Architecture 19, incl. 10 Site guardrails). Pre-merge review PASS
+(dependency-guardian + api-reviewer, fresh-context prompts). GET /me unchanged.
+#17 closed on its CurrentSite perimeter.
 
-Site story split (session 009): the combined Site story #17 ("membership + currentSite +
-resolution + switch") was split into two bounded, differently-paced stories, because
-CurrentSite depends only on #4 while Membership is gated on ADR-ARCH-004 — keeping them
-together re-blocked Safety on a modeling decision it does not need.
-- #17 recadrée = Story A "Site Context: resolve current site (CurrentSite)" — execution
-  context (X-Site-Id header, GET /context, ISiteScopeProvider + provisional
-  ConfigurationSiteScopeProvider, site-in-tenant validation only, no EF, no Membership).
-  Depends on #4 only. Unblocks Safety. prio:high, milestone #1.
-- #20 = Story B "Site Membership: durable user-site-role model" — gated on
-  ADR-ARCH-004 (do not pre-decide the aggregate shape), first product DbContext, backlog,
-  prio:normal, NOT in milestone #1. Security hardening, off the Safety path.
-- Story C (Site Administration) NOT created — YAGNI, no consumer in increment 1.
-ADR-ARCH-004 stays intact/immutable; no ADR-ARCH-005 now (CurrentSite<->Membership
-independence stated in Story A's body). Membership (durable user<->site<->role) and
-CurrentSite (switchable session state, not a claim) remain distinct models. Safety
-depends on Story A (#17) only.
-
-Next: frame + implement Story A (#17, CurrentSite) — scaffold the Site module in apps/api
-(ISiteScopeProvider + ConfigurationSiteScopeProvider + CurrentSite middleware + GET
-/context), config/claims only, no EF, no Membership; OR clear the MicroKit follow-ups
-from #4 first. Decide at re-entry.
+Next: Safety depends on Site (CurrentSite delivered). Candidate next moves, decide at
+re-entry:
+1. Story B #20 (Site Membership) - gated ADR-ARCH-004 (settle ownership at #20's
+   threshold), first product persistence (first DbContext + Supabase schema +
+   MicroKit.Persistence entry). Off the Safety critical path (hardening).
+2. First Safety story - depends only on CurrentSite (#17, done), so buildable now.
+3. Clear the MicroKit follow-ups from #4 (findings 2-4).
 
 JIT, still untriggered: Step 5.2 (CI path-filters), Step 5.3 (OpenAPI -> TS generator),
-Step 4 (btp-* agents emerge from the first domain story's friction).
+Step 4.1 (btp-* agents - extraction deferred to post-Safety).
 
 ## Open decisions still pending
 
 - Offline conflict-resolution strategy for safety data (future ADR).
+- Naming: bounded-context vs aggregate (module "Site" vs a future "Site" aggregate) -
+  plural-folder convention (Sites/Site.cs) assumed sufficient; revisit at the story that
+  first creates the Site aggregate (Story C / Safety). Not blocking.
 
 ## Carried debt (cross-repo / cleanup)
 
+- Live end-to-end HTTP verification of Story A #17 (4-status matrix + /me unchanged),
+  pending a real Supabase project + token. Run via apps/api/src/Host/SaasBtp.Api/SaasBtp.Api.http
+  at Supabase wiring (before/with Safety).
 - MicroKit follow-ups from Story #4 (findings 2-4 still open) - tracked in
   docs/microkit-followups-from-story-4.md, to be ACTIONED in the MicroKit repo on branch
   docs/findings-story-4-integration.
 - Remove the Microsoft.OpenApi 2.10.0 pin once Microsoft.AspNetCore.OpenApi ships a patched
   transitive (NU1903).
+- core.hooksPath points to an absent .githooks dir in the saas-btp clone - the kickoff
+  pre-push hook (force-push guard on main/dev) is NOT active locally. Reconstitute in a
+  separate infra pass.
+- Directory.Packages.props stale header comment (says Auth = preview.2; actual pins are
+  preview.3). Pre-existing doc drift, cosmetic. Fix in a separate chore pass.
