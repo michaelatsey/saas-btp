@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Modules\Access\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Site\SaasBtp.Site.Infrastructure\SaasBtp.Site.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
