@@ -1,0 +1,41 @@
+# Manual end-to-end harness for Story A — issue #17 (Site Context: resolve current site).
+#
+# This exercises the GET /context acceptance matrix by hand (REST Client / the built-in
+# .http runner). It is PENDING a real Supabase JWT: Supabase is not wired yet, so @token is
+# empty and every authenticated request below will currently fail auth (401) until a token is
+# filled in. Once Supabase is configured, paste a valid bearer token into @token and the
+# 200/403 expectations become reproducible.
+#
+# Seed (Host appsettings.json -> SiteCatalogue, dev tenant 00000000-...-000000000001):
+#   - 10000000-0000-0000-0000-0000000000a1  "Chantier Demo A"
+#   - 10000000-0000-0000-0000-0000000000a2  "Chantier Demo B"
+#
+# Port: no launchSettings.json and no Kestrel/Urls config exist, so the API uses the default
+# ASP.NET Core dev endpoint (http://localhost:5000). Adjust @baseUrl if you set ASPNETCORE_URLS.
+
+@baseUrl = http://localhost:5000
+@token =
+@siteId = 10000000-0000-0000-0000-0000000000a1
+@forgedSiteId = 99999999-9999-9999-9999-999999999999
+
+### a. Valid site in tenant -> 200, currentSite populated (Chantier Demo A), availableSites lists A + B.
+GET {{baseUrl}}/context
+Authorization: Bearer {{token}}
+X-Site-Id: {{siteId}}
+
+### b. No X-Site-Id -> 200, currentSite null, availableSites still lists A + B (caller then picks one).
+GET {{baseUrl}}/context
+Authorization: Bearer {{token}}
+
+### c. Forged / cross-tenant site -> 403 SITE.CONTEXT.SITE_NOT_IN_TENANT (header never trusted).
+GET {{baseUrl}}/context
+Authorization: Bearer {{token}}
+X-Site-Id: {{forgedSiteId}}
+
+### d. Anonymous (no Authorization) -> 401 (endpoint RequireAuthorization).
+GET {{baseUrl}}/context
+
+### e. GET /me unchanged from Story #4 -> 200 identity (X-Site-Id is ignored by /me).
+GET {{baseUrl}}/me
+Authorization: Bearer {{token}}
+X-Site-Id: {{siteId}}
