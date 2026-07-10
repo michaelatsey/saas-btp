@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-08.
+Last updated: 2026-07-10.
 
 ---
 
@@ -85,8 +85,15 @@ Last updated: 2026-07-08.
 - [x] 5.1b Story A #17 (Site Context / CurrentSite): Site module + protected GET /context
       (claims/config only, no EF, no Membership); 46 tests green; dependency-guardian +
       api-reviewer PASS; squash-merged to dev (PR #23); #17 closed on CurrentSite perimeter.
-      Live end-to-end HTTP verification pending real Supabase token (harness:
-      apps/api/src/Host/SaasBtp.Api/SaasBtp.Api.http).
+- [x] 5.1c Supabase wiring (infra only, no product code): ONE project `saas-btp`
+      (ref boxxynsffybaemctpgdt, EU); Data API off (write authority = .NET domain,
+      ADR-ARCH-005); auth = JWKS/ES256, no shared secret. appsettings.Development.json
+      (untracked) + launchSettings.json (tracked, Development on :5000) + apps/api/http/
+      manual probes. See session 012.
+- [x] 5.1d Story A end-to-end HTTP verification against real Supabase - ALL GREEN:
+      /me 401/200; /context 401/200; valid site 200; forged X-Site-Id 403
+      (SITE_NOT_IN_TENANT, proven by differential - header never trusted). Closes the
+      pending live-verification debt from session 010.
 - [ ] 5.2 CI path-filters (first workflow, scoped to api)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
 
@@ -108,13 +115,22 @@ Access 8 unchanged + Architecture 19, incl. 10 Site guardrails). Pre-merge revie
 (dependency-guardian + api-reviewer, fresh-context prompts). GET /me unchanged.
 #17 closed on its CurrentSite perimeter.
 
-Next: Safety depends on Site (CurrentSite delivered). Candidate next moves, decide at
-re-entry:
-1. Story B #20 (Site Membership) - gated ADR-ARCH-004 (settle ownership at #20's
-   threshold), first product persistence (first DbContext + Supabase schema +
-   MicroKit.Persistence entry). Off the Safety critical path (hardening).
-2. First Safety story - depends only on CurrentSite (#17, done), so buildable now.
-3. Clear the MicroKit follow-ups from #4 (findings 2-4).
+Supabase wired and Story A verified end-to-end all-green (session 012): auth JWKS/ES256,
+tenant resolution, site scoping, forged header never trusted. Auth infra de-risked in
+isolation before any Safety domain code.
+
+Next = Step 3: Safety schema + Constat code (FIRST product persistence). Gated on two
+deferred decisions to settle BEFORE any code:
+1. Id format -> record UUIDv7 (client-generated, strongly-typed VO) in
+   context/architecture/conventions/naming.md as the project-wide convention.
+2. Migrations ADR -> DbUp (SQL-first) vs EF Migrations (first product schema; leaning DbUp
+   for RLS/triggers/PowerSync CDC control). Write the ADR before the schema.
+Then implement the Constat Domain -> Application -> Infrastructure -> API, mirroring
+Access/Site, against context/architecture/safety-domain-model.md (frozen).
+
+Deferred / not on the Safety critical path:
+- Story B #20 (Site Membership) - gated ADR-ARCH-004; hardening, not blocking Safety.
+- MicroKit follow-ups from #4 (findings 2-4).
 
 JIT, still untriggered: Step 5.2 (CI path-filters), Step 5.3 (OpenAPI -> TS generator),
 Step 4.1 (btp-* agents - extraction deferred to post-Safety).
@@ -128,9 +144,15 @@ Step 4.1 (btp-* agents - extraction deferred to post-Safety).
 
 ## Carried debt (cross-repo / cleanup)
 
-- Live end-to-end HTTP verification of Story A #17 (4-status matrix + /me unchanged),
-  pending a real Supabase project + token. Run via apps/api/src/Host/SaasBtp.Api/SaasBtp.Api.http
-  at Supabase wiring (before/with Safety).
+- API error format: 403/4xx responses have empty bodies (no ProblemDetails). Wire RFC 9457
+  ProblemDetails mapping domain Result/errors -> payload, so clients (esp. offline PowerSync,
+  ADR-ARCH-005 rejection protocol) can surface a rejection reason. Trigger: after the Constat
+  story yields 2-3 real domain error types (rule of three). Resolve with the ADR-005
+  rejection protocol (same debt, two angles).
+- Test-user tenant_id set by hand via Admin API; the REAL mechanism (signup / GoTrue hook /
+  invitation delivering tenant_id) is a future Access story, not built. Also: "one user = one
+  tenant" is a static-claim assumption with a ceiling (future Access ADR, tenant pendant of
+  ADR-ARCH-004). Test user uses a personal email; consider a dedicated test@ account.
 - MicroKit follow-ups from Story #4 (findings 2-4 still open) - tracked in
   docs/microkit-followups-from-story-4.md, to be ACTIONED in the MicroKit repo on branch
   docs/findings-story-4-integration.
