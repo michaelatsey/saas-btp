@@ -55,3 +55,22 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
 Spec files (`specifications/**`) document fields in camelCase (the contract
 convention) with a French UI-label column. They do NOT use C# PascalCase or DB
 snake_case — those are derived, not authored in specs.
+
+---
+
+## Aggregate identifiers
+
+- Format: UUIDv7 (RFC 9562).
+- Storage: PostgreSQL `uuid`.
+- Domain representation: a strongly-typed Value Object
+  (`readonly record struct XId(Guid Value)`). A raw `Guid`/`string` is never used
+  as an identifier in Domain.
+- Generation: at aggregate creation time, by the creator of the aggregate.
+- Offline-created aggregates (field capture): generated client-side. The id doubles as
+  the idempotency key — a replayed create carries the same id, the server returns the
+  existing resource, never 409.
+- Rationale: time-ordered → B-tree locality on append-heavy tables + free chronological
+  sort; native in .NET 10 (`Guid.CreateVersion7`) and Postgres; generatable in JS for the
+  offline client.
+- To validate at persistence wiring: .NET v7 has no intra-ms monotonic counter and an
+  endianness quirk — verify the Npgsql `Guid`→`uuid` mapping preserves order.
