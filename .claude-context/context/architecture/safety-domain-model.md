@@ -189,7 +189,12 @@ sync lag (capture day vs sync day).
 - anti-Membership: no Membership model in Safety (ADR-ARCH-004 extended).
 - anti-Media-binary: no binary/file/storage type in Safety; media is referenced by id
   only, and not at all in this story.
-- hexagonal: Domain references nothing (no MicroKit, no EF, no ASP.NET Core).
+- hexagonal: Safety.Domain depends only on the shared DDD kernel (MicroKit.Domain,
+  MicroKit.Result). It references no infrastructure (EF Core, ASP.NET Core,
+  MicroKit.Persistence / MicroKit.AspNetCore / MicroKit.Messaging) and no other bounded
+  context. [Amended 2026-07-10: the original "references nothing (no MicroKit)" was
+  imprecise — MicroKit.Domain is the DDD kernel the aggregate is built on, not an outbound
+  dependency. First MicroKit consumption in saas-btp.]
 - no cross-context reference: Safety never references CorrectiveActions / Notifications /
   Media / Access / Site projects.
 - no event emission in this story: the aggregate persists, it does not raise. The future
@@ -213,4 +218,9 @@ sync lag (capture day vs sync day).
 
 Aggregate + Create factory + first product persistence (DbContext + MicroKit.Persistence)
 + POST /constats (idempotent on ConstatId) + GET read-back. Plain REST (400 on invalid).
+[Amended 2026-07-11: domain validation failures return 422, not 400. Every ConstatError is
+ErrorCategory.Validation, which MicroKit's ResultProblemDetailsFactory maps to 422 Unprocessable
+Entity — and 422 is the semantically correct status for well-formed JSON that fails a business
+rule. 400 stays for malformed / unbindable JSON, rejected upstream by ASP.NET before the domain
+runs. The original "400 on invalid" predates wiring the kernel's error->HTTP mapping.]
 No PowerSync client, no domain event, no Media, no status, no Membership.
