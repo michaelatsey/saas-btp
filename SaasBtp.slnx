@@ -21,9 +21,11 @@
     <Project Path="apps/api/src/Modules/Site/SaasBtp.Site.Domain/SaasBtp.Site.Domain.csproj" />
     <Project Path="apps/api/src/Modules/Site/SaasBtp.Site.Infrastructure/SaasBtp.Site.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/apps/api/src/Modules/Safety/" />
   <Folder Name="/apps/api/tests/">
     <Project Path="apps/api/tests/SaasBtp.Access.UnitTests/SaasBtp.Access.UnitTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Architecture.Tests/SaasBtp.Architecture.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Site.UnitTests/SaasBtp.Site.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/" />
 </Solution>
