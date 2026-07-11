@@ -38,7 +38,10 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
 - Timestamps: ISO 8601, stored UTC; names like `createdAt`, `updatedAt`,
   `observedAt`, `dueAt`, `closedAt`.
 - Audit fields on every persisted entity: `createdAt`, `updatedAt`, `createdBy`,
-  `deletedAt` (soft delete — CLAUDE-SAAS-BTP.md 22).
+  `deletedAt` (soft delete — CLAUDE-SAAS-BTP.md 22). This applies to mutable
+  entities; per the `sql.md` §Audit exception, insert-only aggregates (e.g. the
+  Safety `Constat`) carry `created_at` only — `updated_at`/`deletedAt`/`created_by`
+  are added when the aggregate actually gains mutation/soft-delete behaviour.
 - Collections: plural (`photos`, `comments`).
 
 ---
@@ -47,6 +50,12 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
 
 - camelCase string tokens on the wire (not integers, not SCREAMING_CASE).
 - Stable: never reuse or repurpose a token; add new ones, deprecate old ones.
+- Exception — persisted closed-set tokens: when a closed-set Value Object's token IS the stored
+  value and the DB CHECK constraint (e.g. the Safety Constat `type` / `severity`:
+  `dangerous_situation`), that snake_case token stays identical end-to-end, wire included. The
+  property-naming (camelCase) conventions above govern property names and true enum values; they do
+  NOT apply to these persisted tokens — a second, camelCase wire form would need a mapping table for
+  no benefit.
 
 ---
 
