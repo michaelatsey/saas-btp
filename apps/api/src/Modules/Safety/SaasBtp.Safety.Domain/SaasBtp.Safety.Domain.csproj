@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Safety.Domain — the pure center of the Safety bounded context (Hexagonal). It builds on the
+    shared DDD kernel ONLY: MicroKit.Domain (AggregateRoot / IValueObject / IEntityId) and
+    MicroKit.Result. It references NO infrastructure (EF Core, ASP.NET Core,
+    MicroKit.Persistence / MicroKit.AspNetCore / MicroKit.Messaging) and NO other bounded context
+    (Site / Access / CorrectiveActions / Media) — enforced by SafetyArchitectureTests
+    (safety-domain-model.md §8, amended 2026-07-10). Safety owns its OWN TenantId / SiteId typed
+    ids; it never references the Site or Access modules.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="MicroKit.Domain" />
+    <PackageReference Include="MicroKit.Result" />
+  </ItemGroup>
+
+</Project>

@@ -18,6 +18,8 @@
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Domain\SaasBtp.Site.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Application\SaasBtp.Site.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Infrastructure\SaasBtp.Site.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Safety\SaasBtp.Safety.Domain\SaasBtp.Safety.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Safety\SaasBtp.Safety.Infrastructure\SaasBtp.Safety.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Host\SaasBtp.Api\SaasBtp.Api.csproj" />
   </ItemGroup>
 
