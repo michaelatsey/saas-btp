@@ -26,8 +26,10 @@ public sealed class ConstatMappingTests : IAsyncLifetime
         await _postgres.StartAsync();
 
         // Reuse the migrator's own runner + embedded scripts: the schema asserted against is
-        // byte-for-byte the schema deployment applies (single DDL source).
-        var result = MigrationRunner.Run(_postgres.GetConnectionString());
+        // byte-for-byte the schema deployment applies (single DDL source). Apply only the PORTABLE
+        // subset — the auth-coupled scripts (0003-0005) reference auth.users / supabase_auth_admin,
+        // absent from this bare Postgres (conventions/sql.md §Auth-coupled scripts).
+        var result = MigrationRunner.Run(_postgres.GetConnectionString(), MigrationRunner.IsPortableScript);
         result.Successful.ShouldBeTrue(result.Error?.ToString());
     }
 
