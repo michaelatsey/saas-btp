@@ -47,6 +47,24 @@ The production write path for the SaaS BTP field client is
 not a write authority.** The .NET domain is the single entry point for all
 writes.
 
+[Amended 2026-07-12 (#39, auth-boundary identity provisioning): "single entry
+point for all writes" governs DOMAIN state. It carves ONE bounded exception at
+the authentication boundary. ALLOWED: the GoTrue auth lifecycle projecting a
+minimal business identity into `access.profiles` — a `SECURITY DEFINER` trigger
+on `auth.users` writing that projection at signup, and a custom access-token
+hook stamping identity claims (`observer_name`/`observer_function` top-level,
+`tenant_id` nested) into the JWT. That is provisioning tied to the identity
+provider's own lifecycle, not a business command. FORBIDDEN, unchanged: any
+business command mutating domain state via direct SQL and bypassing the
+aggregate (a `Constat`, a `CorrectiveAction`, etc. is always created through the
+API -> use case -> aggregate path above). Rationale: the identity a user carries
+is created by the auth event, before any domain command exists to run; routing
+it through the .NET write path would mean the API impersonating GoTrue's signup
+transaction. This exception is narrow (minimal identity only — no membership,
+roles, permissions, or computed state) and is fenced by
+`conventions/sql.md` §Auth-coupled scripts. The decision above stands untouched
+for everything domain-related.]
+
 The API remains the only authoritative command endpoint, whether a request
 originates online or from the offline replay queue. Online and offline writes
 are the same command hitting the same use case and the same aggregate; offline

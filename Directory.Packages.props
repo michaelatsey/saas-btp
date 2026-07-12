@@ -63,6 +63,10 @@
   <ItemGroup Label="Database migrator — DbUp (dbup-postgresql pulls dbup-core 6.1.1 + Npgsql 10.0.1)">
     <PackageVersion Include="dbup-core" Version="6.1.1" />
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
+    <!-- Direct reference for SaasBtp.Database.Migrator.Tests only: it introspects the migrated schema
+         (information_schema / pg_catalog) with plain Npgsql because access.profiles has no DbContext.
+         Pinned to the exact version dbup-postgresql already pulls transitively — no NU1605. -->
+    <PackageVersion Include="Npgsql" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup Label="ASP.NET Core">
