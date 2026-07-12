@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Same scoping as SaasBtp.Safety.IntegrationTests: doc + perf analyzers off for test code. -->
+    <NoWarn>CS1591;CA1707;CA2007;CA2012;CA1859;CA1861</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The DbUp migrator whose runner + embedded scripts build the schema this project asserts
+         against (single DDL source — ADR-ARCH-006). No DbContext exists for access.profiles and none
+         may be created, so the schema is introspected directly via Npgsql (below). -->
+    <ProjectReference Include="..\SaasBtp.Database.Migrator\SaasBtp.Database.Migrator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Shouldly" />
+    <!-- Raw catalog introspection (information_schema / pg_catalog): there is no Access DbContext to
+         reflect over, so the migrated schema is asserted with plain ADO.NET. Npgsql is pinned in
+         Directory.Packages.props at the same 10.0.1 the migrator already pulls transitively. -->
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="coverlet.collector">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

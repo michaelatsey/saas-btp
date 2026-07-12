@@ -46,5 +46,5 @@ Options rejected and why.
 | ADR-ARCH-002 | CorrectiveActions as a separate bounded context | accepted |
 | ADR-ARCH-003 | Increment 1 client = offline PWA (spike-gated), Expo in Phase 2 | accepted |
 | ADR-ARCH-004 | Ownership of Membership (deferred; Access owns none in #4) | accepted |
-| ADR-ARCH-005 | Write path: PowerSync uploadData() to the .NET API | accepted |
+| ADR-ARCH-005 | Write path: PowerSync uploadData() to the .NET API (amended 2026-07-12: auth-boundary identity-provisioning exception) | accepted |
 | ADR-ARCH-006 | DbUp owns the database schema (DDL); EF Core is runtime ORM only | accepted |

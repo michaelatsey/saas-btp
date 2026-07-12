@@ -57,3 +57,23 @@ naming.md; this file covers the database schema surface only.
 - RLS enabled on every business table; tenant-isolation policy keyed on `tenant_id`.
 - The .NET domain is the write authority (ADR-ARCH-005) and connects with a privileged role
   that bypasses RLS; RLS is defense-in-depth for any other access path.
+- RLS enabled with NO policy denies every non-owner role by default. That is correct only when a
+  table has no non-privileged consumer (e.g. `safety.constats`). A table read by a NON-privileged
+  role — one that does not bypass RLS — needs an explicit policy for that role, or its reads return
+  ZERO ROWS SILENTLY. `access.profiles` is the case in point: the JWT hook reads it as
+  `supabase_auth_admin` (which does not bypass RLS), so it carries exactly one
+  `FOR SELECT TO supabase_auth_admin` policy (0003) and nothing else.
+
+## Auth-coupled scripts
+- Within the ADR-ARCH-005 auth-boundary exception (identity provisioning), a DbUp script MAY create
+  objects ON GoTrue tables (a trigger on `auth.users`) and objects that name GoTrue roles
+  (`supabase_auth_admin` grants, policies, or `SECURITY INVOKER` functions it executes). This is the
+  ONLY place app DDL touches the `auth` schema or GoTrue roles; ordinary business DDL never does.
+- Such scripts reference objects absent from a bare PostgreSQL, so they are EXCLUDED from the
+  anti-drift Testcontainer run (which applies only the PORTABLE subset — schema, tables, RLS-enable —
+  and must succeed on bare Postgres). The exclusion is an explicit, named list in the test, so a new
+  auth-coupled script that is not listed will run on bare Postgres and fail loudly rather than be
+  skipped silently. Auth-coupled scripts are validated only against a real Supabase project, via a
+  manual checklist — never by faking `auth.users` / `supabase_auth_admin`, which would prove nothing.
+- Current auth-coupled scripts: `0003_access_profiles_permissions`, `0004_access_profiles_trigger`,
+  `0005_access_profiles_jwt_hook` (story #39).
