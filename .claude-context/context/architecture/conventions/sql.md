@@ -62,7 +62,11 @@ naming.md; this file covers the database schema surface only.
   role — one that does not bypass RLS — needs an explicit policy for that role, or its reads return
   ZERO ROWS SILENTLY. `access.profiles` is the case in point: the JWT hook reads it as
   `supabase_auth_admin` (which does not bypass RLS), so it carries exactly one
-  `FOR SELECT TO supabase_auth_admin` policy (0003) and nothing else.
+  `FOR SELECT TO supabase_auth_admin` policy (0003), `USING (true)` — an infrastructure-role grant,
+  deliberately NOT keyed on `tenant_id`. The tenant-isolation default (bullet 1) does NOT apply here:
+  `supabase_auth_admin` is trusted GoTrue infrastructure, not a tenant, and the hook has no tenant
+  context (it looks a user up by `user_id`, across tenants). Adding a `tenant_id` predicate to "fix"
+  this policy would match zero rows on every call and silently truncate every token — do NOT do it.
 
 ## Auth-coupled scripts
 - Within the ADR-ARCH-005 auth-boundary exception (identity provisioning), a DbUp script MAY create
