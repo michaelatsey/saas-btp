@@ -48,3 +48,4 @@ Options rejected and why.
 | ADR-ARCH-004 | Ownership of Membership (deferred; Access owns none in #4) | accepted |
 | ADR-ARCH-005 | Write path: PowerSync uploadData() to the .NET API (amended 2026-07-12: auth-boundary identity-provisioning exception) | accepted |
 | ADR-ARCH-006 | DbUp owns the database schema (DDL); EF Core is runtime ORM only | accepted |
+| ADR-ARCH-007 | GoTrue writes app_metadata by an UPDATE posterior to the auth.users INSERT (trigger design rule) | accepted |

@@ -28,6 +28,7 @@ public static class MigrationRunner
         "0003_access_profiles_permissions",
         "0004_access_profiles_trigger",
         "0005_access_profiles_jwt_hook",
+        "0006_access_profiles_provisioning_fix",
     ];
 
     /// <summary>

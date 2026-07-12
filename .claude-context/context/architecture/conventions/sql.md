@@ -80,4 +80,6 @@ naming.md; this file covers the database schema surface only.
   skipped silently. Auth-coupled scripts are validated only against a real Supabase project, via a
   manual checklist — never by faking `auth.users` / `supabase_auth_admin`, which would prove nothing.
 - Current auth-coupled scripts: `0003_access_profiles_permissions`, `0004_access_profiles_trigger`,
-  `0005_access_profiles_jwt_hook` (story #39).
+  `0005_access_profiles_jwt_hook` (story #39), `0006_access_profiles_provisioning_fix` (the
+  provisioning fix — ADR-ARCH-007; splits 0004's trigger into an INSERT/UPDATE provisioner plus a
+  deferred constraint-trigger guard).
