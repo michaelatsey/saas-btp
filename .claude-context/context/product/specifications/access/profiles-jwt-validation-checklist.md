@@ -1,49 +1,70 @@
-# Manual validation checklist — access.profiles + observer claims (#39)
+# Manual validation checklist — access.profiles + observer claims (#39, provisioning fix ADR-ARCH-007)
 
-Why this exists: scripts `0003_access_profiles_permissions`, `0004_access_profiles_trigger`, and
-`0005_access_profiles_jwt_hook` are auth-coupled (they touch `auth.users` and `supabase_auth_admin`)
-and CANNOT be exercised in CI — the Testcontainer run applies only the portable subset (0001, 0002).
-The trigger and the JWT hook are validated HERE, by hand, against a real Supabase project. Do this on
-staging first. A mis-granted hook can break EVERY login, so step 3 is not optional.
+Why this exists: scripts `0003_access_profiles_permissions`, `0004_access_profiles_trigger`,
+`0005_access_profiles_jwt_hook` and `0006_access_profiles_provisioning_fix` are auth-coupled (they
+touch `auth.users` and `supabase_auth_admin`) and CANNOT be exercised in CI — the Testcontainer run
+applies only the portable subset (0001, 0002). The triggers and the JWT hook are validated HERE, by
+hand, against a real Supabase project. Do this on staging first. A mis-granted hook can break EVERY
+login, so step 3 (throwaway user first) is not optional.
+
+What changed vs. the original #39 design (read ADR-ARCH-007): GoTrue writes `app_metadata` by an
+UPDATE issued AFTER the INSERT into `auth.users`, in the same transaction. The old single
+`AFTER INSERT` trigger (0004, `on_auth_user_created`) therefore never saw the `tenant_id` and raised
+`P0002` on EVERY signup. 0006 replaces it with:
+- `on_auth_user_provisioned` -> `access.provision_profile()` — fires on INSERT AND on
+  `UPDATE OF raw_app_meta_data`, so it sees the `tenant_id` when GoTrue's post-INSERT UPDATE writes it;
+- `on_auth_user_profile_required` -> `access.assert_profile_provisioned()` — a CONSTRAINT TRIGGER
+  DEFERRABLE INITIALLY DEFERRED that fires at COMMIT and rejects a signup that produced no profile.
+
+Net effect for this checklist: a signup with no server-set `tenant_id` is still rejected with
+`P0002`, but the rejection now surfaces at COMMIT (the deferred guard), not at the INSERT. A signup
+with a `tenant_id` but a blank `full_name` is rejected with `P0003` when the provisioning trigger runs
+on the app_metadata UPDATE. The Admin-API createUser call fails in both cases just as before.
 
 Legend: `[ ]` to do, `[x]` done. Fill the `<...>` placeholders before running anything.
-
-Prerequisites
-- A DIRECT, privileged Postgres connection to the target project (owner/`postgres` role, session
-  pooler — NOT PostgREST). This is the same connection the migrator needs for DDL + RLS.
-- The `tenant_id` used for signups is an existing tenant's UUID (server-set; never client-typed).
 
 ---
 
 ## 0. EXPECTED BEHAVIOR — users can ONLY be created via the Admin API (this is NOT a broken migration)
 
-Read this before touching the project, and re-read it the first time you see `P0002`. The signup
-trigger (0004) fires on EVERY insert into `auth.users` and RAISEs `P0002` when `app_metadata.tenant_id`
-is absent (and `P0003` when `user_metadata.full_name` is absent). By design — V1 is invite-only,
-server-provisioned — a user can be created ONLY through the Admin API with BOTH set server-side:
+Read this before touching the project, and re-read it the first time you see `P0002`. V1 is
+invite-only, server-provisioned: a user can be created ONLY through the Admin API with BOTH set
+server-side:
 - `app_metadata.tenant_id`  (SERVER-set, never client-supplied)
 - `user_metadata.full_name` (the mandatory observer identity)
 
-As a direct consequence, these flows WILL fail with `P0002` until the #39 constraint is revisited.
-This is EXPECTED behavior, not a fault:
-- Supabase Dashboard -> "Add user": the modal sets only email/password (no app_metadata) -> fails EVERY time.
-- OAuth first login (Google, etc.): no server-set tenant_id -> signup fails.
-- Magic-link / OTP signup of a NEW email -> fails.
-- Anonymous sign-in -> fails.
-- Bulk import: every record must carry `tenant_id` + `full_name`, or that row fails.
+As a direct consequence, these flows WILL fail until the #39 constraint is revisited. This is
+EXPECTED behavior, not a fault:
+- Supabase Dashboard -> "Add user": the modal sets only email/password (no app_metadata) -> the
+  deferred guard rejects it with `P0002` at COMMIT.
+- OAuth first login (Google, etc.): no server-set tenant_id -> `P0002` at COMMIT.
+- Magic-link / OTP signup of a NEW email -> `P0002` at COMMIT.
+- Anonymous sign-in -> `P0002` at COMMIT.
+- Bulk import: every record must carry `tenant_id` + `full_name`. The guard is a DEFERRED constraint
+  trigger evaluated at COMMIT, so if the import runs as a single transaction, ONE non-conforming record
+  rolls back the WHOLE batch at COMMIT (not just that row). Do not triage this as "find the one bad
+  row persisted alongside the good ones" — nothing from that transaction persisted.
 
-These are UPDATEs to an existing `auth.users` row, not inserts, so the trigger does NOT fire — safe:
+These are UPDATEs to an existing `auth.users` row, not inserts, so no signup guard fires — safe:
 - Existing users signing in, password recovery, email change, re-confirmation.
+  (Note: `on_auth_user_provisioned` also fires on `UPDATE OF raw_app_meta_data`. For an existing user
+  who ALREADY HAS a profile — the normal case, and every user backfilled per step 7 — this is a no-op:
+  `access.provision_profile` short-circuits on its first guard and does nothing, so an app_metadata
+  change never overwrites the captured identity. CAVEAT for a pre-existing user NOT yet backfilled (no
+  profile row): that same `UPDATE OF raw_app_meta_data` takes the provisioning path, not the
+  short-circuit. If the update carries a `tenant_id` but the user's `raw_user_meta_data.full_name` is
+  blank, it raises `P0003` and the admin metadata update FAILS. Backfill such users (step 7) before
+  editing their app_metadata.)
 
 If you see `P0002` while adding a user, the migration is working as designed — create the user via the
 Admin API (step 3) with a server-set `tenant_id`, not through the Dashboard.
 
 ---
 
-## 1. Apply migrations 0001–0005
+## 1. Apply migrations 0001-0006
 
 The human runs the migrator (never Claude, never automatically). It applies every pending script in
-order (0001..0005) in one journaled history.
+order (0001..0006) in one journaled history.
 
 ```
 # from tools/database-migrator/SaasBtp.Database.Migrator
@@ -52,14 +73,30 @@ ConnectionStrings__MigratorPostgres='<direct-owner-postgres-connection-string>' 
 ```
 
 - [ ] Output ends with "Migration complete — all pending scripts applied."
-- [ ] `schemaversions` now lists 0002..0005 (0001 was already applied in session 013).
+- [ ] `schemaversions` now lists 0002..0006 (0001 was already applied in session 013).
 
 Sanity (psql, as owner):
 ```sql
-select scriptname from schemaversions order by applied desc limit 5;
+select scriptname from schemaversions order by applied desc limit 6;
 select relrowsecurity from pg_class where oid = 'access.profiles'::regclass;          -- t
 select polname, polcmd from pg_policy where polrelid = 'access.profiles'::regclass;   -- profiles_auth_admin_select, r (SELECT)
-select proname, prosecdef from pg_proc where pronamespace = 'access'::regnamespace;   -- handle_new_user (secdef t), custom_access_token_hook (secdef f)
+
+-- 0004's objects are gone; 0006's two functions exist, both SECURITY DEFINER; the hook stays INVOKER.
+select proname, prosecdef from pg_proc where pronamespace = 'access'::regnamespace order by proname;
+-- expected: assert_profile_provisioned (t), custom_access_token_hook (f), provision_profile (t)
+-- NOT expected: handle_new_user (dropped by 0006)
+
+-- Two triggers on auth.users; the guard is a deferred constraint trigger.
+select tgname,
+       (tgconstraint <> 0) as is_constraint,
+       tgdeferrable,
+       tginitdeferred
+from pg_trigger
+where tgrelid = 'auth.users'::regclass and not tgisinternal
+order by tgname;
+-- expected: on_auth_user_profile_required (is_constraint t, deferrable t, initdeferred t)
+--           on_auth_user_provisioned      (is_constraint f)
+-- NOT expected: on_auth_user_created (dropped by 0006)
 ```
 
 ## 2. Enable the access token hook
@@ -85,13 +122,14 @@ const { data, error } = await admin.auth.admin.createUser({
   email: 'throwaway+ok@example.com',
   password: 'Throwaway-123!',
   email_confirm: true,
-  app_metadata:  { tenant_id: '<existing-tenant-uuid>' },   // SERVER-set → raw_app_meta_data
+  app_metadata:  { tenant_id: '<existing-tenant-uuid>' },   // SERVER-set -> raw_app_meta_data (via GoTrue's post-INSERT UPDATE)
   user_metadata: { full_name: 'Jeanne Test', function: 'Chef de chantier' },
 })
 console.log(error ?? data.user.id)
 ```
 
-- [ ] User created without error (the `AFTER INSERT` trigger accepted it).
+- [ ] User created without error. (The provisioning trigger inserted the profile on GoTrue's
+      app_metadata UPDATE; the deferred guard then found it at COMMIT and allowed the signup.)
 - [ ] Then sign IN as that user (password grant) to mint an access token carrying the hook's claims.
 
 ## 4. Decode the throwaway user's JWT
@@ -123,24 +161,34 @@ where user_id = '<throwaway-user-id>';
 
 ## 6. Negative tests (validation + graceful degradation)
 
-6a. Missing/blank tenant_id -> signup REJECTED with SQLSTATE P0002:
+6a. Missing/blank tenant_id -> signup REJECTED with SQLSTATE P0002 AT COMMIT (the deferred guard):
 ```js
 await admin.auth.admin.createUser({
   email: 'throwaway+no-tenant@example.com', password: 'Throwaway-123!', email_confirm: true,
   user_metadata: { full_name: 'No Tenant' },        // no app_metadata.tenant_id
 })
 ```
-- [ ] createUser fails; the error traces back to `P0002` (tenant_id missing/blank) in the DB logs.
+- [ ] createUser fails; the error traces back to `P0002` from `access.assert_profile_provisioned`
+      (no profile row) in the DB logs — raised at COMMIT, not at the INSERT.
 - [ ] No `auth.users` row and no `access.profiles` row persisted (the whole signup rolled back).
 
-6b. Missing/blank full_name -> signup REJECTED with SQLSTATE P0003:
+6b. tenant_id present but missing/blank full_name -> signup REJECTED with SQLSTATE P0003:
 ```js
 await admin.auth.admin.createUser({
   email: 'throwaway+no-name@example.com', password: 'Throwaway-123!', email_confirm: true,
   app_metadata: { tenant_id: '<existing-tenant-uuid>' },   // no user_metadata.full_name
 })
 ```
-- [ ] createUser fails; error traces back to `P0003` (full_name missing/blank).
+- [ ] createUser fails; error traces back to `P0003` from `access.provision_profile` (full_name
+      missing/blank), raised when the trigger runs on GoTrue's app_metadata UPDATE.
+- [ ] No row persisted (rolled back).
+
+SQLSTATE change vs 0004 (diagnostic note, no separate test): a MALFORMED (non-uuid) `tenant_id` no
+longer surfaces as `P0002` — 0006 validates it by the `v_tenant_text::uuid` cast in
+`access.provision_profile`, which raises `22P02` (invalid_text_representation) and rolls the signup
+back. And because the full_name check (Guard 3) precedes that cast, a malformed `tenant_id` combined
+with a blank `full_name` is MASKED by `P0003`. When debugging a rejected signup, read the SQLSTATE:
+`P0002` = no profile at COMMIT (missing tenant), `P0003` = blank full_name, `22P02` = malformed tenant.
 
 6c. Missing optional function -> login STILL SUCCEEDS, `observer_function` simply absent:
 ```js
@@ -180,16 +228,21 @@ on conflict (user_id) do nothing;
 - [ ] `GET /context` resolves the tenant (proves the NESTED `app_metadata.tenant_id` shape is intact
       and the hook did not clobber it).
 
-## 9. Rollback (if the hook misbehaves)
+## 9. Rollback (if provisioning misbehaves)
 
-First disable the hook in the dashboard (stops GoTrue calling it), then drop objects explicitly (drop
-the trigger BEFORE its function; do not rely on CASCADE):
+ALWAYS disable the hook in the dashboard FIRST (stops GoTrue calling it), THEN drop objects explicitly
+— never the inverse. Drop each trigger BEFORE its function; do not rely on CASCADE:
 
 ```sql
-drop trigger if exists on_auth_user_created on auth.users;
-drop function if exists access.handle_new_user();
+-- 1. dashboard: Authentication -> Hooks -> disable the Custom Access Token hook. THEN:
+drop trigger  if exists on_auth_user_provisioned      on auth.users;
+drop trigger  if exists on_auth_user_profile_required on auth.users;
+drop function if exists access.provision_profile();
+drop function if exists access.assert_profile_provisioned();
 drop function if exists access.custom_access_token_hook(jsonb);
 -- access.profiles + its grant/policy can stay; drop only if fully reverting #39.
+-- (Reverting to 0004's on_auth_user_created is NOT a rollback — that trigger is the bug ADR-ARCH-007
+--  documents. It was dropped by 0006 and must not be recreated.)
 ```
 
 - [ ] Logins succeed again after disabling the hook (confirms the hook was the cause, if debugging).

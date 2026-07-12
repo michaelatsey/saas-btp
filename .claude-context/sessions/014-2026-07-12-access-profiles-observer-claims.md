@@ -38,6 +38,11 @@ Story 1 branch 2 was blocked. #39 was created to fix it, minimally.
   inside the inserting transaction: true transactional atomicity. A webhook/Edge Function would only
   give "no window in practice" — and the JWT hook READS profiles, so a not-yet-created profile means
   a token without observer_name. Rejected the async alternatives on that basis.
+  > **[AMENDED 2026-07-12 — see the Amendment section below.]** The atomicity premise was misleading
+  > in practice: GoTrue writes `app_metadata` by an UPDATE *posterior* to the INSERT, so an
+  > `AFTER INSERT` trigger runs before the `tenant_id` exists. The atomicity is real but covers a
+  > value the trigger has not yet been handed. The async rejection still stands, on a corrected basis
+  > (the JWT hook read). Fixed by 0006; the fact is now ADR-ARCH-007.
 - **The trigger RAISEs (P0002 tenant_id / P0003 full_name) on missing data.** Documented explicitly
   as a **V1 PRODUCT constraint, not a technical law**: every human user files constats, a constat
   needs an observer name. A blank-name profile or a missing profile would just relocate the failure
@@ -162,6 +167,37 @@ as a CLI argument instead of using Doppler's interactive prompt). It was regener
 `doppler secrets set NAME` without `=value`** — the interactive prompt keeps the secret out of the
 command line and out of `~/.zsh_history`.
 
+
+## Amendment (2026-07-12, session 0006 / ADR-ARCH-007) — the "AFTER INSERT atomicity" premise was false in practice
+
+Recorded here, not erased: the original decision above rejected async provisioning partly on the
+premise that "an AFTER INSERT row trigger runs inside the inserting transaction: true transactional
+atomicity." That premise was misleading, and it made 0004's trigger `on_auth_user_created` raise
+`P0002` on EVERY signup, including the nominal Admin-API path.
+
+The fact (verified in `supabase/auth` source `internal/api/admin.go`, in real Postgres logs, and
+tracked by open upstream issue supabase/auth #1280): GoTrue does NOT set `app_metadata` at the INSERT.
+It applies the caller's `app_metadata` (our `tenant_id`) by a MERGE UPDATE issued *after* the INSERT,
+inside the same transaction. An `AFTER INSERT FOR EACH ROW` trigger fires before that UPDATE, so it
+structurally cannot read the `tenant_id`. The transaction is atomic, but the atomicity covers a value
+the trigger has not yet been handed — which is exactly what the original premise missed.
+
+What still holds: the async alternatives remain rejected — but on the *corrected* basis (the 0005 JWT
+hook READS `access.profiles`, so a profile that does not exist at first token issuance ships a token
+without `observer_name`), not on the "true atomicity" wording.
+
+The fix (script 0006, ADR-ARCH-007): split 0004's single trigger into
+- `access.provision_profile` on INSERT AND `UPDATE OF raw_app_meta_data` (it sees the `tenant_id` when
+  GoTrue's post-INSERT UPDATE writes it; a no-op until then), and
+- `access.assert_profile_provisioned`, a `CONSTRAINT TRIGGER DEFERRABLE INITIALLY DEFERRED` that fires
+  at COMMIT (after the UPDATE) and rejects a signup that produced no profile, depending only on
+  `NEW.id` (immutable) so it can never read a not-yet-written value.
+
+Consequence for the notes below: 0004's `on_auth_user_created` / `access.handle_new_user` are dropped
+by 0006 and must not be recreated. The "Add user fails with P0002" hazard is unchanged in outcome, but
+the rejection now happens at COMMIT (the deferred guard) rather than at the INSERT. The re-entry prompt
+below is SUPERSEDED: applying #39 means applying 0002..0006 together, and the validation checklist has
+been rewritten for the two-trigger design.
 
 ### Re-entry prompt for the web orchestration chat
 
