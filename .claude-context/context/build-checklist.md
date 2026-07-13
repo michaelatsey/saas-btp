@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-13 (identity model reversal, epic #44).
+Last updated: 2026-07-14 (#47 site schema + relationship-based authorization, ADR-ARCH-009).
 
 ---
 
@@ -99,6 +99,10 @@ Last updated: 2026-07-13 (identity model reversal, epic #44).
       `0001_safety_create_constats.sql`. Domain -> Application -> Infrastructure -> API.
       Anti-drift schema tests (plain Npgsql introspection, Testcontainers).
 - [x] 5.1g Access identity model — SQUASH + REBASELINE (#45, epic #44). See below.
+- [x] 5.1h Site schema + relationship-based authorization (#47). `0004_site_model.sql` (PORTABLE);
+      `ISiteScopeProvider.CanActInSiteScopeAsync(userId, tenantId, siteId)` reads
+      `site.site_memberships` + `access.memberships` (raw Npgsql, owner connection); ADR-ARCH-009.
+      Story-A config provider + CurrentSiteMiddleware + the `X-Site-Id` header removed.
 - [ ] 5.2 CI path-filters (first workflow, scoped to api) — still deferred (#38)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
 
@@ -123,8 +127,23 @@ become three distinct concepts.
       ADR-ARCH-008 supersedes ADR-ARCH-004.
       Validated: 118/118 CI green + manual checklist all-green against the real Supabase.
 - [x] #46 — closed as merged into #45.
-- [ ] #47 — site schema (sites, site_memberships, real ISiteScopeProvider). Closes #20's
-      deferral. **NEXT.**
+- [x] #47 — site schema + real ISiteScopeProvider. `0004_site_model.sql` (PORTABLE, anti-drift
+      tested): `site.sites` + `site.site_memberships` — TWO independent authorization edges (the site
+      edge joins the org edge from #45). `ISiteScopeProvider` is now a relationship-based check
+      `CanActInSiteScopeAsync(userId, tenantId, siteId)` reading BOTH edge tables via raw Npgsql
+      (branch a: active window-valid site membership — covers EXTERNAL people; branch b: an owner-level
+      tenant membership). The config-backed provider, `CurrentSiteMiddleware` and the `X-Site-Id` header
+      are gone for good (ADR-ARCH-005). ADR-ARCH-009 (amends ADR-ARCH-008: two edges, not one; retires
+      the ADR-ARCH-004 "no Membership model in Site" guardrail). Build + non-Docker tests green
+      (architecture 24, migrator classification 5, Site unit 10, Access 8, Safety 40). Docker-gated tests
+      (SiteSchemaTests + the 10 provider cases) are WRITTEN and compile, run where Docker is present — no
+      CI yet (#38). Closes #20's deferral.
+      DEBT (schema-first, intentional — inherited, not rediscovered):
+      (1) the two tables have NO writer; create-site / assign-site-member are #48; populated by tests only.
+      (2) `ISiteScopeProvider` has NO production caller; first caller is the constat write path (#49+),
+          which validates the payload-carried `siteId`.
+      GET /me and GET /context stay 403 (dead tenant claim, #49) — VERIFIED still 403, not a new 500:
+      `ResolveCurrentSiteHandler` guards the tenant before reading the (now unpopulated) site context.
 - [ ] #48 — onboarding CQRS: RegisterTenant, InviteMemberCommand, GET /me/workspaces.
       `access.profiles` is written EXCLUSIVELY here. Until it lands, nothing guards account
       creation — public signup MUST stay disabled in the Supabase dashboard.
@@ -154,7 +173,9 @@ longer proves access to the product — only a membership does.
 `AccessModuleExtensions` still resolves the tenant from claims, and the claim is gone.
 This is #49. **No fallback is to be added.** Do not file it as a regression.
 
-**Next = #47 (site schema).** Then #48 -> #49 -> #50 -> #51.
+**#47 implemented** (site schema + relationship-based authorization, ADR-ARCH-009) on branch
+`feature/site/site-schema-and-scope-provider` — uncommitted (the human runs git). **Next = #48**
+(onboarding CQRS). Then #49 -> #50 -> #51.
 
 The migration set is **append-only from here on**. The squash window closed with #45: it was
 only legitimate because `access.profiles` was empty, the app was not deployed, and there was

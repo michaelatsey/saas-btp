@@ -3,6 +3,10 @@
 Status: accepted
 Date: 2026-07-13
 Supersedes: ADR-ARCH-004 (Ownership of Membership deferred)
+Amended by: ADR-ARCH-009 (relationship-based authorization) — "access.tenants + access.memberships are
+the ONLY authorization bridge" (Decision, below) is amended: there are now TWO independent edges, the
+organization edge (access.memberships) and the site edge (site.site_memberships). The identity-only-JWT
+and per-request-data decisions here stand.
 Refs: ADR-ARCH-005 (.NET domain = write authority; action context in the payload), ADR-ARCH-006
 (DbUp owns the DDL), ADR-ARCH-007 (GoTrue writes app_metadata by a post-INSERT UPDATE — trigger
 design rule), migrations 0002_access_identity_model (portable: profiles + tenants + memberships) and
