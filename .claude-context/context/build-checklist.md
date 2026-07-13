@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-10.
+Last updated: 2026-07-13 (identity model reversal, epic #44).
 
 ---
 
@@ -49,6 +49,7 @@ Last updated: 2026-07-10.
 - [x] 2.4 Milestone "Increment 1 - Safety -> Corrective action"
 - [x] 2.5 Project board (Kanban) via gh
 - [x] 2.6 Commit `chore(repo): issues convention + templates` + push
+- [x] 2.7 Milestone 2 "Increment 0 - Identity, tenancy & request context" (epic #44)
 
 ---
 
@@ -61,6 +62,9 @@ Last updated: 2026-07-10.
 - [x] 3.4 Backlog re-split on bounded contexts (sessions 008, 009): Access/Site
       separated (#4 closed on Access), then Site #17 split into Story A (CurrentSite,
       #17) + Story B (Membership, #20, gated ADR-ARCH-004)
+- [x] 3.5 Epic #44 inserted BEFORE Story 1 branch 2 (session 015): the tenant/membership
+      model cannot be retrofitted into immutable evidence records, so it lands first.
+      #34 (Story 1 branch 2) is deferred behind #49. Accepted cost: several weeks.
 
 ---
 
@@ -80,86 +84,122 @@ Last updated: 2026-07-10.
 - [x] 5.0 Technical spike PowerSync Web offline + camera - 3 gates PASS, ADR-ARCH-003
       cleared, findings.md merged (PR #12), see session 005
 - [x] 5.1 Scaffold apps/api (.NET 10 modular monolith) on the first bounded context
-      - done as the FIRST ACT of Story #4 (Access): Access module + protected GET /me;
-        green build/arch/unit; committed and squash-merged to dev; see sessions 007, 008
+      - Access module + protected GET /me; sessions 007, 008
 - [x] 5.1b Story A #17 (Site Context / CurrentSite): Site module + protected GET /context
-      (claims/config only, no EF, no Membership); 46 tests green; dependency-guardian +
-      api-reviewer PASS; squash-merged to dev (PR #23); #17 closed on CurrentSite perimeter.
-- [x] 5.1c Supabase wiring (infra only, no product code): ONE project `saas-btp`
-      (ref boxxynsffybaemctpgdt, EU); Data API off (write authority = .NET domain,
-      ADR-ARCH-005); auth = JWKS/ES256, no shared secret. appsettings.Development.json
-      (untracked) + launchSettings.json (tracked, Development on :5000) + apps/api/http/
-      manual probes. See session 012.
-- [x] 5.1d Story A end-to-end HTTP verification against real Supabase - ALL GREEN:
-      /me 401/200; /context 401/200; valid site 200; forged X-Site-Id 403
-      (SITE_NOT_IN_TENANT, proven by differential - header never trusted). Closes the
-      pending live-verification debt from session 010.
-- [ ] 5.2 CI path-filters (first workflow, scoped to api)
+      (claims/config only, no EF, no Membership); PR #23; #17 closed on CurrentSite perimeter
+- [x] 5.1c Supabase wiring (infra only): ONE project `saas-btp` (ref boxxynsffybaemctpgdt, EU);
+      Data API off (write authority = .NET domain, ADR-ARCH-005); auth = JWKS/ES256, no shared
+      secret. See session 012.
+- [x] 5.1d Story A end-to-end HTTP verification against real Supabase - ALL GREEN
+- [x] 5.1e Persistence gates SETTLED (were blocking, now closed):
+      - Id format: UUIDv7, client-generated, strongly-typed VO -> `naming.md`
+      - Migrations: DbUp, sole authority for DDL; EF Core is runtime persistence only,
+        migrations disabled -> ADR-ARCH-006
+- [x] 5.1f Safety schema + Constat aggregate (first product persistence).
+      `0001_safety_create_constats.sql`. Domain -> Application -> Infrastructure -> API.
+      Anti-drift schema tests (plain Npgsql introspection, Testcontainers).
+- [x] 5.1g Access identity model — SQUASH + REBASELINE (#45, epic #44). See below.
+- [ ] 5.2 CI path-filters (first workflow, scoped to api) — still deferred (#38)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
+
+---
+
+## Epic #44 - Identity model reversal (Milestone 2)
+
+The `tenant_id`-as-a-static-JWT-claim model had a ceiling and was reversed. `tenant_id`
+leaves the JWT and leaves `access.profiles`, replaced by `access.tenants` +
+`access.memberships`. Action context (tenantId, siteId) travels in the command PAYLOAD,
+never in a header (ADR-ARCH-005). Authentication, business identity and authorization
+become three distinct concepts.
+
+- [x] #39 — access.profiles + observer claims. Merged, applied. Superseded in substance
+      by #44. Established ADR-ARCH-007 (GoTrue writes app_metadata via a post-INSERT
+      UPDATE, so no AFTER INSERT trigger on auth.users can ever see it).
+- [x] #45 — access schema: SQUASH and rebaseline. Scripts 0002..0006 deleted, replaced by
+      `0002_access_identity_model.sql` (PORTABLE, anti-drift tested) and
+      `0003_access_identity_auth.sql` (AUTH-COUPLED, checklist-validated).
+      No ALTER, no DROP IF EXISTS, **no trigger on auth.users at all**.
+      `0001_safety_create_constats` untouched, byte for byte.
+      ADR-ARCH-008 supersedes ADR-ARCH-004.
+      Validated: 118/118 CI green + manual checklist all-green against the real Supabase.
+- [x] #46 — closed as merged into #45.
+- [ ] #47 — site schema (sites, site_memberships, real ISiteScopeProvider). Closes #20's
+      deferral. **NEXT.**
+- [ ] #48 — onboarding CQRS: RegisterTenant, InviteMemberCommand, GET /me/workspaces.
+      `access.profiles` is written EXCLUSIVELY here. Until it lands, nothing guards account
+      creation — public signup MUST stay disabled in the Supabase dashboard.
+- [ ] #49 — request context (payload-carried tenant/site, validated against memberships;
+      ProblemDetails). **Repairs `/me`.**
+- [ ] #50 — RLS (spike first: `SET LOCAL app.current_tenant_id` against the session pooler
+      in transaction mode, and against PowerSync CDC).
+- [ ] #51 — Story 1 branch 2, closes #34.
 
 ---
 
 ## Current position
 
-Story A #17 (Site Context / CurrentSite) DONE and merged to dev (PR #23): Site bounded
-context shipping a single protected endpoint GET /context resolving
-{ user, tenant, roles, currentSite?, availableSites[] } from JWT claims + a provisional
-config-seeded ISiteScopeProvider (ConfigurationSiteScopeProvider) - no EF, no Membership,
-no Site aggregate, no persistence. Mirrors the Access module; Site never couples Access;
-Host orchestrates pipeline order (UseSiteModule after UseAccessModule). Three-state
-resolution (SiteResolution public on the Infra impl, absent from the Domain interface;
-middleware resolves, endpoint maps to HTTP). Validation is site-belongs-to-tenant only,
-NOT user-belongs-to-site (accepted temporary over-permission, bounded by tenant isolation,
-tightened by Membership in #20). Green: Release build 0 warnings; 46 tests (Site 19 +
-Access 8 unchanged + Architecture 19, incl. 10 Site guardrails). Pre-merge review PASS
-(dependency-guardian + api-reviewer, fresh-context prompts). GET /me unchanged.
-#17 closed on its CurrentSite perimeter.
+**#45 merged.** The `access` schema is rebaselined on the target identity model:
 
-Supabase wired and Story A verified end-to-end all-green (session 012): auth JWKS/ES256,
-tenant resolution, site scoping, forged header never trusted. Auth infra de-risked in
-isolation before any Safety domain code.
+- `access.profiles` — the human, 1:1 with `auth.users`. No tenant, no role.
+- `access.tenants` + `access.memberships` — the ONLY authorization bridge.
+  Revocation is immediate (`is_active = false`), not at token expiry.
+- JWT — identity only: `sub`, `email`, `observer_name`, `observer_function`. No tenant claim.
+- **No trigger on `auth.users`.** Onboarding is an explicit .NET command (#48).
 
-Next = Step 3: Safety schema + Constat code (FIRST product persistence). Gated on two
-deferred decisions to settle BEFORE any code:
-1. Id format -> record UUIDv7 (client-generated, strongly-typed VO) in
-   context/architecture/conventions/naming.md as the project-wide convention.
-2. Migrations ADR -> DbUp (SQL-first) vs EF Migrations (first product schema; leaning DbUp
-   for RLS/triggers/PowerSync CDC control). Write the ADR before the schema.
-Then implement the Constat Domain -> Application -> Infrastructure -> API, mirroring
-Access/Site, against context/architecture/safety-domain-model.md (frozen).
+**Deliberate break: "1 auth user = 1 profile" no longer holds.** A user can exist in
+`auth.users`, sign in, and hold a valid token with NO business identity. A valid token no
+longer proves access to the product — only a membership does.
 
-Deferred / not on the Safety critical path:
-- Story B #20 (Site Membership) - gated ADR-ARCH-004; hardening, not blocking Safety.
-- MicroKit follow-ups from #4 (findings 2-4).
+**KNOWN BROKEN, by design:** `GET /me` and every tenant-scoped path fail at runtime.
+`AccessModuleExtensions` still resolves the tenant from claims, and the claim is gone.
+This is #49. **No fallback is to be added.** Do not file it as a regression.
 
-JIT, still untriggered: Step 5.2 (CI path-filters), Step 5.3 (OpenAPI -> TS generator),
-Step 4.1 (btp-* agents - extraction deferred to post-Safety).
+**Next = #47 (site schema).** Then #48 -> #49 -> #50 -> #51.
+
+The migration set is **append-only from here on**. The squash window closed with #45: it was
+only legitimate because `access.profiles` was empty, the app was not deployed, and there was
+no data to protect. It will not reopen.
+
+---
 
 ## Open decisions still pending
 
 - Offline conflict-resolution strategy for safety data (future ADR).
-- Naming: bounded-context vs aggregate (module "Site" vs a future "Site" aggregate) -
-  plural-folder convention (Sites/Site.cs) assumed sufficient; revisit at the story that
-  first creates the Site aggregate (Story C / Safety). Not blocking.
+- **MicroKit.Tenancy extension point.** `AddMicroKitAuthMultitenancy` registers
+  `AuthTenantResolutionStrategy`, which resolves from CLAIMS. The new model resolves from the
+  PAYLOAD, validated against memberships. Clean extension point, or MicroKit follow-up?
+  To instruct at #49, not before.
+- **PowerSync publication** must include `access.memberships` (parameter queries can read
+  source tables, verified session 015). Not done. Belongs to #50 or the first sync slice.
+- Naming: bounded-context vs aggregate (module "Site" vs a future "Site" aggregate) —
+  revisit at the story that first creates the Site aggregate (#47). Not blocking.
+
+---
 
 ## Carried debt (cross-repo / cleanup)
 
-- API error format: 403/4xx responses have empty bodies (no ProblemDetails). Wire RFC 9457
-  ProblemDetails mapping domain Result/errors -> payload, so clients (esp. offline PowerSync,
-  ADR-ARCH-005 rejection protocol) can surface a rejection reason. Trigger: after the Constat
-  story yields 2-3 real domain error types (rule of three). Resolve with the ADR-005
-  rejection protocol (same debt, two angles).
-- Test-user tenant_id set by hand via Admin API; the REAL mechanism (signup / GoTrue hook /
-  invitation delivering tenant_id) is a future Access story, not built. Also: "one user = one
-  tenant" is a static-claim assumption with a ceiling (future Access ADR, tenant pendant of
-  ADR-ARCH-004). Test user uses a personal email; consider a dedicated test@ account.
-- MicroKit follow-ups from Story #4 (findings 2-4 still open) - tracked in
-  docs/microkit-followups-from-story-4.md, to be ACTIONED in the MicroKit repo on branch
-  docs/findings-story-4-integration.
+- **API error format:** 403/4xx responses have empty bodies (no ProblemDetails). Wire RFC 9457
+  mapping domain Result/errors -> payload, so clients (esp. offline PowerSync, ADR-ARCH-005
+  rejection protocol) can surface a rejection reason. Now due at #49, which needs it.
+- MicroKit follow-ups from Story #4 (findings 2-4) — tracked in
+  `docs/microkit-followups-from-story-4.md`, to be ACTIONED in the MicroKit repo.
 - Remove the Microsoft.OpenApi 2.10.0 pin once Microsoft.AspNetCore.OpenApi ships a patched
   transitive (NU1903).
-- core.hooksPath points to an absent .githooks dir in the saas-btp clone - the kickoff
+- `core.hooksPath` points to an absent `.githooks` dir in the saas-btp clone — the kickoff
   pre-push hook (force-push guard on main/dev) is NOT active locally. Reconstitute in a
   separate infra pass.
-- Directory.Packages.props stale header comment (says Auth = preview.2; actual pins are
-  preview.3). Pre-existing doc drift, cosmetic. Fix in a separate chore pass.
+- `Directory.Packages.props` stale header comment (says Auth = preview.2; actual pins are
+  preview.3). Cosmetic doc drift.
+- **Supabase legacy API keys are removed end of 2026.** New keys (`sb_publishable_` /
+  `sb_secret_`) go on the `apikey` header ONLY — adding `Authorization: Bearer` makes the
+  platform parse them as a JWT and reject with "Invalid JWT".
+
+RESOLVED, removed from this list:
+- ~~Id format gate~~ -> UUIDv7 (`naming.md`).
+- ~~Migrations ADR gate~~ -> DbUp (ADR-ARCH-006).
+- ~~"Test-user tenant_id set by hand; the real mechanism is a future Access story"~~ ->
+  the mechanism it described is DEAD. There is no tenant claim, no trigger, no static
+  tenant. `InviteMemberCommand` (#48) is the real mechanism. The debt is resolved by the
+  disappearance of its subject, not by being paid.
+- ~~"one user = one tenant is a static-claim assumption with a ceiling"~~ -> that is exactly
+  what epic #44 paid. `access.memberships` is the answer.

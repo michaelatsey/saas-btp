@@ -45,7 +45,8 @@ Options rejected and why.
 | ADR-ARCH-001 | TypeScript clients generated from OpenAPI, not from C# | accepted |
 | ADR-ARCH-002 | CorrectiveActions as a separate bounded context | accepted |
 | ADR-ARCH-003 | Increment 1 client = offline PWA (spike-gated), Expo in Phase 2 | accepted |
-| ADR-ARCH-004 | Ownership of Membership (deferred; Access owns none in #4) | accepted |
+| ADR-ARCH-004 | Ownership of Membership (deferred; Access owns none in #4) | superseded by ADR-ARCH-008 |
 | ADR-ARCH-005 | Write path: PowerSync uploadData() to the .NET API (amended 2026-07-12: auth-boundary identity-provisioning exception) | accepted |
 | ADR-ARCH-006 | DbUp owns the database schema (DDL); EF Core is runtime ORM only | accepted |
 | ADR-ARCH-007 | GoTrue writes app_metadata by an UPDATE posterior to the auth.users INSERT (trigger design rule) | accepted |
+| ADR-ARCH-008 | Identity model: profiles = human projection; tenants + memberships = authorization bridge; JWT identity-only | accepted |

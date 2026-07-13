@@ -12,15 +12,15 @@ namespace SaasBtp.Database.Migrator.Tests;
 /// isolated. Requires Docker.
 /// </summary>
 /// <remarks>
-/// The auth-coupled scripts (0003 permissions, 0004 trigger, 0005 JWT hook) are DELIBERATELY excluded:
-/// they reference <c>auth.users</c> and <c>supabase_auth_admin</c>, which exist only in a real
-/// Supabase project. We do NOT fabricate a fake GoTrue schema/role to "test" them — a green run
-/// against a fabricated auth surface proves nothing and gives false confidence about the exact thing
-/// most likely to break every login. Those three are validated by the manual checklist instead
-/// (see the session doc / specifications). The exclusion is an EXPLICIT list, not an include-match:
-/// a fourth auth-coupled script added without being listed in
-/// <see cref="MigrationRunner.AuthCoupledScriptMarkers"/> will run on bare Postgres and FAIL — the
-/// intended loud signal.
+/// The auth-coupled script (0003 identity auth: the supabase_auth_admin grant, the FOR SELECT policy,
+/// and the JWT hook it executes) is DELIBERATELY excluded: it references <c>supabase_auth_admin</c>,
+/// which exists only in a real
+/// Supabase project. We do NOT fabricate a fake GoTrue role to "test" it — a green run against a
+/// fabricated auth surface proves nothing and gives false confidence about the exact thing most likely
+/// to break every login. It is validated by the manual checklist instead (see the specifications). The
+/// exclusion is an EXPLICIT list, not an include-match: an auth-coupled script added without being
+/// listed in <see cref="MigrationRunner.AuthCoupledScriptMarkers"/> will run on bare Postgres and FAIL
+/// — the intended loud signal.
 /// </remarks>
 public sealed class ProfilesSchemaTests : IAsyncLifetime
 {
@@ -35,7 +35,7 @@ public sealed class ProfilesSchemaTests : IAsyncLifetime
 
         // Reuse the migrator's own runner + embedded scripts (single DDL source). Apply only the
         // portable subset (0001, 0002); MigrationRunner.IsPortableScript excludes the auth-coupled
-        // scripts (0003-0005) by their shared marker list — the single source of truth.
+        // script (0003) by the shared marker list — the single source of truth.
         var result = MigrationRunner.Run(
             _postgres.GetConnectionString(),
             MigrationRunner.IsPortableScript);
@@ -48,12 +48,17 @@ public sealed class ProfilesSchemaTests : IAsyncLifetime
     [Fact]
     public async Task Profiles_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
+        // Identity model (0002): profiles is the human projection — no tenant_id (that lives on
+        // memberships), email + given/family name, job_function. full_name is the entered, NOT NULL
+        // display name (never a concatenation of given/family).
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
         {
             ["user_id"] = new("uuid", MaxLength: null, IsNullable: false),
-            ["tenant_id"] = new("uuid", MaxLength: null, IsNullable: false),
+            ["email"] = new("character varying", MaxLength: 255, IsNullable: false),
             ["full_name"] = new("character varying", MaxLength: 200, IsNullable: false),
-            ["function"] = new("character varying", MaxLength: 150, IsNullable: true),
+            ["given_name"] = new("character varying", MaxLength: 200, IsNullable: true),
+            ["family_name"] = new("character varying", MaxLength: 200, IsNullable: true),
+            ["job_function"] = new("character varying", MaxLength: 150, IsNullable: true),
             ["created_at"] = new("timestamp with time zone", MaxLength: null, IsNullable: false),
         };
 
@@ -119,6 +124,59 @@ public sealed class ProfilesSchemaTests : IAsyncLifetime
         // RLS is ENABLED by 0002 even though the SELECT policy that makes it non-empty is auth-coupled
         // (0003, not run here): enabling RLS is portable, the policy is not.
         relrowsecurity.ShouldBe(true);
+    }
+
+    [Fact]
+    public async Task Profiles_Email_HasUniqueConstraint_UxProfilesEmail()
+    {
+        const string sql =
+            """
+            SELECT tc.constraint_name, kcu.column_name
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+              ON kcu.constraint_schema = tc.constraint_schema
+             AND kcu.constraint_name = tc.constraint_name
+            WHERE tc.table_schema = 'access'
+              AND tc.table_name = 'profiles'
+              AND tc.constraint_type = 'UNIQUE'
+            ORDER BY kcu.ordinal_position;
+            """;
+
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var uniqueColumns = new List<(string Constraint, string Column)>();
+        while (await reader.ReadAsync())
+            uniqueColumns.Add((reader.GetString(0), reader.GetString(1)));
+
+        // Single UNIQUE constraint named per convention (ux_<table>__<cols>), on email (0002). It is a
+        // LOCAL invariant — it stops two profile rows claiming the same e-mail identity. It does NOT
+        // prevent drift from auth.users (nothing resyncs this snapshot column).
+        uniqueColumns.ShouldHaveSingleItem();
+        uniqueColumns[0].Constraint.ShouldBe("ux_profiles__email");
+        uniqueColumns[0].Column.ShouldBe("email");
+    }
+
+    [Fact]
+    public async Task Profiles_CreatedAt_HasNoDefault()
+    {
+        const string sql =
+            """
+            SELECT column_default
+            FROM information_schema.columns
+            WHERE table_schema = 'access' AND table_name = 'profiles' AND column_name = 'created_at';
+            """;
+
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+
+        var columnDefault = await command.ExecuteScalarAsync();
+
+        // NO DB default: the .NET domain stamps created_at (ADR-ARCH-005), same as safety.constats, so
+        // an omitted stamp fails loudly at INSERT instead of being masked by now() (0002). information_
+        // schema returns SQL NULL (-> DBNull) when a column has no default.
+        columnDefault.ShouldBe(DBNull.Value);
     }
 
     private async Task<Dictionary<string, ColumnSpec>> ReadColumnsAsync()
