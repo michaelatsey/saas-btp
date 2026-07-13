@@ -1,6 +1,6 @@
 # ADR-ARCH-004 — Ownership of Membership (deferred; Access owns none in #4)
 
-Status: accepted
+Status: superseded by ADR-ARCH-008 (2026-07-13)
 Date: 2026-07-07
 
 ## Context

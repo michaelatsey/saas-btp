@@ -25,10 +25,12 @@ public static class MigrationRunner
     /// </summary>
     public static readonly IReadOnlyList<string> AuthCoupledScriptMarkers =
     [
-        "0003_access_profiles_permissions",
-        "0004_access_profiles_trigger",
-        "0005_access_profiles_jwt_hook",
-        "0006_access_profiles_provisioning_fix",
+        // 0003 names the supabase_auth_admin role (schema/table grant + the FOR SELECT policy) and
+        // defines the JWT hook it executes; none of that exists on bare Postgres. Its portable sibling
+        // 0002 (the access.profiles / tenants / memberships tables) names no GoTrue object and is
+        // deliberately NOT listed, so the anti-drift harness applies 0002 and asserts its schema while
+        // skipping 0003.
+        "0003_access_identity_auth",
     ];
 
     /// <summary>
