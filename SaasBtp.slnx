@@ -29,6 +29,7 @@
     <Project Path="apps/api/tests/SaasBtp.Access.UnitTests/SaasBtp.Access.UnitTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Architecture.Tests/SaasBtp.Architecture.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Site.UnitTests/SaasBtp.Site.UnitTests.csproj" />
+    <Project Path="apps/api/tests/SaasBtp.Site.IntegrationTests/SaasBtp.Site.IntegrationTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Safety.UnitTests/SaasBtp.Safety.UnitTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Safety.IntegrationTests/SaasBtp.Safety.IntegrationTests.csproj" />
   </Folder>
