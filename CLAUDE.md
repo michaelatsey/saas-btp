@@ -23,9 +23,10 @@ This repository serves TWO pillars that must never be confused:
 
 | Need | Load |
 |------|------|
-| Product rules, what NOT to build | `context/product/product-vision.md` (refs `CLAUDE-SAAS-BTP.md`) |
+| Product rules, what NOT to build | `context/product/product-vision.md` (refs `CLAUDE.md`) |
 | Current Phase 1 scope + increments | `context/product/scope-phase-1.md` |
 | Detailed feature specs (fields, rules) | `context/product/specifications/` |
+| How to design any new feature | `context/architecture/conventions/process-first-method.md` |
 | User stories / backlog | GitHub Issues (NOT a repo file) — see `context/product/issues-convention.md` |
 | Build progress (what's done / next) | `context/build-checklist.md` |
 | AI OS target & principles (north star) | `context/ai-os/ai-os-vision.md` |
@@ -45,7 +46,12 @@ Always read the most recent `sessions/` file before starting work.
 
 - Branches: `main` protected | `dev` integration | `feature/scope/desc` | `fix/scope/desc`
 - Conventional Commits: `feat(audit):` `fix(sync):` `docs(ai-os):` `chore(ci):`
-- ADRs: prefixed `ADR-PROD-*` / `ADR-ARCH-*` / `ADR-ORG-*` (see decisions-index.md)
+- ADRs: prefixed `ADR-PROD-*` / `ADR-ARCH-*` / `ADR-ORG-*` (see decisions-index.md).
+  ADR discovery follows the Process-First method: conceptual ADRs are written during
+  design validation; technical ADRs after infrastructure constraints are known.
+- Feature design: every new feature starts with the Process-First Design Method
+  (`context/architecture/conventions/process-first-method.md`). Business-process
+  validation precedes any technical design.
 - User stories / backlog: GitHub Issues (milestones = increments, labels = context/type/prio).
   Never tracked in repo markdown. Repo holds durable specs and decisions only.
 - Language: all repo files in English. Sessions in English. UI labels localized (French first).
@@ -68,6 +74,9 @@ Data: Supabase (PostgreSQL + Auth + Storage)
 Mobile (Phase 2): React Native (Expo) · offline-first via PowerSync
 Contract boundary: OpenAPI (ADR-ARCH-001)
 Infra: Hetzner VPS · Coolify · Cloudflare
+
+The stack is an implementation constraint, not a source of domain decisions.
+Never let a stack name drive a modelling choice.
 
 ---
 
