@@ -155,18 +155,45 @@ become three distinct concepts.
           which validates the payload-carried `siteId`.
       GET /me and GET /context stay 403 (dead tenant claim, #49) — VERIFIED still 403, not a new 500:
       `ResolveCurrentSiteHandler` guards the tenant before reading the (now unpopulated) site context.
-- [~] #48 — onboarding by invitation (ADR-ARCH-011). `access.profiles` is written EXCLUSIVELY here.
-      Until it lands, nothing guards account creation — public signup MUST stay disabled (a property of
-      the model now, not a stopgap).
-      - [x] STEP 2 (storage): `0005_access_invitations.sql` — `access.invitations` +
-        `access.invitation_sites` (see 5.1i). STORAGE ONLY: neither table has a writer yet; the outbox /
-        e-mail-delivery table is a SEPARATE later migration (MicroKit.Messaging). RLS enabled, no policy
-        (#50). Anti-drift test written; Docker-gated + unrun here.
-      - [ ] Later steps: operator tenant provisioning (createUser + profile + owner membership — an
-        OPERATOR op, NOT a public endpoint), `CreateSite`, `CreateInvitation` (issuer authz: owner/admin
-        for the org edge, site_manager-or-owner per site; roles server-imposed; revoke-then-create),
-        `AcceptInvitation` (single account-creation path: createUser+email_confirm, orphan adoption via
-        EXACT Admin-API e-mail match, golden-rule e-mail match, idempotent), `GET /me/workspaces`.
+- [~] #48 — onboarding by invitation (ADR-ARCH-011). **REWRITTEN**: the original scope assumed a
+      trigger on `auth.users` (removed in #45) and `inviteUserByEmail` as the entry point (breaks on
+      an existing e-mail, therefore on the SECOND tenant — the exact capability epic #44 delivers).
+      Both are dead. `access.profiles` is written EXCLUSIVELY here. Public signup stays disabled
+      PERMANENTLY — a property of the model now, not a stopgap.
+      - [x] STEP 1 — GoTrue spike, against the real project. `createUser` on an existing e-mail →
+        HTTP 422 / `error_code: "email_exists"`, same signature for an ORPHAN. The 422 carries no id;
+        `GET /admin/users?filter=` resolves it, so `auth.users` is NEVER read in SQL.
+      - [x] STEP 2 — storage: `0005_access_invitations.sql`. **Merged (PR #58).** See 5.1i.
+      - [ ] STEP 3 — operator tenant provisioning (createUser + profile + owner membership; an
+        OPERATOR op, NOT a public endpoint). **BLOCKED on the Access persistence decision
+        (ADR-ARCH-012) — see Current position.**
+      - [ ] STEP 4 — `CreateSite`. Closes the "no writer" debt from #47.
+      - [ ] STEP 5 — `CreateInvitation`. Issuer authz: owner/admin for the org edge; `site_manager`
+        (or a cross-site tenant role) per site — **participation is NOT permission to administer**.
+        Roles are server-imposed, never read from the request.
+      - [ ] STEP 6 — `AcceptInvitation`. The single account-creation path: profile lookup → createUser
+        → orphan adoption on 422. Golden rule: authenticated e-mail == invited e-mail. Idempotent.
+      - [ ] STEP 7 — `GET /me/workspaces`.
+
+      MANDATORY at STEP 5/6 — inherited, not to be rediscovered:
+      - **E-mails normalized (lower + trim) BEFORE writing, and a TEST proves it.**
+        `ux_invitations__tenant_id_email__pending` compares RAW strings — Postgres does not fold case.
+        Two assertions: `" Paul@Mail.com "` → stored as `paul@mail.com`; and `PAUL@MAIL.COM` on an
+        existing `pending` → UNIQUE violation, not a second live token. Without them, the
+        anti-escalation guard silently stops guarding.
+      - **Re-inviting = REVOKE-then-CREATE in ONE transaction.** The partial unique makes it
+        structurally impossible otherwise — and it is the correct behaviour: the previous token must
+        die before a new one is minted.
+      - **The Admin API e-mail lookup is a PREFIX SEARCH, not an equality.** Exact normalized match;
+        `Count == 1` → adopt; `Count > 1` → SECURITY FAILURE, abort. `.First()` would attach a business
+        identity to the WRONG PERSON — an impersonation, not a bug.
+      - **`AcceptInvitation`: NO compensation logic.** An orphaned `auth.users` row is ADOPTED on
+        retry (read-before-write IS the recovery). Deleting it would race with a concurrent retry.
+      - **Invitation validity: 7 days, in CONFIGURATION.** Never hard-coded, never a DB `DEFAULT`.
+      - **The outbox / e-mail-delivery table is a SEPARATE later migration.** Not in 0005.
+- [ ] #55 — existing-identity management: `AssignSiteMember`, `AssignTenantMember`, `ChangeRole`,
+      `RevokeMembership`. The invitation is an INDIRECT writer of the site edge, only at acceptance —
+      an existing employee joining a second site must NOT be e-mailed "create your account". After #48.
 - [ ] #49 — request context (payload-carried tenant/site, validated against memberships;
       ProblemDetails). **Repairs `/me`.**
 - [ ] #50 — RLS (spike first: `SET LOCAL app.current_tenant_id` against the session pooler
@@ -177,32 +204,61 @@ become three distinct concepts.
 
 ## Current position
 
-**#45 merged.** The `access` schema is rebaselined on the target identity model:
+**#48 — 2 of 7 steps done.**
 
-- `access.profiles` — the human, 1:1 with `auth.users`. No tenant, no role.
-- `access.tenants` + `access.memberships` — the ONLY authorization bridge.
-  Revocation is immediate (`is_active = false`), not at token expiry.
-- JWT — identity only: `sub`, `email`, `observer_name`, `observer_function`. No tenant claim.
-- **No trigger on `auth.users`.** Onboarding is an explicit .NET command (#48).
+- [x] **STEP 1 — GoTrue spike**, against the real project. Closed four Open items of ADR-ARCH-011.
+      `createUser` on an existing e-mail → **HTTP 422, `error_code: "email_exists"`** — the SAME
+      signature for an ORPHAN (`auth.users` row with no profile) as for a fully-onboarded user, which
+      is what makes **deterministic adoption** implementable. The 422 carries **no id**;
+      `GET /admin/users?filter=` resolves it, so **`auth.users` is NEVER read in SQL**.
+      ⚠️ That `filter` is a **PREFIX SEARCH**, not an equality — exact normalized match required,
+      `Count == 1` to adopt, `Count > 1` = abort. `.First()` would be an impersonation.
+- [x] **STEP 2 — storage**, `0005_access_invitations.sql`. **Merged (PR #58)**, tests green on Docker.
+- [ ] **STEP 3 — operator tenant provisioning ← NEXT. BLOCKED, see below.**
+- [ ] STEP 4 — `CreateSite` · STEP 5 — `CreateInvitation` · STEP 6 — `AcceptInvitation` ·
+      STEP 7 — `GET /me/workspaces`
 
-**Deliberate break: "1 auth user = 1 profile" no longer holds.** A user can exist in
-`auth.users`, sign in, and hold a valid token with NO business identity. A valid token no
-longer proves access to the product — only a membership does.
+**The model (ADR-ARCH-011): the TOKEN is the authorization to exist in the product.** `createUser`
+(Admin API) is the ONLY account-creation path. `inviteUserByEmail` is NOT usable — Supabase states
+explicitly it is not built for multi-tenant apps, and it fails on an existing e-mail (i.e. it breaks
+on the second tenant, the exact capability epic #44 delivers).
 
-**KNOWN BROKEN, by design:** `GET /me` and every tenant-scoped path fail at runtime.
-`AccessModuleExtensions` still resolves the tenant from claims, and the claim is gone.
-This is #49. **No fallback is to be added.** Do not file it as a regression.
+**Public signup stays DISABLED permanently.** It is a property of the model, not a stopgap until #48.
 
-**#47 merged** (site schema + relationship-based authorization, ADR-ARCH-009).
+**The two authorization edges are INDEPENDENT** (ADR-ARCH-009/010): a subcontractor holds a site
+membership with NO organization membership. Externality is a RELATIONAL FACT, not a role — there is
+no `sub_contractor` token, ever.
 
-**#48 STEP 2 (storage) implemented** — `0005_access_invitations.sql` + anti-drift tests, ADR-ARCH-011 —
-on branch `feature/access/invitations-schema`, uncommitted (the human runs git). STORAGE ONLY: the two
-invitation tables have no writer yet. **Next within #48 = the writers** (operator provisioning,
-`CreateInvitation`, `AcceptInvitation`, `GET /me/workspaces`). Then #49 -> #50 -> #51.
+**KNOWN BROKEN, by design:** `GET /me` and `GET /context` still 403 (dead tenant claim). That is #49.
+No fallback. Not a regression.
 
-The migration set is **append-only from here on**. The squash window closed with #45: it was
-only legitimate because `access.profiles` was empty, the app was not deployed, and there was
-no data to protect. It will not reopen.
+The migration set is **append-only**. The squash window closed with #45 and will not reopen.
+
+---
+
+## 🔴 BLOCKER before #48 STEP 3 — Access has no persistence layer
+
+STEP 3 writes to THREE tables transactionally (`tenants`, `profiles`, `memberships`) AND calls the
+GoTrue Admin API. **Access has NO `DbContext`** — `SiteMembershipScopeProvider` (#47) reads
+`access.memberships` in plain Npgsql.
+
+**EF Core or plain Npgsql?** This decision governs steps 3, 5, 6 and every future Access command. It
+must be taken BEFORE any code is written.
+
+Direction agreed, **NOT ratified**: an `AccessDbContext`, **EF as a MAPPER only**. DbUp stays the sole
+DDL owner and EF migrations stay disabled (ADR-ARCH-006) — exactly what `SafetyDbContext` already
+does. This is not a new architecture; it is the existing one applied to Access.
+
+**It needs ADR-ARCH-012, and the ADR needs FACTS first.** Two unknowns, to establish by READING:
+1. How `SafetyDbContext` is actually wired. Note from #47: **`AddSafetyModule` is not even invoked by
+   the Host** — EF has never run in production in this repo.
+2. What becomes of `SiteMembershipScopeProvider`. If Access gains a DbContext, there are TWO read
+   mechanisms on `access.memberships`, one of which does not share the transaction. Not blocking (it
+   is a read), but it must be NAMED, not discovered.
+
+**Unpriced consequence:** MicroKit's outbox REQUIRES a `DbContext` (`EfOutboxStore<TContext>`). If
+Access gets one, STEP 5 can consume the outbox **without waiting** for the `NpgsqlOutboxWriter` — the
+MicroKit issue becomes useful, not blocking.
 
 ---
 
@@ -217,6 +273,27 @@ no data to protect. It will not reopen.
   source tables, verified session 015). Not done. Belongs to #50 or the first sync slice.
 - Naming: bounded-context vs aggregate (module "Site" vs a future "Site" aggregate) —
   revisit at the story that first creates the Site aggregate (#47). Not blocking.
+- 🔴 **THE UNVALIDATED ASSUMPTION (ADR-ARCH-010).** The site is the authorization grain: a
+  subcontractor assigned to a site sees EVERYTHING on it, including other lots. **Nobody on this
+  project has field knowledge of the Ivorian BTP market.** Put this to the business partners BEFORE a
+  single membership row exists in production:
+  > *When a subcontractor (plumbing, electrical) works on a site: must they see ALL the safety
+  > findings on it, including those outside their lot? Or only what touches their lot?*
+  If the answer is "only their lot", **the grain reopens — and it must reopen while
+  `site.site_memberships` is still EMPTY.** This is the ONE decision on record whose cost is
+  asymmetric in time: near-zero today, very high once production rows exist.
+- **Invitation delivery channel.** ADR-ARCH-011 leaves the e-mail provider open. The token and the
+  link are independent of the TRANSPORT — for the Ivorian field, WhatsApp may beat e-mail. A PRODUCT
+  decision, due before STEP 5.
+- **MicroKit.Messaging is not consumable by saas-btp** (its own flagship consumer). Four gaps:
+  hard-coded PascalCase/no-schema naming, EF hard-wired for the outbox write, no canonical DDL for a
+  DbUp-owned consumer, inbox forced. Issue drafted LOCALLY, not committed. Blocking STEP 5 unless
+  Access gets a DbContext.
+- **ADR immutability vs amendment.** `decisions-index.md` says an ADR is "immutable once accepted,
+  and superseded (never edited)". ADR-ARCH-011 was amended THREE times in one day (spike findings,
+  security rule, operator provisioning) — none of them reversing a decision, all of them adding
+  facts established afterwards. Either the rule needs refining ("immutable on the decision, amendable
+  on facts established later"), or we stop amending. Not urgent; do not decide it under pressure.
 
 ---
 
