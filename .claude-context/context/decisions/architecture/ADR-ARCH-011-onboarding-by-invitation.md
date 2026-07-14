@@ -7,7 +7,7 @@ ADR-ARCH-006 (DbUp owns the DDL), ADR-ARCH-007 (GoTrue writes app_metadata by a 
 UPDATE — why no trigger on auth.users can be honest), ADR-ARCH-008 (identity model: profiles,
 tenants, memberships), ADR-ARCH-009 (relationship-based authorization over two independent
 edges), ADR-ARCH-010 (the site is the authorization grain).
-Issues: #48 (this), #52 (existing-identity management), #50 (RLS).
+Issues: #48 (this), #55 (existing-identity management), #50 (RLS).
 
 ## Context
 
@@ -173,13 +173,25 @@ arrived late would hold a valid token that cannot create a constat — failing o
 profile inside the acceptance transaction closes that window structurally. (Exactly when the hook runs
 relative to account creation is listed under Open — it is to be verified, not assumed.)
 
-### `RegisterTenant` — the one path with no authorizer
+### Tenant provisioning — an OPERATOR operation, not a product endpoint
 
-The first account of a new tenant has, by definition, nobody to authorize it. It creates the tenant, the
-profile, and an `owner` membership in one transaction. It is therefore the most dangerous endpoint in the
-product and must be treated as such: rate-limited, and never reachable by an already-invited e-mail path.
-Its exposure model (self-serve vs. operator-provisioned) is a PRODUCT decision that is NOT settled here;
-until it is, it is not exposed publicly.
+The first account of a new tenant has, by definition, nobody to authorize it. Rather than build a
+self-service registration path with its full anti-abuse surface (rate limiting, captcha, e-mail
+verification, duplicate handling, support), **Phase 1 does not expose self-service tenant
+registration at all.**
+
+Tenant creation is an ADMINISTRATIVE operation performed by the operator. It creates, in one
+transaction: the tenant, the initial owner's identity (`auth.users` via `createUser` + profile), and
+the `owner` membership. It is then followed by an invitation to that owner.
+
+**This is NOT a public API.** There is no `POST /tenants/register` and no `POST /tenants/provision`
+reachable by an anonymous caller. Anyone reading this ADR and building such an endpoint has
+misread it.
+
+Rationale: the product targets a single client for market entry, with accompanied onboarding. A
+public registration flow would be pure cost for a capability nobody needs. Exposing self-service
+tenant registration later is a PRODUCT decision, and it requires its own ADR — because it reopens the
+one guarded entry point this ADR exists to protect.
 
 ### Security invariants (non-negotiable)
 
@@ -205,8 +217,8 @@ until it is, it is not exposed publicly.
   ADR-ARCH-010 is answered, so #48 is not blocked by it.
 - **The invitation is an INDIRECT writer of the site edge, and only at acceptance time.** It does NOT
   remove the need for a DIRECT writer for people who already have an account: assigning an existing
-  employee to a second site must not e-mail them "create your account". That is `AssignSiteMember` (#52).
-  Do not conclude from this ADR that #52 is redundant.
+  employee to a second site must not e-mail them "create your account". That is `AssignSiteMember` (#55).
+  Do not conclude from this ADR that #55 is redundant.
 - An `auth.users` row with no business identity may exist TRANSIENTLY (a created account whose acceptance
   transaction failed). It is harmless by ADR-ARCH-008 and is recovered by the next acceptance attempt.
   **It is not an incident.**
@@ -249,4 +261,5 @@ until it is, it is not exposed publicly.
   likely unaffected — but it is the same family of trap already met on this project (new API keys go on
   the `apikey` header only). Verify on the first call.
 - **E-mail provider.** Not settled.
-- **`RegisterTenant` exposure model.** Not settled (see above).
+- ~~`RegisterTenant` exposure model~~ — **CLOSED**: no self-service in Phase 1. Tenant creation is an
+  operator provisioning operation (see above). A public self-service flow requires a future ADR.

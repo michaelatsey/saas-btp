@@ -52,4 +52,4 @@ Options rejected and why.
 | ADR-ARCH-008 | Identity model: profiles = human projection; tenants + memberships = authorization bridge; JWT identity-only (amended by ADR-ARCH-009: two independent authorization edges) | accepted |
 | ADR-ARCH-009 | Authorization model: claims-based authentication; relationship-based authorization over two independent edges (organization + site); role→scope matrix in C# (amended by ADR-ARCH-010: the site is the grain) | accepted |
 | ADR-ARCH-010 | The site is the authorization grain; lot, zone, phase and trade are business dimensions, never authorization perimeters | accepted |
-| ADR-ARCH-011 | Onboarding by invitation: the token is the authorization to exist; createUser (Admin API) is the single account-creation path; public signup permanently disabled | accepted |
+| ADR-ARCH-011 | Onboarding by invitation: the token is the authorization to exist; createUser (Admin API) is the single account-creation path; public signup permanently disabled (amended 2026-07-14: tenant provisioning is an operator operation, no self-service) | accepted |
