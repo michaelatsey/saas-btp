@@ -114,11 +114,42 @@ it gets its own typed table (append-only), not a nullable column in a generic on
 
 ### E-mail normalization (cross-cutting)
 
-**E-mails are NORMALIZED — lowercase, trimmed — at every write and every comparison.** GoTrue lowercases;
-our `ux_profiles__email` is a unique on the RAW column, so `Paul@X.fr` and `paul@x.fr` would be two
-distinct profile rows today. The DOMAIN normalizes before writing — the same discipline as timestamps
-(ADR-ARCH-005). No `CITEXT`, no functional index: `access.profiles` has exactly one writer, and the
-writer upholds the invariant.
+**E-mails are NORMALIZED — lowercase, trimmed — at every write and every comparison.** GoTrue
+lowercases; our `ux_profiles__email` is a unique on the RAW column, so `Paul@X.fr` and `paul@x.fr`
+would be two distinct profile rows today. The DOMAIN normalizes before writing — the same discipline
+as timestamps (ADR-ARCH-005). No `CITEXT`, no functional index: `access.profiles` has exactly one
+writer, and the writer upholds the invariant.
+
+#### The same holds for `ux_invitations__tenant_id_email__pending` — and it must be TESTED
+
+`access.invitations` carries a PARTIAL UNIQUE on `(tenant_id, email) WHERE status = 'pending'`
+(migration 0005): **at most one live invitation per (tenant, e-mail)**. Without it, an administrator
+clicking "invite" four times mints four live tokens for the same person — possibly with DIFFERENT
+`tenant_role` values, letting the INVITEE choose which to accept. That is an invitee-driven privilege
+escalation, the exact family #45 spent itself closing.
+
+**That index compares RAW strings.** Postgres does not fold case. So the partial unique protects
+exactly the data that already honours the domain's normalization contract — it does not, on its own,
+guarantee that two textual representations of the same address are treated as identical.
+
+The normalization invariant therefore lives in the DOMAIN, as it already does for
+`access.profiles.email`. A functional `lower(email)` index on `invitations` alone would create TWO
+different disciplines for ONE invariant, in the SAME schema. Rejected on those grounds.
+
+**But an untested invariant is a comment.** `CreateInvitation` (#48) MUST carry an integration test
+proving BOTH:
+
+- **the value stored is normalized** — inviting `" Paul@Mail.com "` writes `paul@mail.com`;
+- **the guard holds** — inviting `PAUL@MAIL.COM` to the same tenant while a `pending` invitation
+  exists raises a UNIQUE violation, not a second live token.
+
+Without that test, nothing stops a future `Invitation.Create(email)` that forgets to normalize, and
+the anti-escalation guard silently stops guarding.
+
+**Consequence for `CreateInvitation`:** re-inviting someone who already has a `pending` invitation is
+**REVOKE-then-CREATE in ONE transaction**. The partial unique makes it structurally impossible to do
+otherwise — and that is the correct behaviour anyway: the previous token must die before a new one is
+minted.
 
 ### The two commands
 
