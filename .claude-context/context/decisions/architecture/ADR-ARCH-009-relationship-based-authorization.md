@@ -10,6 +10,7 @@ migrations 0002_access_identity_model (the organization edge: access.memberships
 0004_site_model (the site edge: site.sites + site.site_memberships, portable), issues #47 (this),
 #48 (write commands: create-site / assign-site-member), #49 (.NET request-context repoint),
 #50 (RLS policies + PowerSync publication).
+Amended by: ADR-ARCH-010 (the site is the authorization grain — no sub-perimeter column on the edge)
 
 ## Context
 
