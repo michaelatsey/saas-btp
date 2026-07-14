@@ -3,7 +3,7 @@
 Progress tracker from project bootstrap to the first story ready to code.
 Update this file as items complete. Read it first in a new session to know where we are.
 
-Last updated: 2026-07-14 (#47 site schema + relationship-based authorization, ADR-ARCH-009).
+Last updated: 2026-07-14 (#48 STEP 2 storage: access invitations schema, 0005, ADR-ARCH-011).
 
 ---
 
@@ -103,6 +103,17 @@ Last updated: 2026-07-14 (#47 site schema + relationship-based authorization, AD
       `ISiteScopeProvider.CanActInSiteScopeAsync(userId, tenantId, siteId)` reads
       `site.site_memberships` + `access.memberships` (raw Npgsql, owner connection); ADR-ARCH-009.
       Story-A config provider + CurrentSiteMiddleware + the `X-Site-Id` header removed.
+- [~] 5.1i #48 STEP 2 (storage): access invitations schema. `0005_access_invitations.sql` (PORTABLE,
+      append-only): `access.invitations` (onboarding workflow — token_hash never the token; status
+      pending|accepted|revoked with `expired` DERIVED; tenant_role NULL = external invitee) +
+      `access.invitation_sites` (0..N site edges, natural composite PK, ON DELETE RESTRICT, mirrors
+      site.site_memberships so acceptance is a COPY). One PARTIAL UNIQUE
+      `ux_invitations__tenant_id_email__pending` = "at most one live invitation per (tenant, e-mail)",
+      blocks an invitee-driven role escalation. Email is varchar(255) (COPY CONSTRAINT to
+      access.profiles.email, NOT RFC 5321's 320). RLS enabled, NO policy (a policy is #50). ADR-ARCH-011.
+      Anti-drift `InvitationsSchemaTests` (positive + negative) written; classification 6/6 green
+      (non-Docker); the schema test is Docker-gated + unrun here (as #47). STORAGE ONLY — see #48 DEBT.
+      This is only STEP 2; the writers (CreateInvitation / AcceptInvitation) are later steps of #48.
 - [ ] 5.2 CI path-filters (first workflow, scoped to api) — still deferred (#38)
 - [ ] 5.3 Pick OpenAPI -> TS generator (at first client generation)
 
@@ -144,9 +155,18 @@ become three distinct concepts.
           which validates the payload-carried `siteId`.
       GET /me and GET /context stay 403 (dead tenant claim, #49) — VERIFIED still 403, not a new 500:
       `ResolveCurrentSiteHandler` guards the tenant before reading the (now unpopulated) site context.
-- [ ] #48 — onboarding CQRS: RegisterTenant, InviteMemberCommand, GET /me/workspaces.
-      `access.profiles` is written EXCLUSIVELY here. Until it lands, nothing guards account
-      creation — public signup MUST stay disabled in the Supabase dashboard.
+- [~] #48 — onboarding by invitation (ADR-ARCH-011). `access.profiles` is written EXCLUSIVELY here.
+      Until it lands, nothing guards account creation — public signup MUST stay disabled (a property of
+      the model now, not a stopgap).
+      - [x] STEP 2 (storage): `0005_access_invitations.sql` — `access.invitations` +
+        `access.invitation_sites` (see 5.1i). STORAGE ONLY: neither table has a writer yet; the outbox /
+        e-mail-delivery table is a SEPARATE later migration (MicroKit.Messaging). RLS enabled, no policy
+        (#50). Anti-drift test written; Docker-gated + unrun here.
+      - [ ] Later steps: operator tenant provisioning (createUser + profile + owner membership — an
+        OPERATOR op, NOT a public endpoint), `CreateSite`, `CreateInvitation` (issuer authz: owner/admin
+        for the org edge, site_manager-or-owner per site; roles server-imposed; revoke-then-create),
+        `AcceptInvitation` (single account-creation path: createUser+email_confirm, orphan adoption via
+        EXACT Admin-API e-mail match, golden-rule e-mail match, idempotent), `GET /me/workspaces`.
 - [ ] #49 — request context (payload-carried tenant/site, validated against memberships;
       ProblemDetails). **Repairs `/me`.**
 - [ ] #50 — RLS (spike first: `SET LOCAL app.current_tenant_id` against the session pooler
@@ -173,9 +193,12 @@ longer proves access to the product — only a membership does.
 `AccessModuleExtensions` still resolves the tenant from claims, and the claim is gone.
 This is #49. **No fallback is to be added.** Do not file it as a regression.
 
-**#47 implemented** (site schema + relationship-based authorization, ADR-ARCH-009) on branch
-`feature/site/site-schema-and-scope-provider` — uncommitted (the human runs git). **Next = #48**
-(onboarding CQRS). Then #49 -> #50 -> #51.
+**#47 merged** (site schema + relationship-based authorization, ADR-ARCH-009).
+
+**#48 STEP 2 (storage) implemented** — `0005_access_invitations.sql` + anti-drift tests, ADR-ARCH-011 —
+on branch `feature/access/invitations-schema`, uncommitted (the human runs git). STORAGE ONLY: the two
+invitation tables have no writer yet. **Next within #48 = the writers** (operator provisioning,
+`CreateInvitation`, `AcceptInvitation`, `GET /me/workspaces`). Then #49 -> #50 -> #51.
 
 The migration set is **append-only from here on**. The squash window closed with #45: it was
 only legitimate because `access.profiles` was empty, the app was not deployed, and there was

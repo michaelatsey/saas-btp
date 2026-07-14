@@ -44,14 +44,15 @@ public sealed class MigrationScriptClassificationTests
     [InlineData("0001_safety_create_constats")]
     [InlineData("0002_access_identity_model")]
     [InlineData("0004_site_model")]
+    [InlineData("0005_access_invitations")]
     public void PortableScript_IsIncluded_InPortableRun(string marker)
     {
         var resourceName = ResolveEmbeddedScript(marker);
 
         // Portable scripts name no GoTrue object, so they run on bare Postgres. 0002 (profiles + tenants
-        // + memberships) and 0004 (site.sites + site.site_memberships) are portable BY DESIGN so their
-        // schemas are anti-drift tested; the only auth-coupled half is 0003. A portable script must not be
-        // dragged off the list.
+        // + memberships), 0004 (site.sites + site.site_memberships), and 0005 (access.invitations +
+        // access.invitation_sites) are portable BY DESIGN so their schemas are anti-drift tested; the only
+        // auth-coupled half is 0003. A portable script must not be dragged off the list.
         MigrationRunner.IsPortableScript(resourceName).ShouldBeTrue();
     }
 
