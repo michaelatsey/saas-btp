@@ -50,4 +50,6 @@ Options rejected and why.
 | ADR-ARCH-006 | DbUp owns the database schema (DDL); EF Core is runtime ORM only | accepted |
 | ADR-ARCH-007 | GoTrue writes app_metadata by an UPDATE posterior to the auth.users INSERT (trigger design rule) | accepted |
 | ADR-ARCH-008 | Identity model: profiles = human projection; tenants + memberships = authorization bridge; JWT identity-only (amended by ADR-ARCH-009: two independent authorization edges) | accepted |
-| ADR-ARCH-009 | Authorization model: claims-based authentication; relationship-based authorization over two independent edges (organization + site); role→scope matrix in C# | accepted |
+| ADR-ARCH-009 | Authorization model: claims-based authentication; relationship-based authorization over two independent edges (organization + site); role→scope matrix in C# (amended by ADR-ARCH-010: the site is the grain) | accepted |
+| ADR-ARCH-010 | The site is the authorization grain; lot, zone, phase and trade are business dimensions, never authorization perimeters | accepted |
+| ADR-ARCH-011 | Onboarding by invitation: the token is the authorization to exist; createUser (Admin API) is the single account-creation path; public signup permanently disabled | accepted |
