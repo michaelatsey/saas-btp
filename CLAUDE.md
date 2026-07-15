@@ -34,6 +34,7 @@ This repository serves TWO pillars that must never be confused:
 | The documented method (career asset) | `.claude-context/context/ai-os/ai-os-method.md` |
 | Modular monolith decomposition | `.claude-context/context/architecture/architecture.md` |
 | Naming conventions (all layers) | `.claude-context/context/architecture/conventions/naming.md` |
+| Analysis vocabulary (BP, ACT, TSK...) | `context/architecture/conventions/glossary.md` |
 | Any decision (why) | `.claude-context/context/decisions/decisions-index.md` |
 | What happened last | highest-seq file in `.claude-context/sessions/` |
 | Agent definitions | `.claude/agents/` |
