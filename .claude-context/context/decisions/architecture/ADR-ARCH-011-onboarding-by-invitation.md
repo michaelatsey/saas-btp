@@ -8,6 +8,9 @@ UPDATE — why no trigger on auth.users can be honest), ADR-ARCH-008 (identity m
 tenants, memberships), ADR-ARCH-009 (relationship-based authorization over two independent
 edges), ADR-ARCH-010 (the site is the authorization grain).
 Issues: #48 (this), #55 (existing-identity management), #50 (RLS).
+Amended by: ADR-ARCH-012 (2026-07-15). The founding entry path is a self-service
+business process, BP-001 (Créer son espace entreprise) — a director creating their
+first organization and becoming its Initial Owner. See "Amendment" below.
 
 ## Context
 
@@ -274,6 +277,48 @@ entry point this ADR exists to protect.
 - **E-mails are normalized everywhere.** See the normalization rule above.
 - **Roles are server-imposed.** No role value is ever read from the invitee's request.
 - **Expiry is enforced in the domain**, not by a DB `DEFAULT` (ADR-ARCH-005).
+
+## Amendment (ADR-ARCH-012, 2026-07-15)
+
+This ADR was written treating operator provisioning as the founding entry path (the
+"single exception" above), on the assumption that market entry meant one accompanied
+client with no self-service need. That was a context assumption, not a product
+requirement, and it has been corrected.
+
+The founding entry path is BP-001 (Créer son espace entreprise): a director, external
+to the platform, creates their first organization and becomes its Initial Owner
+(ADR-ARCH-012). This is the FIRST functional business process of the product, not a
+later evolution.
+
+What this amendment changes:
+
+- The structural invariant STANDS, unchanged: there is no generic, unguarded entry
+  that creates an identity. The public GoTrue `signUp()` stays permanently disabled;
+  `createUser` (Admin API) preceded by a domain-side guard remains the only path that
+  creates an `auth.users` row. BP-001 does NOT reopen `signUp()` — founding creation is
+  a guarded business process, exactly the kind of explicit business path the invariant
+  permits, not an anonymous signup.
+- "No self-service in Phase 1" is LIFTED for the founding path. It was a scope choice
+  ("a public registration flow is pure cost for a capability nobody needs"), and this
+  ADR itself required that lifting it be done by a future ADR — that ADR is
+  ADR-ARCH-012.
+
+The product distinguishes different business processes and capabilities. They are not
+competing entry points:
+
+- Founding creation (BP-001 / ADR-ARCH-012) — a director creates their first
+  organization; relation created: Ownership. This is a founding business process.
+- Joining an existing organization (this ADR — invitation) — a person joins an
+  organization or is assigned to a site; relation created: Membership (or a site edge).
+  This is a membership business process.
+- Operator provisioning (this ADR, "Tenant provisioning" section) is NOT the founding
+  entry path anymore. It may remain as a future administrative / bootstrap capability
+  if a legitimate operational need exists, but it is outside BP-001 and is not a
+  user-facing entry path.
+
+What this amendment does NOT change: the invitation workflow, the token-as-secret
+model, the single account-creation path, `createUser` over `inviteUserByEmail`, the
+security invariants, and orphan adoption all stand as written.
 
 ## Consequences
 
