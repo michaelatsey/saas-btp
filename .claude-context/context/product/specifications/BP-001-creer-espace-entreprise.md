@@ -90,7 +90,8 @@ Company information is not an actor: it is a task input.
 - Inputs: requester identity · organization context
 - Rules / INV: exactly one initial owner at creation · an active workspace can never
   exist without an owner (creation + ownership are a single indivisible unit)
-- Outputs: a created workspace · initial ownership attributed to the requester
+- Outputs: a declared organization (Status = Declared) · a created workspace with its
+  own technical identity · initial ownership attributed to the requester
 - Errors: the workspace cannot be created · initial ownership cannot be established
 - EVT: the workspace has been created with its initial owner
 
@@ -103,7 +104,11 @@ state belongs to implementation, not to this model.
 
 ## Business rules (step 5)
 
-- INV-1 — A represented organization holds a single active company workspace.
+- INV-1 — A VERIFIED organization holds a single active workspace. An organization
+  created by BP-001 is a DECLARED organization (Status = Declared): its strong
+  uniqueness is NOT guaranteed at this stage and is established later by a separate
+  verification process. What BP-001 guarantees is a workspace with its own technical
+  identity, never a proof that the company is unique.
 - INV-2 — At creation, a workspace has exactly one initial owner.
 - INV-3 — The initial owner is the identified requester who triggered BP-001.
 - INV-4 — An active workspace can never exist without an owner (whole lifetime).
@@ -119,6 +124,24 @@ state belongs to implementation, not to this model.
 The conflict of two concurrent BP-001 instances targeting the same organization is
 NOT a separate rule — it is a consequence of INV-1, observable at the TSK-2 -> TSK-3
 transition. Its resolution is deferred (see Deferred decisions).
+
+### Organization identity maturity (refined at step 10, D5)
+
+BP-001 creates a DECLARED organization, not a verified one:
+
+    Organization
+    ------------
+    Id · DisplayName · Status ∈ { Declared, Verified(future) }
+
+- BP-001 produces Organization(Status = Declared) owning one Workspace.
+- The Workspace has its own technical identity, distinct from the organization's
+  identity. It is never a proof of the company's uniqueness.
+- The system MAY offer to join a probably-existing organization rather than create a
+  new one. This is a user-journey aid, never an atomic refusal and never a uniqueness
+  proof. HOW that probability is determined is an implementation concern, not part of
+  this model.
+- Strong organization uniqueness (INV-1 in its full sense) is introduced by a later
+  verification process, which sets Status = Verified. That process is OUT of BP-001.
 
 ## Events (EVT)
 
