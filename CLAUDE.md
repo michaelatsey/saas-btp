@@ -29,11 +29,12 @@ This repository serves TWO pillars that must never be confused:
 | How to design any new feature | `.claude-context/context/architecture/conventions/process-first-method.md` |
 | User stories / backlog | GitHub Issues (NOT a repo file) — see `.claude-context/context/product/issues-convention.md` |
 | Build progress (what's done / next) | `.claude-context/context/build-checklist.md` |
-| AI OS target & principles (north star) | `context/ai-os/ai-os-vision.md` |
+| AI OS target & principles (north star) | `.claude-context/context/ai-os/ai-os-vision.md` |
 | Where we are on the AI OS journey | `.claude-context/context/ai-os/ai-os-roadmap.md` |
 | The documented method (career asset) | `.claude-context/context/ai-os/ai-os-method.md` |
 | Modular monolith decomposition | `.claude-context/context/architecture/architecture.md` |
 | Naming conventions (all layers) | `.claude-context/context/architecture/conventions/naming.md` |
+| Analysis vocabulary (BP, ACT, TSK...) | `.claude-context/context/architecture/conventions/glossary.md` |
 | Any decision (why) | `.claude-context/context/decisions/decisions-index.md` |
 | What happened last | highest-seq file in `.claude-context/sessions/` |
 | Agent definitions | `.claude/agents/` |
