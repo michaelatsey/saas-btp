@@ -90,8 +90,10 @@ Company information is not an actor: it is a task input.
 - Inputs: requester identity · organization context
 - Rules / INV: exactly one initial owner at creation · an active workspace can never
   exist without an owner (creation + ownership are a single indivisible unit)
-- Outputs: a declared organization (Status = Declared) · a created workspace with its
-  own technical identity · initial ownership attributed to the requester
+- Outputs: a declared organization (Status = Declared) · its FIRST created workspace,
+  with its own navigation identity (unique within the organization) · initial ownership
+  attributed to the requester (owner of the organization) · initial access for the
+  founder to the created workspace
 - Errors: the workspace cannot be created · initial ownership cannot be established
 - EVT: the workspace has been created with its initial owner
 
@@ -104,11 +106,11 @@ state belongs to implementation, not to this model.
 
 ## Business rules (step 5)
 
-- INV-1 — A VERIFIED organization holds a single active workspace. An organization
-  created by BP-001 is a DECLARED organization (Status = Declared): its strong
-  uniqueness is NOT guaranteed at this stage and is established later by a separate
-  verification process. What BP-001 guarantees is a workspace with its own technical
-  identity, never a proof that the company is unique.
+- INV-1 — A VERIFIED organization holds AT LEAST ONE active workspace. BP-001
+  guarantees that a DECLARED organization immediately owns its first active workspace:
+  workspace existence does NOT wait for verification. Verification concerns the
+  organization's identity, not the existence of a workspace. An organization may hold
+  several autonomous workspaces (see "Organization and workspaces" below).
 - INV-2 — At creation, a workspace has exactly one initial owner.
 - INV-3 — The initial owner is the identified requester who triggered BP-001.
 - INV-4 — An active workspace can never exist without an owner (whole lifetime).
@@ -136,12 +138,45 @@ BP-001 creates a DECLARED organization, not a verified one:
 - BP-001 produces Organization(Status = Declared) owning one Workspace.
 - The Workspace has its own technical identity, distinct from the organization's
   identity. It is never a proof of the company's uniqueness.
-- The system MAY offer to join a probably-existing organization rather than create a
+- The system MAY offer to join a probably-existing ORGANIZATION rather than create a
   new one. This is a user-journey aid, never an atomic refusal and never a uniqueness
-  proof. HOW that probability is determined is an implementation concern, not part of
-  this model.
+  proof. Uniqueness concerns the ORGANIZATION, not the number of workspaces: creating a
+  second workspace for an existing organization is legitimate, never a duplicate-company
+  conflict. HOW an already-existing organization is detected is an implementation
+  concern, not part of this model.
 - Strong organization uniqueness (INV-1 in its full sense) is introduced by a later
   verification process, which sets Status = Verified. That process is OUT of BP-001.
+
+### Organization and workspaces (1:N)
+
+An Organization may hold SEVERAL autonomous workspaces. This is a domain fact of the
+BTP market, not a future abstraction: a construction company operates through several
+independent operational spaces — agencies, regions, activities, entities — whose teams
+do not necessarily see the same data (e.g. Construction / Maintenance / external
+Quality Control).
+
+    Organization (the client company)
+        ├── Workspace A   (e.g. Agence Abidjan)
+        ├── Workspace B   (e.g. Agence Dakar)
+        └── Workspace C   (e.g. Maintenance)
+
+- Organization = the client company: legal/commercial identity, ownership.
+- Workspace = an autonomous operational space where the company uses the product. It is
+  the intermediate boundary between the company and the construction site.
+- A workspace has its own identity within the context of its organization. Its
+  identifier must be unique among the workspaces of that organization (the same
+  workspace name may exist in two different organizations). It is NOT a global
+  organization identifier. The form of resolution (slug alone, org/workspace, public
+  UUID, ...) is a later concern, not fixed here.
+
+BP-001 creates the organization AND its FIRST workspace, atomically. Creating an
+ADDITIONAL workspace in an existing organization is a DIFFERENT business process (same
+technical capability, different intent) — out of BP-001's boundary.
+
+Note (deferred to a separate decision): whether a workspace also becomes an
+authorization perimeter is NOT decided here. This section fixes the domain fact
+(a workspace is an autonomous operational boundary); the authorization consequence is a
+separate architectural decision.
 
 ## Events (EVT)
 
@@ -197,11 +232,11 @@ flowchart TD
 
     Collect -->|Contexte insuffisant| FailCtx[Échec : organisation non représentable]
 
-    Collect --> Create[Créer l'espace et établir son Initial Owner]
+    Collect --> Create[Créer l'organisation, son premier espace et l'accès fondateur]
 
     Create -->|Invariant impossible à satisfaire| FailCreate[Échec : espace non créé]
 
-    Create --> Success([Espace entreprise créé et opérationnel])
+    Create --> Success([Organisation créée avec son premier espace opérationnel])
 ```
 
 ## Associated decisions (step 6)
