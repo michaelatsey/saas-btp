@@ -10,7 +10,7 @@ This repository serves TWO pillars that must never be confused:
 
 | Pillar | What it is | Where |
 |--------|-----------|-------|
-| **Product** | The construction SaaS itself | `.claude-context/context/product/` + `architecture/` |
+| **Product** | The construction SaaS itself | Durable specs & designs: `docs/business-processes/` · Product rules & context: `.claude-context/context/product/` + `architecture/` |
 | **AI OS** | The augmented-company operating system used to build it | `.claude-context/context/ai-os/` |
 
 > The Product is the deliverable. The AI OS is both the means AND a career asset:
@@ -25,7 +25,8 @@ This repository serves TWO pillars that must never be confused:
 |------|------|
 | Product rules, what NOT to build | `.claude-context/context/product/product-vision.md` (refs `CLAUDE.md`) |
 | Current Phase 1 scope + increments | `.claude-context/context/product/scope-phase-1.md` |
-| Detailed feature specs (fields, rules) | `.claude-context/context/product/specifications/` |
+| A business process (spec, design package, implementation design) | `docs/business-processes/BP-XXX/` |
+| Domain / feature specs (non-BP) | `.claude-context/context/product/specifications/` |
 | How to design any new feature | `.claude-context/context/architecture/conventions/process-first-method.md` |
 | User stories / backlog | GitHub Issues (NOT a repo file) — see `.claude-context/context/product/issues-convention.md` |
 | Build progress (what's done / next) | `.claude-context/context/build-checklist.md` |
@@ -43,6 +44,46 @@ Always read the most recent `.claude-context/sessions/` file before starting wor
 
 ---
 
+## Documentary model — where durable artifacts live
+
+A **Business Process** is the autonomous documentary unit. Anyone (human or AI) must be able to pick
+up a BP and derive an implementation without our conversation history.
+
+```
+docs/business-processes/BP-XXX/
+├── BP-XXX-specification.md         # WHY: business intent, scope, actors, initial business rules
+├── BP-XXX-design-package.md        # WHAT (closed business model): process, domain/MCD, invariants, lifecycle, boundaries
+└── BP-XXX-implementation-design.md # SOFTWARE HOW (durable): architecture mapping, persistence design, API & security/sync boundary, technical constraints
+```
+
+The derivation chain, and what is consigned vs derived:
+
+```
+Business Specification   (docs/business-processes/BP-XXX/)   consigned
+        ↓
+Design Package           (docs/business-processes/BP-XXX/)   consigned — business model, closed
+        ↓
+Implementation Design    (docs/business-processes/BP-XXX/)   consigned — software model, stable contract
+        ↓
+Implementation Plan      (per tool: Claude Code, dev, other AI)   DERIVED — NOT consigned
+        ↓
+Code
+```
+
+Rules:
+- The Design Package holds no realization decisions. The Implementation Design is not an
+  Implementation Plan in disguise: no task breakdown, no file-creation order, no Claude Code prompt.
+  Anything that looks like an execution step belongs to the (non-consigned) Implementation Plan.
+- The Implementation Design must permit several valid Implementation Plans but only one correct
+  interpretation of the system.
+
+**`.claude-context/` scope.** Agent context, conventions, architecture rules, Claude Code
+instructions, decisions (ADRs), and sessions. It no longer holds produced product artifacts — durable
+product specs and designs live in `docs/`. ADRs remain at their existing canonical path
+(`.claude-context/context/decisions/…`).
+
+---
+
 ## Conventions (inherited from the freelance ecosystem)
 
 - Branches: `main` protected | `dev` integration | `feature/scope/desc` | `fix/scope/desc`
@@ -53,8 +94,12 @@ Always read the most recent `.claude-context/sessions/` file before starting wor
 - Feature design: every new feature starts with the Process-First Design Method
   (`.claude-context/context/architecture/conventions/process-first-method.md`). Business-process
   validation precedes any technical design.
+- Business-process documentation: a BP is the autonomous documentary unit under
+  `docs/business-processes/BP-XXX/` (specification → design package → implementation design). See
+  the "Documentary model" section above.
 - User stories / backlog: GitHub Issues (milestones = increments, labels = context/type/prio).
-  Never tracked in repo markdown. Repo holds durable specs and decisions only.
+  Never tracked in repo markdown. Repo holds durable specs and decisions only — durable product
+  specs/designs in `docs/business-processes/`, decisions in `.claude-context/context/decisions/`.
 - Language: all repo files in English. Sessions in English. UI labels localized (French first).
 - GitHub-versioned files: plain text, no decorative emojis (status icons allowed).
 - Sessions: committed, plain text (Option B — traceability is part of the asset).
@@ -86,6 +131,9 @@ Never let a stack name drive a modelling choice.
 - Phase 1 scope and modular-monolith bounded contexts: DEFINED (Step 1 done).
 - Increment 1: Safety constat -> Corrective action -> dashboard (ADR-PROD-001),
   shipped as an offline PWA (ADR-ARCH-003, spike-gated).
+- BP-001 (Créer son espace entreprise): business model closed — specification + Design Package
+  consigned under `docs/business-processes/BP-001/`; ADR-ARCH-013 (authorization scope levels)
+  accepted. Implementation Design in progress.
 - AI OS palier: Palier 1 (hub + core manual agents) — in progress.
-- Next step: GitHub Issues foundation (convention + labels + milestone + board),
-  then decompose increment 1 into stories. See `.claude-context/context/build-checklist.md`.
+- Next step: finalize BP-001 Implementation Design, then derive its Implementation Plan.
+  See `.claude-context/context/build-checklist.md`.
