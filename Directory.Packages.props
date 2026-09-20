@@ -1,5 +1,4 @@
 <Project>
-
   <!--
     Central Package Management at the REPO ROOT: this file governs the whole tree — apps/api/ AND
     tools/ (the DbUp migrator's dbup-core/dbup-postgresql are pinned here too). Do NOT add a second
@@ -18,7 +17,6 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup Label="MicroKit — Auth (1.0.0-preview.3)">
     <PackageVersion Include="MicroKit.Auth.Abstractions" Version="1.0.0-preview.3" />
     <PackageVersion Include="MicroKit.Auth" Version="1.0.0-preview.3" />
@@ -27,17 +25,14 @@
     <PackageVersion Include="MicroKit.Auth.Multitenancy" Version="1.0.0-preview.3" />
     <PackageVersion Include="MicroKit.Auth.Testing" Version="1.0.0-preview.3" />
   </ItemGroup>
-
   <ItemGroup Label="MicroKit — Tenancy (1.0.0-preview.1)">
     <PackageVersion Include="MicroKit.Tenancy.Abstractions" Version="1.0.0-preview.1" />
     <PackageVersion Include="MicroKit.Tenancy" Version="1.0.0-preview.1" />
     <PackageVersion Include="MicroKit.Tenancy.AspNetCore" Version="1.0.0-preview.1" />
   </ItemGroup>
-
   <ItemGroup Label="MicroKit — Result (1.0.0-preview.2)">
     <PackageVersion Include="MicroKit.Result" Version="1.0.0-preview.2" />
   </ItemGroup>
-
   <!-- First MicroKit.Domain + Persistence consumption in saas-btp (Safety/Constat foundation).
        Versions form MicroKit's own tested matrix and resolve to Result 1.0.0-preview.2 (already
        pinned above) — verified via nuspec, no NU1605. Transitive pinning stays OFF: only direct
@@ -45,21 +40,59 @@
   <ItemGroup Label="MicroKit — Domain (1.0.0-preview.5)">
     <PackageVersion Include="MicroKit.Domain" Version="1.0.0-preview.5" />
   </ItemGroup>
-
-  <ItemGroup Label="MicroKit — Persistence EF packages (preview.3; pull Persistence core + .Abstractions preview.2 transitively)">
+  <!-- CQRS socle (architecture.md §4: "CQRS via MicroKit.MediatR"). First direct consumption in
+       saas-btp: the Access module's Application layer references the abstractions, its Infrastructure
+       composition root the implementation. Both siblings released together at preview.2, which is the
+       Result version already pinned above — no NU1605. -->
+  <ItemGroup Label="MicroKit — MediatR (1.0.0-preview.2)">
+    <PackageVersion Include="MicroKit.MediatR.Abstractions" Version="1.0.0-preview.2" />
+    <PackageVersion Include="MicroKit.MediatR" Version="1.0.0-preview.2" />
+    <!-- The built-in pipeline behaviors (Logging 100 · Authorization 200 · Validation 300 ·
+         Idempotency 400 · Caching 500 · Retry 600 · Transaction 700). Same release train as the two
+         siblings above — its nuspec pins MicroKit.MediatR and .Abstractions at exactly preview.2, so
+         no NU1605. Referenced by the Access module's Infrastructure (the composition root); it pulls
+         Microsoft.AspNetCore.Authorization transitively, which is why it may not go any deeper than
+         Infrastructure. It also requires FluentValidation >= 12.1.1 — see the Validation group. -->
+    <PackageVersion Include="MicroKit.MediatR.Behaviors" Version="1.0.0-preview.2" />
+  </ItemGroup>
+  <ItemGroup Label="MicroKit — Persistence EF packages (preview.3; pull Persistence core transitively)">
     <PackageVersion Include="MicroKit.Persistence.EntityFrameworkCore" Version="1.0.0-preview.3" />
     <PackageVersion Include="MicroKit.Persistence.EntityFrameworkCore.PostgreSql" Version="1.0.0-preview.3" />
+    <!-- Now a DIRECT reference (the Access module's Infrastructure implements persistence ports), so it
+         is pinned here per this file's "only direct references need a version" policy. Pinned preview.3
+         while the two EF packages still pull preview.2 TRANSITIVELY — and that is not a conflict:
+         transitive pinning is off (see the header), so a PackageVersion only binds projects that
+         reference the package DIRECTLY. Verified in project.assets.json: SaasBtp.Access.Infrastructure
+         resolves preview.3, SaasBtp.Safety.Infrastructure still resolves preview.2. Two versions coexist
+         in the solution, each scoped to its own projects; no NU1605, no downgrade. -->
+    <PackageVersion Include="MicroKit.Persistence.Abstractions" Version="1.0.0-preview.3" />
   </ItemGroup>
-
   <ItemGroup Label="Entity Framework Core (runtime ORM; DbUp owns DDL — ADR-ARCH-006)">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
   </ItemGroup>
-
   <ItemGroup Label="Microsoft.Extensions — config for module composition">
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <!-- Direct references from the Access module: .Abstractions for the layers that only declare
+         registrations, the implementation for the test projects that build a ServiceProvider. -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <!-- Typed HttpClient (AddHttpClient) for the GoTrue Admin API identity provisioner
+         (ADR-ARCH-011: apikey header alone, orphan adoption on 422). In-memory configuration is the
+         composition smoke tests' IConfiguration source. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
   </ItemGroup>
-
+  <ItemGroup Label="Validation">
+    <!-- FluentValidation validators are opt-in per request (cqrs-mediatr rule); executed by
+         MicroKit's ValidationBehavior (order 300), registered via AddValidationBehavior().
+         Raised 12.0.0 -> 12.1.1 because MicroKit.MediatR.Behaviors 1.0.0-preview.2 depends on
+         FluentValidation >= 12.1.1: FluentValidation is a DIRECT reference of the Access
+         Application and Infrastructure projects, so this pin binds them, and leaving it at 12.0.0
+         makes NuGet report NU1605 (package downgrade) instead of resolving. 12.1.1 is the latest
+         12.x on nuget.org. -->
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+  </ItemGroup>
   <ItemGroup Label="Database migrator — DbUp (dbup-postgresql pulls dbup-core 6.1.1 + Npgsql 10.0.1)">
     <PackageVersion Include="dbup-core" Version="6.1.1" />
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
@@ -68,7 +101,6 @@
          Pinned to the exact version dbup-postgresql already pulls transitively — no NU1605. -->
     <PackageVersion Include="Npgsql" Version="10.0.1" />
   </ItemGroup>
-
   <ItemGroup Label="ASP.NET Core">
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
     <!-- Microsoft.AspNetCore.OpenApi 10.0.9 pulls Microsoft.OpenApi 2.0.0 transitively, which has a
@@ -77,7 +109,6 @@
          this pin once a Microsoft.AspNetCore.OpenApi patch ships referencing a patched Microsoft.OpenApi. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
   </ItemGroup>
-
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
@@ -88,7 +119,6 @@
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <!-- Ephemeral PostgreSQL for the anti-drift mapping test (ADR-ARCH-006): DbUp migrates it, the
          real DbContext round-trips against it. Requires Docker on the test/CI runner. -->
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
   </ItemGroup>
-
 </Project>

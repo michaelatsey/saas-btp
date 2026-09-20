@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CQRS contracts: ICommand / IQuery / ICommandHandler / IQueryHandler (abstractions only). -->
+    <PackageReference Include="MicroKit.MediatR.Abstractions" />
+    <!-- Result / Result<T> as the canonical handler return type. -->
+    <PackageReference Include="MicroKit.Result" />
+    <!-- IServiceCollection for the application composition seam. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- Declarative, opt-in input validation (cqrs-mediatr rule); executed by the module's
+         ValidationBehavior registered at the Infrastructure composition root. -->
+    <PackageReference Include="FluentValidation" />
+    <!-- IUnitOfWork — the commit boundary. MicroKit ADR-001 moved it OUT of MicroKit.Domain into
+         Persistence.Abstractions ("committing is an infrastructure concern"), and prescribes
+         injecting it in COMMAND HANDLERS only. Abstractions-only package: no EF, no provider. -->
+    <PackageReference Include="MicroKit.Persistence.Abstractions" />
+  </ItemGroup>
+
+</Project>

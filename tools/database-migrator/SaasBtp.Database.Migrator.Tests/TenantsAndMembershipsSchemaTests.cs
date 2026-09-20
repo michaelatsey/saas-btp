@@ -45,7 +45,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
     // access.tenants
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Tenants_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -59,11 +59,11 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("tenants", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Tenants_PrimaryKey_IsPkTenants_OnId() =>
         await AssertSingleColumnPrimaryKeyAsync("tenants", "pk_tenants", "id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Tenants_Status_HasCheckConstraint_WithActiveAndSuspended()
     {
         var checks = await ReadCheckConstraintsAsync("tenants");
@@ -74,7 +74,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         checks[0].Definition.ShouldContain("suspended");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Tenants_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("tenants")).ShouldBe(true);
 
@@ -82,7 +82,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
     // access.memberships
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -98,11 +98,11 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("memberships", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_PrimaryKey_IsPkMemberships_OnId() =>
         await AssertSingleColumnPrimaryKeyAsync("memberships", "pk_memberships", "id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_Role_HasCheckConstraint_WithOwnerAdminMember()
     {
         var checks = await ReadCheckConstraintsAsync("memberships");
@@ -114,7 +114,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         checks[0].Definition.ShouldContain("member");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_HasForeignKeys_ToTenantsAndProfiles()
     {
         const string sql =
@@ -152,7 +152,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         foreignKeys.ShouldContain(("fk_memberships__tenants", "tenant_id", "tenants", "id"));
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_HasUniqueConstraint_OnTenantIdUserId()
     {
         const string sql =
@@ -184,7 +184,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         uniqueColumns[1].ShouldBe(("ux_memberships__tenant_id_user_id", "user_id"));
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_HasUserIdIndex_ButNoStandaloneTenantIdIndex()
     {
         const string sql =
@@ -209,7 +209,7 @@ public sealed class TenantsAndMembershipsSchemaTests : IAsyncLifetime
         indexes.ShouldNotContain("ix_memberships__tenant_id");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): legacy access.tenants/memberships DDL (0002) removed on the clean slate; superseded by the BP-001 founding model. Re-enable/replace when that context returns.")]
     public async Task Memberships_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("memberships")).ShouldBe(true);
 

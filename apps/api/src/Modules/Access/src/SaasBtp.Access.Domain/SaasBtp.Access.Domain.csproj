@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- MicroKit DDD primitives: AggregateRoot, Entity, ValueObject, IRepository, GuidId. -->
+    <PackageReference Include="MicroKit.Domain" />
+  </ItemGroup>
+
+</Project>

@@ -11,22 +11,27 @@
     <Project Path="apps/api/src/Host/SaasBtp.Api/SaasBtp.Api.csproj" />
   </Folder>
   <Folder Name="/apps/api/src/Modules/" />
-  <Folder Name="/apps/api/src/Modules/Access/">
-    <Project Path="apps/api/src/Modules/Access/SaasBtp.Access.Application/SaasBtp.Access.Application.csproj" />
-    <Project Path="apps/api/src/Modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
-    <Project Path="apps/api/src/Modules/Access/SaasBtp.Access.Infrastructure/SaasBtp.Access.Infrastructure.csproj" />
-  </Folder>
   <Folder Name="/apps/api/src/Modules/Site/">
     <Project Path="apps/api/src/Modules/Site/SaasBtp.Site.Application/SaasBtp.Site.Application.csproj" />
     <Project Path="apps/api/src/Modules/Site/SaasBtp.Site.Domain/SaasBtp.Site.Domain.csproj" />
     <Project Path="apps/api/src/Modules/Site/SaasBtp.Site.Infrastructure/SaasBtp.Site.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/apps/api/src/Modules/Access/" />
+  <Folder Name="/apps/api/src/Modules/Access/src/">
+    <Project Path="apps/api/src/Modules/Access/src/SaasBtp.Access.Application/SaasBtp.Access.Application.csproj" />
+    <Project Path="apps/api/src/Modules/Access/src/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+    <Project Path="apps/api/src/Modules/Access/src/SaasBtp.Access.Infrastructure/SaasBtp.Access.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/apps/api/src/Modules/Access/tests/">
+    <Project Path="apps/api/src/Modules/Access/tests/SaasBtp.Access.Application.UnitTests/SaasBtp.Access.Application.UnitTests.csproj" />
+    <Project Path="apps/api/src/Modules/Access/tests/SaasBtp.Access.Domain.UnitTests/SaasBtp.Access.Domain.UnitTests.csproj" />
+    <Project Path="apps/api/src/Modules/Access/tests/SaasBtp.Access.Infrastructure.UnitTests/SaasBtp.Access.Infrastructure.UnitTests.csproj" />
   </Folder>
   <Folder Name="/apps/api/src/Modules/Safety/">
     <Project Path="apps/api/src/Modules/Safety/SaasBtp.Safety.Domain/SaasBtp.Safety.Domain.csproj" />
     <Project Path="apps/api/src/Modules/Safety/SaasBtp.Safety.Infrastructure/SaasBtp.Safety.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/apps/api/tests/">
-    <Project Path="apps/api/tests/SaasBtp.Access.UnitTests/SaasBtp.Access.UnitTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Architecture.Tests/SaasBtp.Architecture.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Site.UnitTests/SaasBtp.Site.UnitTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Site.IntegrationTests/SaasBtp.Site.IntegrationTests.csproj" />

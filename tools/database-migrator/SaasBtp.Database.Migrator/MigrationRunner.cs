@@ -25,12 +25,13 @@ public static class MigrationRunner
     /// </summary>
     public static readonly IReadOnlyList<string> AuthCoupledScriptMarkers =
     [
-        // 0003 names the supabase_auth_admin role (schema/table grant + the FOR SELECT policy) and
-        // defines the JWT hook it executes; none of that exists on bare Postgres. Its portable sibling
-        // 0002 (the access.profiles / tenants / memberships tables) names no GoTrue object and is
-        // deliberately NOT listed, so the anti-drift harness applies 0002 and asserts its schema while
-        // skipping 0003.
-        "0003_access_identity_auth",
+        // EMPTY for the BP-001 clean-slate baseline: no current script creates objects on GoTrue's
+        // auth.users or names the supabase_auth_admin role. The founding model (0001_access_founding_model)
+        // is fully portable — access.profiles is written by the .NET handler over the owner connection,
+        // and the JWT-hook / observer read path (the only auth-coupled objects) belongs to the dormant
+        // login/Safety flow, out of BP-001's boundary. The mechanism stays in place: the first auth-coupled
+        // script to return is added here, or it runs on bare Postgres and fails loudly rather than being
+        // skipped silently.
     ];
 
     /// <summary>
