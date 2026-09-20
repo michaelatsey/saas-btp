@@ -6,10 +6,12 @@ using SaasBtp.Site.Infrastructure;
 namespace SaasBtp.Architecture.Tests;
 
 /// <summary>
-/// Enforces the hexagonal + modular-monolith boundaries for the Site context, plus the Story A
-/// (#17) guardrails: no EF / no DbContext, no Membership model (ADR-ARCH-004 extended to Site), no
-/// cross-module reference, and no per-user filtering on the site-scope port. Layer dependency checks
-/// read each assembly's manifest (direct references only).
+/// Enforces the hexagonal + modular-monolith boundaries for the Site context: no EF / no DbContext, no
+/// cross-module reference, and dependencies pointing inward. The site-scope port is now a
+/// relationship-based authorization check taking explicit (userId, tenantId, siteId) — ADR-ARCH-009
+/// supersedes the Story-A (#17) guardrails that forbade a user parameter and a Membership model (Site
+/// now legitimately owns the site edge). Layer dependency checks read each assembly's manifest (direct
+/// references only).
 /// </summary>
 public sealed class SiteArchitectureTests
 {
@@ -111,40 +113,32 @@ public sealed class SiteArchitectureTests
         }
     }
 
-    // 9. ADR-ARCH-004: no Membership model in Site — no type named Membership*, no *.Membership namespace.
+    // 9. Relationship-based authorization (ADR-ARCH-009): the site-scope port answers "may this user act
+    //    in this site's scope" from EXPLICIT (userId, tenantId, siteId) arguments plus a cancellation
+    //    token — no ambient/header/claim resolution (ADR-ARCH-005). This REPLACES the Story-A tenant-only
+    //    catalogue signature, and inverts the superseded ADR-ARCH-004 rule that forbade a user parameter.
+    //    (The old "no Membership model in Site" guardrail is retired with ADR-ARCH-004: Site now owns the
+    //    site edge, read by SiteMembershipScopeProvider.)
     [Fact]
-    public void Site_ContainsNoMembershipModel()
+    public void SiteScopeProvider_TakesUserTenantAndSite_ForRelationshipAuthorization()
     {
-        foreach (var assembly in SiteAssemblies)
-        {
-            var namedMembership = Types.InAssembly(assembly)
-                .That().HaveNameStartingWith("Membership")
-                .GetTypes();
-            namedMembership.ShouldBeEmpty();
-
-            var inMembershipNamespace = assembly.GetTypes()
-                .Where(type => type.Namespace is not null &&
-                    type.Namespace.Contains(".Membership", StringComparison.Ordinal))
-                .ToArray();
-            inMembershipNamespace.ShouldBeEmpty();
-        }
-    }
-
-    // 10. No per-user site filtering: the site-scope port takes a tenant identifier and a cancellation
-    //     token only — never a user identity (that would require Membership, out of scope in Story A).
-    [Fact]
-    public void SiteScopeProvider_TakesTenantOnly_NoUserIdentityParameter()
-    {
-        var method = typeof(ISiteScopeProvider).GetMethod(nameof(ISiteScopeProvider.GetAvailableSitesAsync));
+        var method = typeof(ISiteScopeProvider).GetMethod(nameof(ISiteScopeProvider.CanActInSiteScopeAsync));
         method.ShouldNotBeNull();
 
-        var parameters = method!.GetParameters();
-        parameters.Length.ShouldBe(2);
-        parameters[0].ParameterType.ShouldBe(typeof(Guid));
-        parameters[1].ParameterType.ShouldBe(typeof(CancellationToken));
+        method!.ReturnType.ShouldBe(typeof(Task<bool>));
 
-        parameters.ShouldNotContain(parameter =>
-            parameter.Name!.Contains("user", StringComparison.OrdinalIgnoreCase) ||
-            parameter.ParameterType.Name.Contains("User", StringComparison.Ordinal));
+        var parameters = method.GetParameters();
+        parameters.Length.ShouldBe(4);
+        parameters[0].ParameterType.ShouldBe(typeof(Guid));
+        parameters[0].Name.ShouldBe("userId");
+        parameters[1].ParameterType.ShouldBe(typeof(Guid));
+        parameters[1].Name.ShouldBe("tenantId");
+        parameters[2].ParameterType.ShouldBe(typeof(Guid));
+        parameters[2].Name.ShouldBe("siteId");
+        parameters[3].ParameterType.ShouldBe(typeof(CancellationToken));
+
+        // The user identity is now REQUIRED — the exact inverse of the superseded Story-A guardrail.
+        parameters.ShouldContain(parameter =>
+            parameter.Name!.Contains("user", StringComparison.OrdinalIgnoreCase));
     }
 }

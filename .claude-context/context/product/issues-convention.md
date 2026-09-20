@@ -4,8 +4,9 @@ Scope: SaaS BTP repository. Defines how work items (stories, spikes, chores, bug
 are titled, labeled, tracked, and considered ready/done.
 
 GitHub Issues is the canonical tracker for living work items. The repository holds
-durable specs and decisions only (specifications/, decisions/). Stories are never
-tracked in repo markdown.
+durable specs, designs, and decisions only — business-process artifacts under
+`docs/business-processes/`, decisions under `.claude-context/context/decisions/`
+(see section 8). Stories are never tracked in repo markdown.
 
 ---
 
@@ -81,7 +82,9 @@ An issue may be pulled into active work only when all of the following hold:
 1. Business value is stated in one sentence (why this matters to the field user).
 2. Acceptance criteria are written and testable.
 3. Primary context is identified (`ctx:*` label set).
-4. Known dependencies are linked (blocking issues, specs, ADRs).
+4. Known dependencies are linked (blocking issues, specs, ADRs). For work deriving
+   from a Business Process, the BP unit under `docs/business-processes/BP-XXX/` is
+   linked (section 8).
 5. Scope is small enough to fit within a single increment slice.
 6. For anything touching sync: the offline behavior is described (what happens
    offline, what happens on reconnect).
@@ -137,3 +140,44 @@ Structured creation is enforced through issue templates in
 acceptance criteria, offline behavior, dependencies, and DoD checklist.
 
 See `.github/ISSUE_TEMPLATE/story.yml`.
+
+---
+
+## 8. Durable documentation layout
+
+Work is tracked in Issues; durable specs, designs, and decisions live in the
+repository. This section is authoritative for where those durable artifacts live;
+CLAUDE.md carries the orientation summary.
+
+A Business Process is the autonomous documentary unit. Anyone (human or AI) must be
+able to pick up a BP and derive an implementation without conversation history.
+
+```
+docs/business-processes/BP-XXX/
+  BP-XXX-specification.md          WHY: business intent, scope, actors, initial business rules
+  BP-XXX-design-package.md         WHAT (closed business model): process, domain/MCD, invariants, lifecycle, boundaries
+  BP-XXX-implementation-design.md  SOFTWARE HOW (durable): architecture, persistence, API, security/sync, technical constraints
+```
+
+Derivation chain — consigned vs derived:
+
+```
+Specification         (docs/business-processes/BP-XXX/)        consigned
+Design Package        (docs/business-processes/BP-XXX/)        consigned — business model, closed
+Implementation Design (docs/business-processes/BP-XXX/)        consigned — software contract, stable
+Implementation Plan   (per tool: dev, Claude Code, other AI)   DERIVED — NOT consigned
+Code
+```
+
+Rules:
+- The Design Package holds no realization decisions. The Implementation Design is not
+  an Implementation Plan in disguise: no task breakdown, no file-creation order, no
+  tool-specific prompt. Anything resembling an execution step belongs to the
+  (non-consigned) Implementation Plan.
+- The three consigned documents must let any developer or AI derive a plan and a
+  faithful implementation without the conversation history.
+- Decisions (ADRs) are governed separately (sections 4 and 6, and decisions-index.md)
+  and live at `.claude-context/context/decisions/`, not in the BP folder.
+- `.claude-context/` holds agent context, conventions, architecture rules, decisions,
+  and sessions — not produced product artifacts. Durable product specs/designs live
+  under `docs/`.

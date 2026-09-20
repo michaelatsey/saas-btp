@@ -1,15 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Site.Infrastructure — driving/driven adapters + composition (AddSiteModule / UseSiteModule /
-       MapSiteEndpoints): the CurrentSite resolution middleware, the config-backed site scope
-       provider, and the GET /context endpoint. The only Site layer that touches ASP.NET Core.
-       It COMPOSES no auth/tenancy — it consumes the ITenantContext + current-user context the
-       Access module already populated (the Host runs UseSiteModule after UseAccessModule). It
-       therefore declares NO MicroKit package directly: the abstractions + Result it calls flow in
-       transitively via the Site.Application project reference (re-declaring them would be redundant). -->
+       MapSiteEndpoints): the membership-backed site scope provider (raw Npgsql over the two edge
+       tables, ADR-ARCH-009) and the dormant-until-#49 GET /context surface. The only Site layer that
+       touches ASP.NET Core. It COMPOSES no auth/tenancy — it consumes the ITenantContext + current-user
+       context the Access module already populated (the Host runs UseSiteModule after UseAccessModule).
+       It declares NO MicroKit package directly: the abstractions + Result it calls flow in transitively
+       via the Site.Application project reference (re-declaring them would be redundant). -->
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Plain Npgsql (NOT EF / MicroKit.Persistence): the scope provider issues one read-only EXISTS
+         query over site.* + access.* on the owner connection. There is no DbContext (arch-test #7). -->
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <ItemGroup>

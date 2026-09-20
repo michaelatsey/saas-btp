@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Safety.Infrastructure — the driven persistence adapter. Holds the first product DbContext
+    (SafetyDbContext) and its EF mapping, wired via MicroKit.Persistence. EF Core is the runtime ORM
+    ONLY: it maps a schema DbUp owns and creates (ADR-ARCH-006) — no migrations, no EnsureCreated.
+    This branch (foundation) contains NO repository and NO endpoint: AddSafetyModule is defined but
+    intentionally NOT invoked by the Host yet (no endpoint, and UsePostgreSQL needs a non-empty owner
+    connection string at startup) — the Host composes Safety in branch 2 with POST/GET. It does not
+    reference ASP.NET Core (no endpoints this branch) nor any other bounded context.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\SaasBtp.Safety.Domain\SaasBtp.Safety.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MicroKit.Persistence wiring: AddMicroKitPersistence/AddEntityFrameworkCore live in the
+         EntityFrameworkCore package; UsePostgreSQL in the PostgreSql provider. -->
+    <PackageReference Include="MicroKit.Persistence.EntityFrameworkCore" />
+    <PackageReference Include="MicroKit.Persistence.EntityFrameworkCore.PostgreSql" />
+    <!-- DbContext / ModelBuilder / IEntityTypeConfiguration + the relational mapping API
+         (ToTable / HasColumnName / HasColumnType) authored directly here. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- IConfiguration.GetConnectionString for AddSafetyModule (mirrors AddSiteModule/AddAccessModule). -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+  </ItemGroup>
+
+</Project>

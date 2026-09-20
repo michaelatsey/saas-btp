@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../SaasBtp.Access.Application/SaasBtp.Access.Application.csproj" />
+    <ProjectReference Include="../SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MicroKit MediatR pipeline + AddMicroKitMediatR composition (adapters register here). -->
+    <PackageReference Include="MicroKit.MediatR" />
+    <!-- The built-in behaviors and their Add*Behavior() activators. Belongs HERE and nowhere else:
+         behaviors are composition, and this package pulls Microsoft.AspNetCore.Authorization +
+         Polly + Microsoft.Extensions.Caching.Abstractions, none of which may reach the Application
+         layer (AccessArchitectureTests rules 4 and 5). -->
+    <PackageReference Include="MicroKit.MediatR.Behaviors" />
+    <!-- Persistence port contracts (IUnitOfWork, ITransactionManager) that adapters implement. -->
+    <PackageReference Include="MicroKit.Persistence.Abstractions" />
+    <!-- IServiceCollection for the module composition root. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- MicroKit.Persistence wiring: AddMicroKitPersistence/AddEntityFrameworkCore live in the
+         EntityFrameworkCore package; UsePostgreSQL in the PostgreSql provider (mirrors Safety). -->
+    <PackageReference Include="MicroKit.Persistence.EntityFrameworkCore" />
+    <PackageReference Include="MicroKit.Persistence.EntityFrameworkCore.PostgreSql" />
+    <!-- DbContext / ModelBuilder / IEntityTypeConfiguration + the relational mapping API. EF Core is
+         the RUNTIME ORM only: it maps the schema DbUp owns (ADR-ARCH-006 / ADR-ARCH-015). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- IConfiguration.GetConnectionString for AddAccessModule (mirrors AddSafetyModule). -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <!-- Typed HttpClient (AddHttpClient) for the GoTrue Admin API identity adapter. -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+</Project>

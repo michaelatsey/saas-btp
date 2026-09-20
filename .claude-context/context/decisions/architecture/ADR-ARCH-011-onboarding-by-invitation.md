@@ -1,0 +1,380 @@
+# ADR-ARCH-011 — Onboarding by invitation: the token is the authorization to exist
+
+Status: accepted
+Date: 2026-07-14
+Refs: ADR-ARCH-005 (the .NET domain is the write authority; action context in the payload),
+ADR-ARCH-006 (DbUp owns the DDL), ADR-ARCH-007 (GoTrue writes app_metadata by a post-INSERT
+UPDATE — why no trigger on auth.users can be honest), ADR-ARCH-008 (identity model: profiles,
+tenants, memberships), ADR-ARCH-009 (relationship-based authorization over two independent
+edges), ADR-ARCH-010 (the site is the authorization grain).
+Issues: #48 (this), #55 (existing-identity management), #50 (RLS).
+Amended by: ADR-ARCH-012 (2026-07-15). The founding entry path is a self-service
+business process, BP-001 (Créer son espace entreprise) — a director creating their
+first organization and becoming its Initial Owner. See "Amendment" below.
+
+## Context
+
+Since #45 there is NO trigger on `auth.users`. Nothing provisions a business identity, and nothing
+guards account creation. Public signup is disabled in the Supabase dashboard as a temporary stopgap.
+This ADR replaces the stopgap with a model.
+
+Three facts constrain the design, and each of them kills a naive approach:
+
+1. **Public signup cannot be re-enabled.** It was the trigger's job to decide whether a new
+   `auth.users` row was "creating a company" or "joining one" — and a trigger can only tell them apart
+   from a client-supplied flag, which is the role-escalation path (ADR-ARCH-007/008). Removing the
+   trigger removed the guess; re-opening signup would remove the guard.
+2. **The Admin API cannot be the entry point.** Supabase states explicitly that `inviteUserByEmail` is
+   built to invite users to an app and NOT for multi-tenant applications, and that they do not plan to
+   support multi-tenant invitations — the invite system must be implemented by the application, because
+   it depends entirely on how each product structures its tenants. A QHSE consultant working for two
+   client companies already has an account; an onboarding path that creates the auth user as its FIRST
+   step therefore breaks on the second tenant — exactly the capability epic #44 exists to deliver. The
+   identity must be created only when it does not exist, and that is a decision the DOMAIN makes, not
+   the Admin API.
+3. **A person can be onboarded onto a SITE with no membership in the site's tenant** (ADR-ARCH-009: the
+   two edges are independent). A subcontractor or an external inspector is invited to a site by the
+   general contractor and never becomes a member of its organization. So onboarding cannot be modelled
+   as "joining an organization".
+
+## Decision
+
+**Onboarding is an invitation workflow. The invitation token IS the authorization to exist in the
+product.** It replaces, on the correct side of the boundary, what the `auth.users` trigger used to
+attempt: the trigger had to GUESS intent from client data; the token is a secret minted by an
+authenticated administrator and verified against the database before any account is created.
+
+Onboarding authorization and runtime authorization stay distinct: the TOKEN authorizes entry into the
+product (once), the JWT proves identity at runtime (every request), and MEMBERSHIPS authorize action
+(per request, ADR-ARCH-009). Three mechanisms, three lifetimes.
+
+### The single account-creation path
+
+`POST /invitations/accept` is the ONLY path in the entire product that creates an `auth.users` row.
+The client NEVER calls `signUp()`.
+
+**`createUser` (Admin API), NOT `inviteUserByEmail`.** Verified against the official documentation and
+against the real project: `createUser` sends no e-mail and accepts `email_confirm: true` to mark the
+address as verified at creation — which is exactly our case, since the bearer of the token has already
+proven control of the address. The invitation e-mail is sent by OUR provider, carrying OUR link, so the
+account-creation path and the e-mail path stay decoupled. Given Supabase's own position (Context §2),
+this ADR is not a workaround; it is the documented path.
+
+**Public signup stays disabled permanently.** It is not a stopgap until #48 — it is a property of the
+model. Re-enabling it would restore an unguarded entry point into the product. Verified: disabling
+signup blocks `signUp()` ONLY; existing users keep signing in and the Admin API keeps creating users.
+The model is coherent — signup off forever, Admin API the only door.
+
+(Tenant provisioning is the single exception: the very first account of a new tenant, when no
+administrator exists yet to authorize it. It is an operator operation — see below.)
+
+### Data model — two tables, each total, neither polymorphic
+
+`access.invitations` — the workflow:
+
+    id, email, token_hash, status, expires_at,
+    tenant_id, tenant_role NULL,
+    invited_by, created_at, accepted_at NULL
+
+- `tenant_id` is **NOT NULL**: every invitation is issued BY a tenant, including one that invites an
+  external person. This is what the issuer's authorization is checked against.
+- `tenant_role NULL` means **no organization edge will be created** — i.e. the invitee is EXTERNAL. One
+  column carries the whole distinction. Externality remains a relational fact (ADR-ARCH-009), not a
+  role: no `sub_contractor` token, ever.
+- `email` is stored **NORMALIZED** (lowercase, trimmed) — see the e-mail normalization rule below.
+- `token_hash`, never the token. See the security section.
+- `expires_at` is **NOT NULL**: every invitation expires. Default validity **7 days**, held in
+  CONFIGURATION, not hard-coded — it is a product parameter, not an architectural constant. (24h, the
+  Supabase default, is too short for the field: a site manager travelling between chantiers does not
+  read e-mail daily. We do not use Supabase's invite links anyway — this is our token, our table, our
+  rule.) Like every timestamp, it is domain-stamped: no `DEFAULT now() + interval` in the DDL
+  (ADR-ARCH-005).
+- `status IN ('pending', 'accepted', 'revoked')`. **`expired` is NOT a stored status: it is DERIVED from
+  `expires_at < now()`.** Storing it would create a second source of truth for a fact the first one
+  already carries, and would need a job to flip it — two states that can silently disagree. A status
+  stores only what cannot be deduced.
+- An expired or revoked invitation is **never deleted**. It is the audit trail: "Jean invited Paul on
+  3 March; Paul never answered."
+
+`access.invitation_sites` — 0..N site edges, one row per site:
+
+    invitation_id, site_id, site_role, valid_from, valid_until NULL
+
+Every column NOT NULL except `valid_until`. The shape mirrors `site.site_memberships` exactly, so
+acceptance is a COPY, not a translation.
+
+An invitation MAY grant access to SEVERAL sites at once (0..N): a site assignment is an edge COLLECTION,
+not part of the invitation's identity. Inviting a plumber onto Cocody, Plateau and Riviera is one
+invitation, one e-mail, one transaction.
+
+**No `invitation_grants` polymorphic table.** A nullable `(tenant_id, site_id, tenant_role, site_role)`
+quadruple with a `CHECK (tenant_id IS NOT NULL OR site_id IS NOT NULL)` guards nothing that matters: it
+permits `tenant_id` with `site_role`, `site_id` with `tenant_role`, and both at once. The real invariant
+would then live only in C#, unverifiable in the database — the failure mode this project has been
+correcting since #45 ("the constraint is the guard, not the comment"). An organization edge and a site
+edge are different SHAPES, not two instances of an abstract one. When a genuinely new perimeter exists,
+it gets its own typed table (append-only), not a nullable column in a generic one.
+
+### E-mail normalization (cross-cutting)
+
+**E-mails are NORMALIZED — lowercase, trimmed — at every write and every comparison.** GoTrue
+lowercases; our `ux_profiles__email` is a unique on the RAW column, so `Paul@X.fr` and `paul@x.fr`
+would be two distinct profile rows today. The DOMAIN normalizes before writing — the same discipline
+as timestamps (ADR-ARCH-005). No `CITEXT`, no functional index: `access.profiles` has exactly one
+writer, and the writer upholds the invariant.
+
+#### The same holds for `ux_invitations__tenant_id_email__pending` — and it must be TESTED
+
+`access.invitations` carries a PARTIAL UNIQUE on `(tenant_id, email) WHERE status = 'pending'`
+(migration 0005): **at most one live invitation per (tenant, e-mail)**. Without it, an administrator
+clicking "invite" four times mints four live tokens for the same person — possibly with DIFFERENT
+`tenant_role` values, letting the INVITEE choose which to accept. That is an invitee-driven privilege
+escalation, the exact family #45 spent itself closing.
+
+**That index compares RAW strings.** Postgres does not fold case. So the partial unique protects
+exactly the data that already honours the domain's normalization contract — it does not, on its own,
+guarantee that two textual representations of the same address are treated as identical.
+
+The normalization invariant therefore lives in the DOMAIN, as it already does for
+`access.profiles.email`. A functional `lower(email)` index on `invitations` alone would create TWO
+different disciplines for ONE invariant, in the SAME schema. Rejected on those grounds.
+
+**But an untested invariant is a comment.** `CreateInvitation` (#48) MUST carry an integration test
+proving BOTH:
+
+- **the value stored is normalized** — inviting `" Paul@Mail.com "` writes `paul@mail.com`;
+- **the guard holds** — inviting `PAUL@MAIL.COM` to the same tenant while a `pending` invitation
+  exists raises a UNIQUE violation, not a second live token.
+
+Without that test, nothing stops a future `Invitation.Create(email)` that forgets to normalize, and
+the anti-escalation guard silently stops guarding.
+
+**Consequence for `CreateInvitation`:** re-inviting someone who already has a `pending` invitation is
+**REVOKE-then-CREATE in ONE transaction**. The partial unique makes it structurally impossible to do
+otherwise — and that is the correct behaviour anyway: the previous token must die before a new one is
+minted.
+
+### The two commands
+
+**`CreateInvitation`** — issued by an authenticated administrator.
+
+- Organization edge (`tenant_role` set) → the issuer must hold an active `owner`/`admin` membership in
+  `tenant_id`.
+- Each site in `invitation_sites` → the issuer must hold `site_role = 'site_manager'` on that site, OR a
+  tenant role with cross-site scope (today `owner`).
+  **PARTICIPATION IS NOT PERMISSION TO ADMINISTER.** A `member` on a site — a subcontractor, for
+  instance — passes `CanActInSiteScopeAsync` and must NOT be able to invite people onto the general
+  contractor's site. Conflating "may act in the scope" with "may manage the membership" is an escalation
+  path of the same family #45 spent itself closing. This is a PERMISSION, resolved in C# from the role
+  held on the edge (ADR-ARCH-009) — NOT a new port on `ISiteScopeProvider`.
+- The role is set BY THE SERVER, from the issuer's request, and is never read from the invitee. A request
+  that tries to set its own role is rejected.
+
+**`AcceptInvitation`** — ONE domain operation. Identity resolution has THREE ordered cases. The business
+writes are transactional; the GoTrue account creation is an EXTERNAL SIDE EFFECT that cannot be inside
+the transaction.
+
+    1. lock the invitation row (FOR UPDATE)
+       -> status = 'pending'? expires_at > now()? otherwise fail
+
+    2. IDENTITY RESOLUTION:
+       a. EXISTING business identity -> SELECT user_id FROM access.profiles
+                                        WHERE email = <normalized>        [the MULTI-TENANT case]
+       b. absent -> createUser (email_confirm = true)                     [the NEW person, nominal]
+       c. 422 / error_code = "email_exists" -> ORPHAN: an auth.users row exists with NO profile
+          (a previous attempt died between b and 4). Resolve it via the Admin API e-mail lookup
+          and ADOPT it.
+
+    3. THE GOLDEN RULE: the authenticated e-mail must match the invited e-mail, else 403
+
+    4. POSTGRES TRANSACTION:
+         INSERT access.profiles                (if the person is new)
+         INSERT access.memberships             (if tenant_role IS NOT NULL, is_active = true)
+         INSERT site.site_memberships          (one per invitation_sites row)
+         UPDATE invitations SET status = 'accepted', accepted_at = <domain-stamped>
+       COMMIT
+
+#### The orphan branch — why it exists and why it is safe
+
+If step 4 fails after step 2b succeeded, an `auth.users` row exists with NO business identity and the
+invitation stays `pending`. `access.profiles` CANNOT see that row — it is not there. So a naive retry
+would call `createUser` again, get the 422, and the invitation would be **permanently stuck**.
+
+Case (c) resolves it: the 422 proves the account exists, the Admin API e-mail lookup returns its id, and
+the command ADOPTS the existing identity instead of fleeing it.
+
+**There is NO distributed transaction, and none is attempted.** A partial failure is recovered by
+**DETERMINISTIC ADOPTION** of the existing identity — not by compensation, and not by a saga. **Do NOT add
+compensation logic** (deleting the orphaned `auth.users` row on failure): it would race with a concurrent
+retry and delete an account that is about to be used. By ADR-ARCH-008 an orphaned account can do nothing
+anyway — valid token, no `observer_*` claim, no membership. The model already absorbs this state; here it
+is merely reached by a failed attempt instead of by design.
+
+#### The Admin API e-mail lookup is a SEARCH, not an equality — SECURITY CRITICAL
+
+The `filter` parameter matches on a **prefix** (proven by the #48 spike: `throwaway+orphan` matched a full
+address). The implementation MUST therefore:
+
+    matches = results.Where(u => Normalize(u.Email) == Normalize(invitation.Email))
+    matches.Count == 1  -> ADOPT
+    matches.Count == 0  -> the account genuinely does not exist; FAIL (inconsistent with the 422)
+    matches.Count >  1  -> SECURITY FAILURE. Abort loudly. Do NOT pick one.
+
+Taking `.First()` here would attach a business identity to the **WRONG PERSON** (`paul@company.com` vs
+`paul-test@company.com`). That is not a functional bug, it is an **impersonation**. `Count > 1` means the
+auth state is corrupt — the command must fail, not guess.
+
+#### Idempotency
+
+**`AcceptInvitation` is IDEMPOTENT.** A repeated acceptance (double click, retried request, unstable
+network) must return the SAME resulting edges — never a duplicate, never an error. The database already
+guarantees it structurally: `ux_memberships__tenant_id_user_id` and `ux_site_memberships__site_id_user_id`
+make a second insert impossible. The command reads the already-`accepted` invitation and returns its
+edges. Same discipline as the idempotent POST on `ConstatId`.
+
+`is_active = true` on acceptance. There is **no `pending` state on the membership**: "not yet accepted"
+lives in `access.invitations`, where it has a meaning. It must not pollute the authorization edge, where
+`is_active = false` already means "revoked" — two different facts must not share one column (the
+ADR-ARCH-009 discipline).
+
+The profile must exist BEFORE the invitee's first authenticated call that requires business claims. The
+JWT hook stamps `observer_name` only when a profile row exists (0003), so an invitee whose profile arrived
+late would hold a valid token that cannot create a constat — failing opaquely. Creating the profile inside
+the acceptance transaction closes that window structurally. (Verified by the #45 validation run: a profile
+inserted after `createUser` and before the first sign-in IS picked up by the hook.)
+
+### Tenant provisioning — an OPERATOR operation, not a product endpoint
+
+The first account of a new tenant has, by definition, nobody to authorize it. Rather than build a
+self-service registration path with its full anti-abuse surface (rate limiting, captcha, e-mail
+verification, duplicate handling, support), **Phase 1 does not expose self-service tenant registration at
+all.**
+
+Tenant creation is an ADMINISTRATIVE operation performed by the operator. It creates, in one operation:
+the tenant, the initial owner's identity (`createUser` + profile), and the `owner` membership.
+
+**This is NOT a public API.** There is no `POST /tenants/register` and no `POST /tenants/provision`
+reachable by an anonymous caller. Anyone reading this ADR and building such an endpoint has misread it.
+
+Rationale: the product targets a single client for market entry, with accompanied onboarding. A public
+registration flow would be pure cost for a capability nobody needs. Exposing self-service tenant
+registration later is a PRODUCT decision, and it requires its own ADR — because it reopens the one guarded
+entry point this ADR exists to protect.
+
+### Security invariants (non-negotiable)
+
+- **The token is a cryptographic SECRET, not an identifier.** 32 bytes from a CSPRNG, base64url-encoded
+  for the URL; the database stores its SHA-256. **Never a UUID** — a UUID is an identifier, not a secret,
+  and UUIDv7 is partially predictable from its embedded timestamp.
+- **The database stores `token_hash`, never the token.** A dump of `access.invitations` must not yield a
+  single usable invitation. The clear token exists only in the e-mail.
+- **The acting identity comes from the JWT (`sub`), never from the request body.** Same rule as the
+  observer on a constat (safety-domain-model).
+- **The invited e-mail must match the authenticated e-mail.** Without it, anyone holding a leaked token
+  could consume an invitation addressed to someone else with their own account.
+- **The Admin API lookup result must match EXACTLY.** See the security-critical rule above: a prefix match
+  adopted blindly is an impersonation.
+- **E-mails are normalized everywhere.** See the normalization rule above.
+- **Roles are server-imposed.** No role value is ever read from the invitee's request.
+- **Expiry is enforced in the domain**, not by a DB `DEFAULT` (ADR-ARCH-005).
+
+## Amendment (ADR-ARCH-012, 2026-07-15)
+
+This ADR was written treating operator provisioning as the founding entry path (the
+"single exception" above), on the assumption that market entry meant one accompanied
+client with no self-service need. That was a context assumption, not a product
+requirement, and it has been corrected.
+
+The founding entry path is BP-001 (Créer son espace entreprise): a director, external
+to the platform, creates their first organization and becomes its Initial Owner
+(ADR-ARCH-012). This is the FIRST functional business process of the product, not a
+later evolution.
+
+What this amendment changes:
+
+- The structural invariant STANDS, unchanged: there is no generic, unguarded entry
+  that creates an identity. The public GoTrue `signUp()` stays permanently disabled;
+  `createUser` (Admin API) preceded by a domain-side guard remains the only path that
+  creates an `auth.users` row. BP-001 does NOT reopen `signUp()` — founding creation is
+  a guarded business process, exactly the kind of explicit business path the invariant
+  permits, not an anonymous signup.
+- "No self-service in Phase 1" is LIFTED for the founding path. It was a scope choice
+  ("a public registration flow is pure cost for a capability nobody needs"), and this
+  ADR itself required that lifting it be done by a future ADR — that ADR is
+  ADR-ARCH-012.
+
+The product distinguishes different business processes and capabilities. They are not
+competing entry points:
+
+- Founding creation (BP-001 / ADR-ARCH-012) — a director creates their first
+  organization; relation created: Ownership. This is a founding business process.
+- Joining an existing organization (this ADR — invitation) — a person joins an
+  organization or is assigned to a site; relation created: Membership (or a site edge).
+  This is a membership business process.
+- Operator provisioning (this ADR, "Tenant provisioning" section) is NOT the founding
+  entry path anymore. It may remain as a future administrative / bootstrap capability
+  if a legitimate operational need exists, but it is outside BP-001 and is not a
+  user-facing entry path.
+
+What this amendment does NOT change: the invitation workflow, the token-as-secret
+model, the single account-creation path, `createUser` over `inviteUserByEmail`, the
+security invariants, and orphan adoption all stand as written.
+
+## Consequences
+
+- The product has exactly ONE way in. Every `auth.users` row is traceable to an invitation (`invited_by`,
+  `created_at`) or to an operator provisioning. That is an audit property, not a side effect.
+- A person invited by two tenants holds ONE `auth.users` row, ONE profile, and two edges. Multi-tenant
+  works by construction rather than by exception — which was the point of epic #44.
+- **`auth.users` is NEVER read in SQL.** The SQL path works (measured by the spike), but it would couple
+  .NET to the GoTrue schema at runtime. The Admin API resolves the id, so that coupling is not taken.
+- Invitations carry SITES, never lots (ADR-ARCH-010). This holds whichever way the open question in
+  ADR-ARCH-010 is answered, so #48 is not blocked by it.
+- **The invitation is an INDIRECT writer of the site edge, and only at acceptance time.** It does NOT
+  remove the need for a DIRECT writer for people who already have an account: assigning an existing
+  employee to a second site must not e-mail them "create your account". That is `AssignSiteMember` (#55).
+  Do not conclude from this ADR that #55 is redundant.
+- An `auth.users` row with no business identity may exist TRANSIENTLY. It is harmless by ADR-ARCH-008 and
+  is ADOPTED by the next acceptance attempt. **It is not an incident.**
+- UX consequence to design for, not to discover: an invitee who ALREADY has an account (because they work
+  for another tenant) must be told to sign in before accepting. The invitation landing page branches on
+  "account exists / does not exist" — the verify endpoint returns that fact.
+- E-mail delivery becomes a production dependency of the onboarding path. Provider choice is not settled
+  here.
+
+## Alternatives considered
+
+- **`inviteUserByEmail` as the entry point (the original #48 scope).** Rejected: Supabase itself states it
+  is not built for multi-tenant applications, and it fails on an existing e-mail — breaking the second
+  tenant, the exact capability epic #44 delivers.
+- **Re-introducing a trigger on `auth.users` to provision the profile.** Rejected in ADR-ARCH-008 and
+  reaffirmed: the trigger must guess intent from a client flag, which is the escalation path. The token
+  does not guess — it is verified.
+- **`signUp()` on the client, then a "join with code" step.** Rejected: it requires public signup, which
+  re-opens the unguarded entry point.
+- **Reading `auth.users` in SQL to resolve the orphan.** Works (measured), and rejected: it couples .NET to
+  the GoTrue schema at runtime for a recovery path the Admin API already serves.
+- **A `pending` token on `access.memberships` instead of an invitation table.** Rejected: it makes "not yet
+  accepted" and "revoked" indistinguishable on the authorization edge, and it gives the invitation no home
+  for its token, expiry, or audit trail.
+- **A polymorphic `invitation_grants` table.** Rejected above.
+- **A UUID as the invitation token.** Rejected: an identifier is not a secret.
+- **`expired` as a stored status.** Rejected: it is derivable from `expires_at`, and storing it needs a job
+  to keep it true.
+- **Compensating the orphaned `auth.users` row on failure.** Rejected: deterministic adoption already
+  recovers it, and a delete would race with a concurrent retry.
+
+## Open
+
+- **E-mail provider.** Not settled. The token and the link are independent of the channel; the transport is
+  a product decision (e-mail, and possibly WhatsApp for the Ivorian field).
+- ~~`createUser` behaviour on an existing e-mail~~ — **CLOSED by the #48 spike (2026-07-14), against the
+  real project:** HTTP **422**, `error_code: "email_exists"`. The SAME signature is returned for an orphan
+  as for a fully-onboarded user, which is what makes adoption implementable. The 422 body carries **no id**
+  — `GET /admin/users?filter=` resolves it.
+- ~~JWT hook timing~~ — **CLOSED:** the hook stamps `observer_*` on the first sign-in when the profile
+  already exists (`validate-44.sh`, #45).
+- ~~Admin API authentication from .NET~~ — **CLOSED:** works over HTTP with an `sb_secret_` key on the
+  `apikey` header alone. Adding `Authorization: Bearer` causes an Invalid JWT rejection.
+- ~~`RegisterTenant` exposure model~~ — **CLOSED**: no self-service in Phase 1. Tenant creation is an
+  operator provisioning operation (see above). A public self-service flow requires a future ADR.

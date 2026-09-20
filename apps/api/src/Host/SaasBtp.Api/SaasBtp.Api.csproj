@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <!-- SaasBtp.Api — thin composition root / driving host. Wires the Access module and
-       native .NET 10 OpenAPI. No business logic lives here. Not a published library, so
-       XML documentation generation is disabled for the host. -->
+  <!-- SaasBtp.Api — thin composition root / driving host. Wires the Access module (structure only at
+       this stage) and native .NET 10 OpenAPI; Site and Safety stay dormant. No business logic lives
+       here. Not a published library, so XML documentation generation is disabled for the host. -->
 
   <PropertyGroup>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Modules\Access\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Access\src\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Site\SaasBtp.Site.Infrastructure\SaasBtp.Site.Infrastructure.csproj" />
   </ItemGroup>
 

@@ -1,0 +1,8 @@
+@host = {{host}}
+
+### unauthenticated -> expect 401
+GET {{host}}/context
+
+### valid token + dev tenant -> expect 200
+GET {{host}}/context
+Authorization: Bearer {{token}}

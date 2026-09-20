@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    DbUp migrator (ADR-ARCH-006). DbUp is the SINGLE owner of the PostgreSQL DDL: this console
+    applies the embedded, globally-ordered SQL scripts against the privileged DIRECT Postgres
+    connection (owner role, NOT PostgREST) in the CI/deploy step — never at API startup. EF Core
+    creates no schema; it maps an existing one. No Database.Migrate(), no EnsureCreated().
+    Inherits net10.0 / nullable / warnings-as-errors from the repo-root Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Console tool, not a published library: no public XML-doc surface to emit. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Scripts embedded so the one ordered DDL history travels with the assembly and can be
+         replayed verbatim by the anti-drift integration test against an ephemeral database
+         (ADR-ARCH-006: the schema tests assert against IS the schema deploy applies). -->
+    <EmbeddedResource Include="scripts\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="dbup-core" />
+    <PackageReference Include="dbup-postgresql" />
+  </ItemGroup>
+
+</Project>
