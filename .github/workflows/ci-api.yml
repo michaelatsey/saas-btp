@@ -16,6 +16,9 @@ jobs:
     name: api-build-test
     runs-on: ubuntu-latest
     steps:
+      - name: Required-check-demo
+        run: exit 1
+
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
