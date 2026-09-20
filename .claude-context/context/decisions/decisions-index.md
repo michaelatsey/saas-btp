@@ -59,5 +59,8 @@ Options rejected and why.
 | ADR-ARCH-015 | Access persistence: EF Core as runtime ORM over the DbUp-owned access schema (ADR-ARCH-006 discipline); the founding transaction realized as ONE EF change-set persisted by ONE SaveChanges behind a single application port — createUser stays outside; a pipeline TransactionBehavior for the founding command is explicitly rejected (closes BP-001 ID §6.2.1/§6.2.2) | accepted |
 | ADR-ARCH-016 | The invariant-bearing aggregate absorbs its relations: Ownership and Organization Membership inside Organization, Workspace Access inside Workspace; the three axes stay non-derivable SEMANTICALLY (revealed by BP-001; departs from its Implementation Design §3.1, which answered a semantic risk with a structural constraint; confirms ADR-ARCH-013 and ADR-ARCH-014; does not touch the business model or the DDL) | accepted |
 | ADR-PROD-002 | Founding creation (BP-001) does not verify the legal link between the requester and the declared organization; organization is taken as declared | accepted |
+| ADR-ORG-001 | The repository stays public: Claude.ai needs read access; secret scanning and push protection become a priority; README and licence statement to correct | accepted |
+| ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
+| ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | accepted |
 
 
