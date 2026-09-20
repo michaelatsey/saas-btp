@@ -46,7 +46,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
     // site.sites
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -61,11 +61,11 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("sites", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_PrimaryKey_IsPkSites_OnId() =>
         await AssertSingleColumnPrimaryKeyAsync("sites", "pk_sites", "id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_Status_HasCheckConstraint_WithActiveAndClosed()
     {
         var checks = await ReadCheckConstraintsAsync("sites");
@@ -76,7 +76,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         checks[0].Definition.ShouldContain("closed");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_HasUniqueConstraint_OnIdTenantId_TheCompositeFkTarget()
     {
         var uniqueColumns = await ReadUniqueColumnsAsync("sites");
@@ -89,11 +89,11 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         uniqueColumns[1].ShouldBe(("ux_sites__id_tenant_id", "tenant_id"));
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_CreatedAt_HasNoDefault() =>
         (await ReadColumnDefaultAsync("sites", "created_at")).ShouldBeNull();
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task Sites_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("sites")).ShouldBe(true);
 
@@ -101,7 +101,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
     // site.site_memberships
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -121,11 +121,11 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("site_memberships", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_PrimaryKey_IsPkSiteMemberships_OnId() =>
         await AssertSingleColumnPrimaryKeyAsync("site_memberships", "pk_site_memberships", "id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasRoleAndValidWindowCheckConstraints()
     {
         var checks = await ReadCheckConstraintsAsync("site_memberships");
@@ -144,7 +144,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         window.Definition.ShouldContain("valid_from");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasCompositeForeignKey_ToSites()
     {
         const string sql =
@@ -193,7 +193,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         foreignKeys[0].RefColumns.ShouldBe(["id", "tenant_id"]);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasUniqueConstraint_OnSiteIdUserId()
     {
         var uniqueColumns = await ReadUniqueColumnsAsync("site_memberships");
@@ -206,7 +206,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         uniqueColumns[1].ShouldBe(("ux_site_memberships__site_id_user_id", "user_id"));
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasUserIdIndex_ButNoStandaloneSiteIdOrTenantIdIndex()
     {
         const string sql =
@@ -233,7 +233,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         indexes.ShouldNotContain("ix_site_memberships__tenant_id");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_CreatedAtAndValidFrom_HaveNoDefault()
     {
         // Both are domain-stamped (ADR-ARCH-005); a DB default would mask a domain that forgot to stamp.
@@ -241,7 +241,7 @@ public sealed class SiteSchemaTests : IAsyncLifetime
         (await ReadColumnDefaultAsync("site_memberships", "valid_from")).ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site DDL (0004) removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMemberships_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("site_memberships")).ShouldBe(true);
 

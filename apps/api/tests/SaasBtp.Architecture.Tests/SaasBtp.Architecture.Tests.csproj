@@ -12,9 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\Access\SaasBtp.Access.Domain\SaasBtp.Access.Domain.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Access\SaasBtp.Access.Application\SaasBtp.Access.Application.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Access\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Access\src\SaasBtp.Access.Domain\SaasBtp.Access.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Access\src\SaasBtp.Access.Application\SaasBtp.Access.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Access\src\SaasBtp.Access.Infrastructure\SaasBtp.Access.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Domain\SaasBtp.Site.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Application\SaasBtp.Site.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Site\SaasBtp.Site.Infrastructure\SaasBtp.Site.Infrastructure.csproj" />

@@ -53,7 +53,7 @@ public sealed class ConstatMappingTests : IAsyncLifetime
             new Observation("Garde-corps manquant", "Détail complet", "Notes"),
             new DateTime(2026, 7, 9, 9, 0, 0, DateTimeKind.Utc)).Value;
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Safety schema is dormant — its DbUp script was removed on the clean slate. Re-enable when Safety returns.")]
     public async Task Constat_RoundTrips_AllColumns_ThroughDbUpMigratedSchema()
     {
         var id = new ConstatId(Guid.CreateVersion7());
@@ -93,7 +93,7 @@ public sealed class ConstatMappingTests : IAsyncLifetime
         }
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Safety schema is dormant — its DbUp script was removed on the clean slate. Re-enable when Safety returns.")]
     public async Task Constat_WithOptionalFieldsOmitted_RoundTrips()
     {
         var id = new ConstatId(Guid.CreateVersion7());
@@ -123,7 +123,7 @@ public sealed class ConstatMappingTests : IAsyncLifetime
         }
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Safety schema is dormant — its DbUp script was removed on the clean slate. Re-enable when Safety returns.")]
     public async Task Uuidv7Ids_PreserveTimeOrder_ThroughNpgsqlUuidMapping()
     {
         // Strictly increasing timestamps => deterministically time-ordered UUIDv7s, independent of

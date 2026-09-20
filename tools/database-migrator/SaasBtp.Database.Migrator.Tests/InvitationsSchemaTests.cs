@@ -48,7 +48,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
     // access.invitations
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -72,11 +72,11 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("invitations", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_PrimaryKey_IsPkInvitations_OnId() =>
         await AssertPrimaryKeyAsync("invitations", "pk_invitations", "id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasUniqueConstraint_OnTokenHash()
     {
         var uniqueColumns = await ReadUniqueColumnsAsync("invitations");
@@ -88,7 +88,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         uniqueColumns[0].ShouldBe(("ux_invitations__token_hash", "token_hash"));
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasExactlyTheThreeExpectedCheckConstraints()
     {
         var checks = await ReadCheckConstraintsAsync("invitations");
@@ -117,7 +117,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         tokenHash.Definition.ShouldContain("64");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasPartialUniqueIndex_OnTenantIdEmail_WherePending()
     {
         var indexes = await ReadIndexesAsync("invitations");
@@ -141,7 +141,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         definition.ShouldContain("'pending'");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasNoForeignKeys()
     {
         var foreignKeys = await ReadForeignKeysAsync("invitations");
@@ -152,7 +152,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         foreignKeys.ShouldBeEmpty();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasNoStandaloneEmailOrTenantIdIndex()
     {
         var indexes = (await ReadIndexesAsync("invitations")).Select(index => index.Name).ToList();
@@ -165,7 +165,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         indexes.ShouldNotContain("ix_invitations__tenant_id");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_DomainStampedTimestamps_HaveNoDefault()
     {
         // created_at, expires_at, accepted_at are domain-stamped (ADR-ARCH-005); a DB default would mask
@@ -176,7 +176,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         (await ReadColumnDefaultAsync("invitations", "accepted_at")).ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task Invitations_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("invitations")).ShouldBe(true);
 
@@ -184,7 +184,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
     // access.invitation_sites
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_HasExactlyTheExpectedColumns_WithTypesAndNullability()
     {
         var expected = new Dictionary<string, ColumnSpec>(StringComparer.Ordinal)
@@ -200,14 +200,14 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         await AssertColumnsAsync("invitation_sites", expected);
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_PrimaryKey_IsCompositePk_OnInvitationIdSiteId() =>
         // Natural composite PK: the invariant "one site edge per (invitation, site)" IS the identity —
         // no surrogate id, no separate unique. Column ORDER matters — invitation_id first, so its left
         // prefix serves "all sites for this invitation".
         await AssertPrimaryKeyAsync("invitation_sites", "pk_invitation_sites", "invitation_id", "site_id");
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_HasSingleForeignKey_ToInvitations_OnDeleteRestrict()
     {
         var foreignKeys = await ReadForeignKeysAsync("invitation_sites");
@@ -224,7 +224,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         foreignKey.DeleteAction.ShouldBe("r");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_HasExactlyTheTwoExpectedCheckConstraints()
     {
         var checks = await ReadCheckConstraintsAsync("invitation_sites");
@@ -242,7 +242,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         window.Definition.ShouldContain("valid_from");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_HasNoStandaloneSiteIdIndex()
     {
         var indexes = (await ReadIndexesAsync("invitation_sites")).Select(index => index.Name).ToList();
@@ -253,7 +253,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         indexes.ShouldNotContain("ix_invitation_sites__site_id");
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_DomainStampedTimestamps_HaveNoDefault()
     {
         // valid_from (BUSINESS start) and valid_until (planned end) are domain-stamped (ADR-ARCH-005).
@@ -261,7 +261,7 @@ public sealed class InvitationsSchemaTests : IAsyncLifetime
         (await ReadColumnDefaultAsync("invitation_sites", "valid_until")).ShouldBeNull();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): invitations DDL (0005) removed on the clean slate. Re-enable when onboarding-by-invitation returns.")]
     public async Task InvitationSites_HasRowLevelSecurityEnabled() =>
         (await ReadRowLevelSecurityAsync("invitation_sites")).ShouldBe(true);
 

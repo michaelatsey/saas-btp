@@ -8,52 +8,44 @@ namespace SaasBtp.Database.Migrator.Tests;
 /// (ADR-ARCH-006, conventions/sql.md §Auth-coupled scripts).
 /// </summary>
 /// <remarks>
-/// After the identity-model rebaseline, the only auth-coupled script is
-/// <c>0003_access_identity_auth</c>: it names the <c>supabase_auth_admin</c> role (grant, SELECT
-/// policy, and the JWT hook it executes), none of which exists on bare Postgres, so it MUST be
-/// excluded from the portable subset the anti-drift schema tests apply. An auth-coupled script left
-/// off <see cref="MigrationRunner.AuthCoupledScriptMarkers"/> would run on bare Postgres and fail
-/// there; these tests make forgetting the marker fail HERE instead — cheaply, and without Docker
-/// (they run even where the Testcontainer harness cannot).
+/// BP-001 clean-slate baseline: the abandoned identity model's scripts (0001-0005) were removed and
+/// replaced by a single, fully PORTABLE founding script (<c>0001_access_founding_model</c>). No script
+/// names a GoTrue object, so <see cref="MigrationRunner.AuthCoupledScriptMarkers"/> is EMPTY and every
+/// embedded script runs on bare Postgres. These tests run even where the Testcontainer harness cannot,
+/// so a forgotten auth-coupled marker (the day such a script returns) fails HERE — cheaply, without Docker.
 /// </remarks>
 public sealed class MigrationScriptClassificationTests
 {
     private static readonly Assembly MigratorAssembly = typeof(MigrationRunner).Assembly;
 
     [Fact]
-    public void AuthCoupledMarkers_Include_0003_IdentityAuth()
+    public void AuthCoupledMarkers_AreEmpty_OnTheBp001Baseline()
     {
-        // 0003 names supabase_auth_admin (grant + policy) and defines the hook, so it belongs on the
-        // auth-coupled list — while its portable sibling 0002 must NOT (asserted below).
-        MigrationRunner.AuthCoupledScriptMarkers
-            .ShouldContain("0003_access_identity_auth");
+        // No current script touches auth.users / supabase_auth_admin — the founding model is portable.
+        MigrationRunner.AuthCoupledScriptMarkers.ShouldBeEmpty();
     }
 
     [Theory]
-    [InlineData("0003_access_identity_auth")]
-    public void AuthCoupledScript_IsExcluded_FromPortableRun(string marker)
+    [InlineData("0001_access_founding_model")]
+    public void FoundingScript_IsEmbedded_AndPortable(string marker)
     {
         var resourceName = ResolveEmbeddedScript(marker);
 
         // Bound to the REAL embedded-resource name (below), so this asserts what actually ships, not a
-        // hand-typed guess. auth-coupled => NOT portable => excluded from the bare-Postgres run.
-        MigrationRunner.IsPortableScript(resourceName).ShouldBeFalse();
+        // hand-typed guess. Portable => included in the bare-Postgres anti-drift run.
+        MigrationRunner.IsPortableScript(resourceName).ShouldBeTrue();
     }
 
-    [Theory]
-    [InlineData("0001_safety_create_constats")]
-    [InlineData("0002_access_identity_model")]
-    [InlineData("0004_site_model")]
-    [InlineData("0005_access_invitations")]
-    public void PortableScript_IsIncluded_InPortableRun(string marker)
+    [Fact]
+    public void EveryEmbeddedScript_IsPortable_OnTheBp001Baseline()
     {
-        var resourceName = ResolveEmbeddedScript(marker);
+        var scripts = MigratorAssembly.GetManifestResourceNames()
+            .Where(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        // Portable scripts name no GoTrue object, so they run on bare Postgres. 0002 (profiles + tenants
-        // + memberships), 0004 (site.sites + site.site_memberships), and 0005 (access.invitations +
-        // access.invitation_sites) are portable BY DESIGN so their schemas are anti-drift tested; the only
-        // auth-coupled half is 0003. A portable script must not be dragged off the list.
-        MigrationRunner.IsPortableScript(resourceName).ShouldBeTrue();
+        // At least one script ships (the founding model); with no auth-coupled markers, ALL are portable.
+        scripts.ShouldNotBeEmpty();
+        scripts.ShouldAllBe(name => MigrationRunner.IsPortableScript(name));
     }
 
     /// <summary>

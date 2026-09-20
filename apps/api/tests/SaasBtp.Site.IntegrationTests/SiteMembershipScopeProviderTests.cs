@@ -47,7 +47,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
     // Mandatory cases (a stub returning false, or one ignoring the window/is_active, fails these).
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task OwnerTenantMembership_NoSiteMembership_IsAllowed()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -60,7 +60,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task MemberTenantMembership_NoSiteMembership_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -73,7 +73,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task ExternalUser_ActiveSiteMembership_NoTenantMembership_IsAllowed()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -87,7 +87,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMembership_WithValidUntilInPast_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -100,7 +100,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMembership_Inactive_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -117,7 +117,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
     // Additional coverage.
     // ------------------------------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task AdminTenantMembership_NoSiteMembership_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -130,7 +130,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task InactiveOwnerMembership_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -143,7 +143,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task SiteMembership_WithValidFromInFuture_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -156,7 +156,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeFalse();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task InternalUser_ActiveSiteMembership_IsAllowed()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
@@ -169,7 +169,7 @@ public sealed class SiteMembershipScopeProviderTests : IAsyncLifetime
         (await NewProvider().CanActInSiteScopeAsync(userId, tenantId, siteId)).ShouldBeTrue();
     }
 
-    [Fact]
+    [Fact(Skip = "BP-001 perimeter (plan Step 0): Site + access.tenants/memberships schema is dormant — scripts removed on the clean slate. Re-enable when Site returns.")]
     public async Task NoEdgeAtAll_IsDenied()
     {
         var (tenantId, userId, siteId) = (NewId(), NewId(), NewId());
