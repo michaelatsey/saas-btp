@@ -66,3 +66,8 @@ Thumbs.db
 # Disposable spike harnesses (only findings.md is tracked)
 docs/spikes/powersync-web/
 !docs/spikes/powersync-web/findings.md
+
+# ---------------------------------------------------------------------------
+# Generated tooling output
+# ---------------------------------------------------------------------------
+/graphify-out/
