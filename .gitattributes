@@ -1,0 +1,4 @@
+# Line endings: LF in the repository and on checkout, on every platform.
+# Overrides each contributor's core.autocrlf. No CRLF exception is declared:
+# no file type in this repository requires one.
+* text=auto eol=lf

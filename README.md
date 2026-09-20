@@ -38,7 +38,7 @@ Project bootstrap — repository skeleton only, no application code yet.
 
 ## License
 
-Private and proprietary. All rights reserved. Not for distribution.
+This repository is public so that its contents can be read. Public visibility does not grant a software license: unless a license is explicitly granted, the source code remains subject to applicable copyright law. Other GitHub users may view and fork it, as GitHub's Terms of Service allow.
 
 
 ## Setup dev
