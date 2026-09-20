@@ -6,37 +6,31 @@ are titled, labeled, tracked, and considered ready/done.
 GitHub Issues is the canonical tracker for living work items. The repository holds
 durable specs, designs, and decisions only — business-process artifacts under
 `docs/business-processes/`, decisions under `.claude-context/context/decisions/`
-(see section 8). Stories are never tracked in repo markdown.
+(see "Durable documentation layout"). Stories are never tracked in repo markdown.
 
 ---
 
 ## 1. Title format
 
-```
-[ctx:<context>] <type>: <imperative description>
-```
-
-Rules:
-- One primary context per issue. If work spans two contexts, it is usually two issues.
-- Description in the imperative, lower-case, no trailing period.
-- Keep it short enough to scan in a board column.
+Plain imperative, no prefix. Labels are the single source for context, type and
+priority, so the title repeats none of them. Lower-case after the first word, no
+trailing period, short enough to scan in a board column. One primary context per
+issue: work spanning two contexts is usually two issues.
 
 Examples:
-```
-[ctx:safety] story: create constat offline
-[ctx:corrective-actions] story: assign corrective action with deadline
-[ctx:safety] spike: powersync-web offline + camera on target Android
-[ctx:notifications] chore: define notification payload contract
-[ctx:safety] bug: severity not persisted on offline constat sync
-```
+
+- Create constat offline
+- Enable GitHub security features
+- Severity not persisted on offline constat sync
 
 ---
 
 ## 2. Labels
 
-Only the six Increment 1 bounded contexts get a `ctx:*` label now (architecture.md
-section 7). The remaining contexts (Quality, Workforce, Stock, Reporting) get their
-label just-in-time, when they enter active work - never up front.
+Only the six Increment 1 bounded contexts get a product `ctx:*` label now
+(architecture.md section 7), plus `ctx:platform` for work on the repository
+itself. The remaining product contexts (Quality, Workforce, Stock, Reporting) get
+their label just-in-time, when they enter active work - never up front.
 
 ### Context (`ctx:*`)
 
@@ -48,6 +42,7 @@ label just-in-time, when they enter active work - never up front.
 | `ctx:corrective-actions` | Corrective action lifecycle | Differentiator |
 | `ctx:media` | Photos / attachments | Cross-cutting |
 | `ctx:notifications` | Notifications | Cross-cutting |
+| `ctx:platform` | Repository, CI, tooling | No product context |
 
 ### Type (`type:*`)
 
@@ -73,9 +68,50 @@ label just-in-time, when they enter active work - never up front.
 |-------|---------|
 | `offline` | Touches offline capture, local-first writes, or synchronization (the product differentiator). Applied on top of a `type:*` label. |
 
+This is a personal-account repository, so organization-level issue types are
+unavailable: the `type:*` labels carry that role.
+
 ---
 
-## 3. Definition of Ready (DoR)
+## 3. Issue body structure
+
+Every issue body follows the same six headings:
+
+- Goal — what this achieves, in one or two sentences.
+- Context — what is true today that makes it necessary; link the inventory, ADR or
+  issue it comes from.
+- Scope — what this issue covers.
+- Out of scope — what it deliberately does not, so the scope cannot widen silently.
+- Done when — invariants, stated as verifiable outcomes, never as steps.
+- Proof — the method that will demonstrate those invariants.
+
+---
+
+## 4. Hierarchy and dependencies
+
+A parent issue carries a goal; its sub-issues carry the work
+(`gh issue create --parent`, or `gh issue edit --parent` afterwards). Parent
+progress is visible through `subIssuesSummary`.
+
+A dependency is not a hierarchy. Use blocked-by when one issue must complete before
+another can start, and a parent/sub-issue link when one contains the other.
+
+Dependencies are native: `gh issue create --blocked-by`,
+`gh issue edit --add-blocked-by`, and their `--blocking` counterparts. Read them
+with `gh api repos/OWNER/REPO/issues/<N>/dependencies/blocked_by`. A textual
+`Blocked by: #N` in the body is a fallback, not the convention.
+
+---
+
+## 5. Branch names
+
+`<type>/<kebab-case-description>`, type from Conventional Commits, with an optional
+scope segment (for example `feature/access/bp-001-implementation`). Short and
+descriptive, no issue number.
+
+---
+
+## 6. Definition of Ready (DoR)
 
 An issue may be pulled into active work only when all of the following hold:
 
@@ -84,34 +120,35 @@ An issue may be pulled into active work only when all of the following hold:
 3. Primary context is identified (`ctx:*` label set).
 4. Known dependencies are linked (blocking issues, specs, ADRs). For work deriving
    from a Business Process, the BP unit under `docs/business-processes/BP-XXX/` is
-   linked (section 8).
+   linked (see "Durable documentation layout").
 5. Scope is small enough to fit within a single increment slice.
 6. For anything touching sync: the offline behavior is described (what happens
    offline, what happens on reconnect).
 
 ---
 
-## 4. Definition of Done (DoD)
+## 7. Definition of Done (DoD)
 
 An issue is closed only when all of the following hold:
 
-1. Code is merged into `dev` (feature branch -> PR -> dev).
+1. Code is merged into `main` through a pull request (ADR-ORG-002), squash-merged,
+   with one closing keyword per issue: `Closes #1` then `Closes #2`, never
+   `Closes #1, #2`. An issue that produces no code is closed by a proof comment
+   matching its Proof section, then closed with `--reason completed`.
 2. Every acceptance criterion is verified.
 3. Tests exist as appropriate to the type (unit / integration / architecture).
 4. If the work produced a non-trivial decision, an ADR is recorded per
    decisions-index.md: correct domain prefix (ADR-PROD / ADR-ARCH / ADR-ORG),
    zero-padded per-domain numbering, the standard template, and the ADR is added
    to the index. Existing ADRs are superseded, never edited.
-5. Domain invariants are respected. Examples for Safety:
-   - an accident-type constat requires a corrective action before it can be resolved;
-   - a critical-severity constat requires at least one photo, enforced at the capture
-     layer (UX/application) - photos remain optional in the domain model (see constat.md);
-   - a constat is resolved only when all its corrective actions are closed.
+5. Domain invariants are respected, as defined by the bounded context's own model —
+   for Safety, `.claude-context/context/architecture/safety-domain-model.md`. This
+   convention does not restate them: a second copy is a second source of truth.
 6. No out-of-scope files were changed.
 
 ---
 
-## 5. Milestones = Increments
+## 8. Milestones = Increments
 
 Each milestone maps one-to-one to a product increment.
 
@@ -119,12 +156,14 @@ Each milestone maps one-to-one to a product increment.
 |-----------|-----------|
 | `Increment 1 - Safety -> Corrective action` | Safety constat -> Corrective action -> dashboard (ADR-PROD-001), offline PWA (ADR-ARCH-003) |
 
-Future increments get their own milestone when scoped. An issue belongs to exactly
-one milestone.
+Future increments get their own milestone when scoped. A milestone carries an
+increment goal, so an issue belongs to at most one. Roadmap goals are carried by
+the issue hierarchy instead (see "Hierarchy and dependencies"), and a roadmap
+issue has no milestone.
 
 ---
 
-## 6. Relationship to ADRs
+## 9. Relationship to ADRs
 
 Issues track work; ADRs track decisions. When an issue surfaces a non-trivial
 decision, it is recorded as an ADR under decisions-index.md governance and linked
@@ -133,17 +172,27 @@ substitute for the issue.
 
 ---
 
-## 7. Issue templates
+## 10. Issue templates
 
-Structured creation is enforced through issue templates in
-`.github/ISSUE_TEMPLATE/`. The story template captures: context, business value,
-acceptance criteria, offline behavior, dependencies, and DoD checklist.
+Structured creation is enforced through the templates in `.github/ISSUE_TEMPLATE/`,
+with `config.yml` setting `blank_issues_enabled: false` so every issue routes
+through a form.
 
-See `.github/ISSUE_TEMPLATE/story.yml`.
+Those templates predate this rewrite: their `ctx:*` dropdown omits `ctx:platform`,
+and their structure does not match "Issue body structure". Aligning them — and
+deciding whether a story template should follow the same structure as a tooling
+issue — is tracked in #97.
 
 ---
 
-## 8. Durable documentation layout
+## 11. Project board #9
+
+Board #9 uses built-in workflows: auto-add from this repository, and closed moves an
+item to Done. The former manual two-step add is obsolete.
+
+---
+
+## 12. Durable documentation layout
 
 Work is tracked in Issues; durable specs, designs, and decisions live in the
 repository. This section is authoritative for where those durable artifacts live;
@@ -176,8 +225,9 @@ Rules:
   (non-consigned) Implementation Plan.
 - The three consigned documents must let any developer or AI derive a plan and a
   faithful implementation without the conversation history.
-- Decisions (ADRs) are governed separately (sections 4 and 6, and decisions-index.md)
-  and live at `.claude-context/context/decisions/`, not in the BP folder.
+- Decisions (ADRs) are governed separately (see "Definition of Done" and
+  "Relationship to ADRs", and decisions-index.md) and live at
+  `.claude-context/context/decisions/`, not in the BP folder.
 - `.claude-context/` holds agent context, conventions, architecture rules, decisions,
   and sessions — not produced product artifacts. Durable product specs/designs live
   under `docs/`.
