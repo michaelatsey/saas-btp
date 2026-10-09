@@ -38,7 +38,7 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
 - Timestamps: ISO 8601, stored UTC; names like `createdAt`, `updatedAt`,
   `observedAt`, `dueAt`, `closedAt`.
 - Audit fields on every persisted entity: `createdAt`, `updatedAt`, `createdBy`,
-  `deletedAt` (soft delete — CLAUDE-SAAS-BTP.md 22). This applies to mutable
+  `deletedAt` (soft delete — CLAUDE.md 22). This applies to mutable
   entities; per the `sql.md` §Audit exception, insert-only aggregates (e.g. the
   Safety `Constat`) carry `created_at` only — `updated_at`/`deletedAt`/`created_by`
   are added when the aggregate actually gains mutation/soft-delete behaviour.

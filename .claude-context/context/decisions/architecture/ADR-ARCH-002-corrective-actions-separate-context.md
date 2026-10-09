@@ -38,5 +38,5 @@ depend on Safety or Quality at compile time; it reacts to their integration even
   duplicates the lifecycle, dilutes the differentiator, and couples the model to each
   source context.
 - A generic "workflow engine" for all lifecycles: rejected — premature platform
-  thinking (CLAUDE-SAAS-BTP.md 4); CorrectiveActions is one opinionated lifecycle, not
+  thinking (CLAUDE.md 4); CorrectiveActions is one opinionated lifecycle, not
   a configurable engine.

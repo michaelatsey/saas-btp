@@ -4,7 +4,7 @@ Status: defined (2026-06-28). This is a STEERING document (strategy, increments,
 goals, metrics, risks, validation). It does NOT hold detailed feature specs — those
 live in `specifications/`. It does NOT hold architecture debates — those live in
 `decisions/`. Source of truth for features: Projets.docx. Product rules:
-CLAUDE-SAAS-BTP.md. Market rationale: ADR-PROD-001.
+CLAUDE.md. Market rationale: ADR-PROD-001.
 
 ---
 
@@ -29,7 +29,7 @@ Safety (audits, sensibilisations, constats), Quality (audits, non-conformities),
 Corrective Actions (transversal), Reporting (daily/weekly/blocking points),
 Workforce, Stock, Offline synchronization (cross-cutting from increment 1).
 
-Explicitly OUT of Phase 1 (CLAUDE-SAAS-BTP.md 5): workflow designer, BPMN editor,
+Explicitly OUT of Phase 1 (CLAUDE.md 5): workflow designer, BPMN editor,
 generic automation, advanced form builder, rule engine, no-code system.
 
 ---
