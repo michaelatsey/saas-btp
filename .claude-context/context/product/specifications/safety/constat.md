@@ -61,7 +61,7 @@ Audit fields (all entities, per naming.md): createdAt, updatedAt, createdBy, del
   constat for priority review (notification to Responsable QHSE).
 - 3.3 status = resolved is only allowed when all linked corrective actions are closed.
 - 3.4 A constat is always scoped to exactly one siteId (no cross-site constat).
-- 3.5 Soft delete only (auditability — CLAUDE-SAAS-BTP.md 22). Never hard delete.
+- 3.5 Soft delete only (auditability — CLAUDE.md 22). Never hard delete.
 
 ---
 

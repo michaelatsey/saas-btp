@@ -45,7 +45,7 @@ MicroKit verifiee, jamais --delete-branch quand la head est dev."
 ### In Claude Code (WSL2), the first move is:
 
 - Activate Plan Mode BEFORE any prompt.
-- Read: CLAUDE-SAAS-BTP.md, architecture.md (Access/Site sections), the MicroKit.Auth +
+- Read: CLAUDE.md, architecture.md (Access/Site sections), the MicroKit.Auth +
   MicroKit.Tenancy READMEs/NuGet versions, issue #4 on GitHub.
 - Ask for a PLAN only: minimal apps/api skeleton (one module: Access) on MicroKit.Auth +
   Tenancy, Supabase auth wiring, nothing else (no Safety/CorrectiveActions/other modules).

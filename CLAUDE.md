@@ -2,20 +2,31 @@
 
 ## Vision
 
-A vertical B2B SaaS for construction operations (field execution, QHSE audits,
-non-conformities, corrective actions, reporting), offline-first, built and operated
-by a single founder augmented by an AI organization.
+A vertical B2B SaaS for construction operations: field execution, QHSE audits,
+non-conformities, corrective actions and reporting. The field user works on a site with
+poor or no network, on a phone, often with gloves on — offline-first is a property of
+the domain, not a feature.
 
-This repository serves TWO pillars that must never be confused:
+---
 
-| Pillar | What it is | Where |
-|--------|-----------|-------|
-| **Product** | The construction SaaS itself | Durable specs & designs: `docs/business-processes/` · Product rules & context: `.claude-context/context/product/` + `architecture/` |
-| **AI OS** | The augmented-company operating system used to build it | `.claude-context/context/ai-os/` |
+## Working rules
 
-> The Product is the deliverable. The AI OS is both the means AND a career asset:
-> the documented method of building software as a one-person AI-augmented company,
-> to be sold later as expertise to companies that want to augment themselves.
+- **State lives in GitHub Issues.** Never in a repository file, never in memory. What is
+  done, in progress or next is read from the issues and their proof comments.
+- **Cite what you read.** Before asserting a path, a build or test impact, or a runtime
+  behaviour, name the file you established it from. An unread claim is a defect.
+- **Never route around a guard.** If a test or an architecture rule blocks you, do not
+  rename, exclude or relax it to get green: either fix the code, or delete the guard
+  explicitly and record why in an ADR.
+- **Check the container before registering a service.** Search for an existing
+  registration first; never add a second one that wins by ordering.
+- **Read the provider's current documentation before wiring an external
+  service.** Keys, headers and endpoints change without notice, and both the
+  repository and any model's knowledge of them are dated. Never configure a
+  provider from memory.
+- **Workflow.** Issue -> branch -> pull request -> squash-merge into `main` with one
+  closing keyword per issue (ADR-ORG-002, ADR-ORG-003). Titles, labels, body structure,
+  DoR and DoD: `.claude-context/context/product/issues-convention.md`.
 
 ---
 
@@ -23,117 +34,60 @@ This repository serves TWO pillars that must never be confused:
 
 | Need | Load |
 |------|------|
-| Product rules, what NOT to build | `.claude-context/context/product/product-vision.md` (refs `CLAUDE.md`) |
-| Current Phase 1 scope + increments | `.claude-context/context/product/scope-phase-1.md` |
+| Product rules, what NOT to build | `.claude-context/context/product/product-vision.md` |
+| Phase 1 scope and increments | `.claude-context/context/product/scope-phase-1.md` |
 | A business process (spec, design package, implementation design) | `docs/business-processes/BP-XXX/` |
 | Domain / feature specs (non-BP) | `.claude-context/context/product/specifications/` |
 | How to design any new feature | `.claude-context/context/architecture/conventions/process-first-method.md` |
-| User stories / backlog | GitHub Issues (NOT a repo file) — see `.claude-context/context/product/issues-convention.md` |
-| Build progress (what's done / next) | `.claude-context/context/build-checklist.md` |
-| AI OS target & principles (north star) | `.claude-context/context/ai-os/ai-os-vision.md` |
-| Where we are on the AI OS journey | `.claude-context/context/ai-os/ai-os-roadmap.md` |
-| The documented method (career asset) | `.claude-context/context/ai-os/ai-os-method.md` |
+| Issues convention, and where durable artifacts live | `.claude-context/context/product/issues-convention.md` |
 | Modular monolith decomposition | `.claude-context/context/architecture/architecture.md` |
 | Naming conventions (all layers) | `.claude-context/context/architecture/conventions/naming.md` |
 | Analysis vocabulary (BP, ACT, TSK...) | `.claude-context/context/architecture/conventions/glossary.md` |
-| Any decision (why) | `.claude-context/context/decisions/decisions-index.md` |
-| What happened last | highest-seq file in `.claude-context/sessions/` |
-| Agent definitions | `.claude/agents/` |
-
-Always read the most recent `.claude-context/sessions/` file before starting work.
+| Any decision, and why | `.claude-context/context/decisions/decisions-index.md` |
 
 ---
 
-## Documentary model — where durable artifacts live
+## Documentary model
 
-A **Business Process** is the autonomous documentary unit. Anyone (human or AI) must be able to pick
-up a BP and derive an implementation without our conversation history.
+A Business Process is the autonomous documentary unit: anyone, human or AI, must be able
+to pick up a BP under `docs/business-processes/BP-XXX/` and derive an implementation
+without the conversation history. Specification (WHY) -> Design Package (WHAT, business
+model, closed) -> Implementation Design (software HOW, stable contract) -> Implementation
+Plan, which is derived per tool and never consigned.
 
-```
-docs/business-processes/BP-XXX/
-├── BP-XXX-specification.md         # WHY: business intent, scope, actors, initial business rules
-├── BP-XXX-design-package.md        # WHAT (closed business model): process, domain/MCD, invariants, lifecycle, boundaries
-└── BP-XXX-implementation-design.md # SOFTWARE HOW (durable): architecture mapping, persistence design, API & security/sync boundary, technical constraints
-```
-
-The derivation chain, and what is consigned vs derived:
-
-```
-Business Specification   (docs/business-processes/BP-XXX/)   consigned
-        ↓
-Design Package           (docs/business-processes/BP-XXX/)   consigned — business model, closed
-        ↓
-Implementation Design    (docs/business-processes/BP-XXX/)   consigned — software model, stable contract
-        ↓
-Implementation Plan      (per tool: Claude Code, dev, other AI)   DERIVED — NOT consigned
-        ↓
-Code
-```
-
-Rules:
-- The Design Package holds no realization decisions. The Implementation Design is not an
-  Implementation Plan in disguise: no task breakdown, no file-creation order, no Claude Code prompt.
-  Anything that looks like an execution step belongs to the (non-consigned) Implementation Plan.
-- The Implementation Design must permit several valid Implementation Plans but only one correct
-  interpretation of the system.
-
-**`.claude-context/` scope.** Agent context, conventions, architecture rules, Claude Code
-instructions, decisions (ADRs), and sessions. It no longer holds produced product artifacts — durable
-product specs and designs live in `docs/`. ADRs remain at their existing canonical path
-(`.claude-context/context/decisions/…`).
+`issues-convention.md` section 12 is authoritative for this layout and for the derivation
+rules. This file carries only the orientation above.
 
 ---
 
-## Conventions (inherited from the freelance ecosystem)
+## Conventions
 
-- Branches: `main` protected | `dev` integration | `feature/scope/desc` | `fix/scope/desc`
-- Conventional Commits: `feat(audit):` `fix(sync):` `docs(ai-os):` `chore(ci):`
-- ADRs: prefixed `ADR-PROD-*` / `ADR-ARCH-*` / `ADR-ORG-*` (see decisions-index.md).
-  ADR discovery follows the Process-First method: conceptual ADRs are written during
-  design validation; technical ADRs after infrastructure constraints are known.
+- Branches: `main` is protected and is the only long-lived branch; work happens on
+  `<type>/<scope>/<description>`, merged by pull request.
+- Commits follow Conventional Commits 1.0.0: `<type>(<scope>): <description>`, the
+  description in the imperative, no trailing period. `feat` and `fix` carry their
+  specification meaning; `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `style`,
+  `test` and `revert` are also used. The scope names the area of the codebase the commit
+  touches (`api`, `issues`, `security`, `repo`), independently of the branch scope. A
+  breaking change is marked with `!` before the colon, a `BREAKING CHANGE:` footer, or
+  both.
+- ADRs: `ADR-PROD-*` / `ADR-ARCH-*` / `ADR-ORG-*` (see decisions-index.md). Conceptual
+  ADRs are written during design validation; technical ADRs once infrastructure
+  constraints are known. An accepted ADR is superseded, never edited.
 - Feature design: every new feature starts with the Process-First Design Method
-  (`.claude-context/context/architecture/conventions/process-first-method.md`). Business-process
-  validation precedes any technical design.
-- Business-process documentation: a BP is the autonomous documentary unit under
-  `docs/business-processes/BP-XXX/` (specification → design package → implementation design). See
-  the "Documentary model" section above.
-- User stories / backlog: GitHub Issues (milestones = increments, labels = context/type/prio).
-  Never tracked in repo markdown. Repo holds durable specs and decisions only — durable product
-  specs/designs in `docs/business-processes/`, decisions in `.claude-context/context/decisions/`.
-- Language: all repo files in English. Sessions in English. UI labels localized (French first).
-- GitHub-versioned files: plain text, no decorative emojis (status icons allowed).
-- Sessions: committed, plain text (Option B — traceability is part of the asset).
-  Private drafts go in `.claude-context/sessions/local/` (gitignored, emojis allowed).
-- Sessions filename: `<seq>-<date>-<subject>.md` (seq = 3-digit, zero-padded).
-  Latest session = highest seq. Read it first before any work.
-- GitHub operations: always `gh` CLI from WSL2, never the web UI unless necessary.
-- Coolify: this project = its own Coolify project (`saas-btp`), production + staging envs.
-- Credentials: saved in Bitwarden immediately on account creation.
+  (`.claude-context/context/architecture/conventions/process-first-method.md`).
+- Language: all repository files in English. UI labels localized, French first.
+- Versioned files: plain text, no decorative emojis.
+- Secrets are never written to a settings file, a repository file, or a conversation.
 
 ---
 
-## Stack (validated)
+## Stack
 
-Backend: .NET 10 modular monolith — Hexagonal · DDD · CQRS · MicroKit ecosystem
-Web: Next.js 16+ · TypeScript · Shadcn/ui · TailwindCSS · offline-first via PowerSync Web (ADR-ARCH-003)
-Data: Supabase (PostgreSQL + Auth + Storage)
-Mobile (Phase 2): React Native (Expo) · offline-first via PowerSync
-Contract boundary: OpenAPI (ADR-ARCH-001)
-Infra: Hetzner VPS · Coolify · Cloudflare
+A .NET 10 modular monolith (Hexagonal, DDD, CQRS) on the MicroKit ecosystem, with an
+offline-first client and Supabase for PostgreSQL, Auth and Storage. The choices behind
+it, and the ones still open, live in `decisions-index.md` — this file does not restate
+them.
 
-The stack is an implementation constraint, not a source of domain decisions.
-Never let a stack name drive a modelling choice.
-
----
-
-## Current state
-
-- Phase 1 scope and modular-monolith bounded contexts: DEFINED (Step 1 done).
-- Increment 1: Safety constat -> Corrective action -> dashboard (ADR-PROD-001),
-  shipped as an offline PWA (ADR-ARCH-003, spike-gated).
-- BP-001 (Créer son espace entreprise): business model closed — specification + Design Package
-  consigned under `docs/business-processes/BP-001/`; ADR-ARCH-013 (authorization scope levels)
-  accepted. Implementation Design in progress.
-- AI OS palier: Palier 1 (hub + core manual agents) — in progress.
-- Next step: finalize BP-001 Implementation Design, then derive its Implementation Plan.
-  See `.claude-context/context/build-checklist.md`.
+The stack is an implementation constraint, not a source of domain decisions. Never let a
+stack name drive a modelling choice.

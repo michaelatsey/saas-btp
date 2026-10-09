@@ -1,6 +1,6 @@
 # Product Vision
 
-> The authoritative product rules live in `CLAUDE-SAAS-BTP.md`
+> The authoritative product rules live in `CLAUDE.md`
 > (product philosophy, phases, UX/offline/RBAC strategy, decision filter).
 > This file is the entry point; it does not duplicate that content.
 
@@ -17,7 +17,7 @@ non-conformities, corrective actions, daily/weekly reporting, stock, offline-fir
 ## Non-negotiable product stance
 
 - Product first, platform later. No generic workflow/form/rule engines until real
-  usage patterns emerge (see CLAUDE-SAAS-BTP.md sections 4, 12, 13).
+  usage patterns emerge (see CLAUDE.md sections 4, 12, 13).
 - Offline-first is a strategic differentiator, not an option.
 - Opinionated, simple, field-usable. Never ERP/BPM/config-software feel.
 

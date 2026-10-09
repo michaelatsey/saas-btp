@@ -4,7 +4,7 @@ Status: initial decomposition (2026-06-28). Living document — evolves as incre
 ship. Steering: ../product/scope-phase-1.md. Decisions: ../decisions/decisions-index.md.
 
 > Backend: .NET 10 modular monolith — Hexagonal, DDD, CQRS, built on the MicroKit
-> ecosystem. Not microservices (CLAUDE-SAAS-BTP.md 20). Contract boundary: OpenAPI
+> ecosystem. Not microservices (CLAUDE.md 20). Contract boundary: OpenAPI
 > (ADR-ARCH-001). Naming: conventions/naming.md.
 
 ---
@@ -81,7 +81,7 @@ ship. Steering: ../product/scope-phase-1.md. Decisions: ../decisions/decisions-i
   - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
   - Messaging — inter-context integration events.
   - Auth, Tenancy — the Access context.
-- All persisted entities carry audit fields and soft delete (naming.md, CLAUDE-SAAS-BTP.md 22).
+- All persisted entities carry audit fields and soft delete (naming.md, CLAUDE.md 22).
 
 ---
 
