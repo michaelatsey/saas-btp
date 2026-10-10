@@ -16,7 +16,8 @@ dotnet test SaasBtp.slnx -c Release --no-build
 - These are the commands of `.github/workflows/ci-api.yml`. Keep the two in step.
 - Build in `Release`: `Directory.Build.props` turns warnings into errors in that
   configuration only.
-- Integration tests start PostgreSQL through Testcontainers and need Docker running.
+- `dotnet test` needs Docker running: the integration tests and the database-migrator
+  tests start PostgreSQL through Testcontainers.
 
 ## Where tests live
 
