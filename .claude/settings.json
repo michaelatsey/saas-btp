@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git * push *)",
+      "Bash(git * push)",
+      "Bash(gh pr create *)"
+    ],
+    "deny": [
+      "Read(graph.json)",
+      "Read(graphify-out/**)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(appsettings.Development.json)",
+      "Read(http-client.env.json)",
+      "Read(*.key)",
+      "Read(*.pem)",
+      "Read(*.pfx)",
+      "Read(*.p12)",
+      "Read(*.p8)",
+      "Read(*.jks)",
+      "Read(*.keystore)",
+      "Read(*.mobileprovision)"
+    ]
+  },
+  "hooks": {
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p \"${CLAUDE_PROJECT_DIR}/.claude/logs\" && jq -c '{ts: (now | todate), file_path, memory_type, load_reason}' >> \"${CLAUDE_PROJECT_DIR}/.claude/logs/instructions-loaded.jsonl\""
+          }
+        ]
+      }
+    ]
+  }
+}
