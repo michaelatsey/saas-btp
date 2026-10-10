@@ -71,3 +71,4 @@ docs/spikes/powersync-web/
 # Generated tooling output
 # ---------------------------------------------------------------------------
 /graphify-out/
+.claude/logs/
