@@ -41,7 +41,6 @@ coverage/
 .env
 .env.*
 !.env.example
-.mcp.json
 appsettings.Development.json
 http-client.env.json
 

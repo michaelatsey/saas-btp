@@ -12,7 +12,7 @@
     ],
     "deny": [
       "Read(graph.json)",
-      "Read(graphify-out/**)",
+      "Read(graphify-out/**/*)",
       "Read(.env)",
       "Read(.env.*)",
       "Read(!.env.example)",
