@@ -19,7 +19,8 @@ Each section below fills in as the corresponding palier is reached
 
 ## 1. Agent design
 
-How agents are defined, scoped, and invoked. Template lives in `.claude/agents/_TEMPLATE.md`.
+How agents are defined, scoped, and invoked. An agent is added under `.claude/agents/`
+when a workflow needs one; no template is kept.
 
 (to be filled — Palier 1)
 
