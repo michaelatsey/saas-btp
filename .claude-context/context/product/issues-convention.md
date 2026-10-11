@@ -141,9 +141,9 @@ An issue is closed only when all of the following hold:
    decisions-index.md: correct domain prefix (ADR-PROD / ADR-ARCH / ADR-ORG),
    zero-padded per-domain numbering, the standard template, and the ADR is added
    to the index. Existing ADRs are superseded, never edited.
-5. Domain invariants are respected, as defined by the bounded context's own model —
-   for Safety, `.claude-context/context/architecture/safety-domain-model.md`. This
-   convention does not restate them: a second copy is a second source of truth.
+5. Domain invariants are respected, as defined by the owning bounded context's model
+   and Business Process documents. This convention does not restate them: a second
+   copy is a second source of truth.
 6. No out-of-scope files were changed.
 
 ---
@@ -154,7 +154,7 @@ Each milestone maps one-to-one to a product increment.
 
 | Milestone | Increment |
 |-----------|-----------|
-| `Increment 1 - Safety -> Corrective action` | Safety constat -> Corrective action -> dashboard (ADR-PROD-001), offline PWA (ADR-ARCH-003) |
+| `Increment 1 - Safety -> Corrective action` | Safety constat -> Corrective action -> dashboard (ADR-PROD-001), offline PWA |
 
 Future increments get their own milestone when scoped. A milestone carries an
 increment goal, so an issue belongs to at most one. Roadmap goals are carried by
