@@ -115,8 +115,8 @@ descriptive, no issue number.
 
 An issue may be pulled into active work only when all of the following hold:
 
-1. The Goal says why the work matters.
-2. "Done when" is written and verifiable.
+1. Goal and Context are written: what the work achieves, and what makes it necessary.
+2. "Done when" and "Proof" are written, and "Done when" is verifiable.
 3. Primary context is identified (`ctx:*` label set).
 4. Known dependencies are linked (blocking issues, specs, ADRs). For work deriving
    from a Business Process, the BP unit under `docs/business-processes/BP-XXX/` is
