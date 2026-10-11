@@ -131,7 +131,7 @@ Increment 1 depends on:
 ### 4.10 Bounded contexts touched
 
 `Access`, `Site`, `Safety`, `CorrectiveActions`, `Media`, `Notifications`.
-Full decomposition: `../architecture/architecture.md`.
+Full decomposition: `.claude-context/context/architecture/architecture.md`.
 
 ### 4.11 Out of increment 1 (non-goals)
 

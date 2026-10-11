@@ -1,8 +1,0 @@
-@host = {{host}}
-
-### unauthenticated -> expect 401
-GET {{host}}/me
-
-### authenticated -> expect 200
-GET {{host}}/me
-Authorization: Bearer {{token}}

@@ -38,10 +38,9 @@ the domain, not a feature.
 
 | Need | Load |
 |------|------|
-| Product rules, what NOT to build | `.claude-context/context/product/product-vision.md` |
-| Phase 1 scope and increments | `.claude-context/context/product/scope-phase-1.md` |
+| Phase 1 scope and increments | `docs/product/scope-phase-1.md` |
 | A business process (spec, design package, implementation design) | `docs/business-processes/BP-XXX/` |
-| Domain / feature specs (non-BP) | `.claude-context/context/product/specifications/` |
+| Domain / feature specs (non-BP) | `docs/product/specifications/` |
 | How to design any new feature | `.claude-context/context/architecture/conventions/process-first-method.md` |
 | Issues convention, and where durable artifacts live | `.claude-context/context/product/issues-convention.md` |
 | Modular monolith decomposition | `.claude-context/context/architecture/architecture.md` |
