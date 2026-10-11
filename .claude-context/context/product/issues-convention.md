@@ -173,14 +173,20 @@ substitute for the issue.
 
 ## 10. Issue templates
 
-Structured creation is enforced through the templates in `.github/ISSUE_TEMPLATE/`,
-with `config.yml` setting `blank_issues_enabled: false` so every issue routes
-through a form.
+Four issue forms live in `.github/ISSUE_TEMPLATE/`: story, spike, chore and bug. A
+form guides, it does not enforce:
 
-Those templates predate this rewrite: their `ctx:*` dropdown omits `ctx:platform`,
-and their structure does not match "Issue body structure". Aligning them — and
-deciding whether a story template should follow the same structure as a tooling
-issue — is tracked in #97.
+- A form applies its `type:*` label and pre-fills no title. Its body lays out the
+  six headings of "Issue body structure", then the one field its type needs, if
+  any: offline behavior for a story, steps to reproduce for a bug, a time box for a
+  spike. It ends with a `Primary context` dropdown.
+- `config.yml` sets `blank_issues_enabled: false`, which hides the blank issue for
+  the Read and Triage roles only. The maintainer still sees it, labeled
+  "Maintainers only", and an issue created through `gh` or the API goes through no
+  form.
+- A dropdown answer cannot apply a label. The `Primary context` answer is recorded
+  in the body only; the `ctx:*` and `prio:*` labels are set by hand after creation,
+  whatever the form shows.
 
 ---
 
