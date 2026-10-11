@@ -9,7 +9,7 @@ separate), ADR-ARCH-004 (Membership deferred), ADR-ARCH-005 (write path), naming
 
 This is the DDD model. It is derived from the business language, NOT from the
 Innov_Boost table nor from the HTTP DTO. The feature-level field spec lives under
-context/product/specifications/safety/constat.md; this file owns the domain shape.
+docs/product/specifications/safety/constat.md; this file owns the domain shape.
 
 ---
 

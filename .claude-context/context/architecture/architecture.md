@@ -1,7 +1,7 @@
 # Architecture
 
 Status: initial decomposition (2026-06-28). Living document — evolves as increments
-ship. Steering: ../product/scope-phase-1.md. Decisions: ../decisions/decisions-index.md.
+ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions-index.md.
 
 > Backend: .NET 10 modular monolith — Hexagonal, DDD, CQRS, built on the MicroKit
 > ecosystem. Not microservices (CLAUDE.md 20). Contract boundary: OpenAPI
