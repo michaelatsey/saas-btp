@@ -10,6 +10,13 @@
 
 <!-- How it was verified: commands run, output observed, CI result. -->
 
+## Review
+
+<!-- Ticked by the maintainer only, before merging, once the full diff has been read.
+     Whoever writes this body leaves the box unticked. -->
+
+- [ ] The maintainer has read the full diff.
+
 ## Closing
 
 <!-- One closing keyword per issue, each on its own line. GitHub needs the full
