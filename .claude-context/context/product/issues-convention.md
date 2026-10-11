@@ -115,8 +115,8 @@ descriptive, no issue number.
 
 An issue may be pulled into active work only when all of the following hold:
 
-1. Business value is stated in one sentence (why this matters to the field user).
-2. Acceptance criteria are written and testable.
+1. Goal and Context are written: what the work achieves, and what makes it necessary.
+2. "Done when" and "Proof" are written, and "Done when" is verifiable.
 3. Primary context is identified (`ctx:*` label set).
 4. Known dependencies are linked (blocking issues, specs, ADRs). For work deriving
    from a Business Process, the BP unit under `docs/business-processes/BP-XXX/` is
@@ -135,7 +135,7 @@ An issue is closed only when all of the following hold:
    with one closing keyword per issue: `Closes #1` then `Closes #2`, never
    `Closes #1, #2`. An issue that produces no code is closed by a proof comment
    matching its Proof section, then closed with `--reason completed`.
-2. Every acceptance criterion is verified.
+2. Every outcome of "Done when" is verified by the method of "Proof".
 3. Tests exist as appropriate to the type (unit / integration / architecture).
 4. If the work produced a non-trivial decision, an ADR is recorded per
    decisions-index.md: correct domain prefix (ADR-PROD / ADR-ARCH / ADR-ORG),
