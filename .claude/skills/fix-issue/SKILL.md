@@ -68,10 +68,13 @@ every "Done when" item is addressed, that each change in behaviour has a test, a
 that nothing outside the issue's scope changed. Act only on gaps that affect
 correctness or the stated scope.
 
-For correctness: run the built-in `/code-review` on the branch. It runs in the
-background by default, so its findings arrive later: wait for its findings before
-going further, and never commit before they are in. Fix those that affect
-correctness; report the others without fixing them.
+For correctness: run the built-in `/code-review` with no target, so that it covers the
+uncommitted changes, new files included. It runs in the background by default, so its
+findings arrive later: wait for its findings before going further, and never commit
+before they are in. Fix those that affect correctness; report the others without
+fixing them.
+
+A review that fails or does not come back is not a clean review: stop and say so.
 
 Then run step 6 again.
 
