@@ -1,19 +1,70 @@
 name: Story
 description: A user-facing vertical slice delivering business value.
-title: "[ctx:<context>] story: <imperative description>"
 labels: ["type:story"]
 body:
   - type: markdown
     attributes:
       value: |
-        Fill this out per the issues convention. After creating the issue, apply the
-        matching `ctx:*` label (and `offline` if it touches sync), a `prio:*` label,
-        and assign it to the current increment milestone.
-  - type: dropdown
+        Title: plain imperative, no prefix (issues convention, "Title format").
+
+        This form applies `type:story` and nothing else. After creating the issue, set
+        its `ctx:*` label, a `prio:*` label, and `offline` if it touches sync. Assign
+        it to its increment milestone, if it belongs to one.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What this achieves, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
     id: context
     attributes:
+      label: Context
+      description: What is true today that makes it necessary. Link the inventory, ADR or issue it comes from.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue covers.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What it deliberately does not cover, so the scope cannot widen silently.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Invariants, stated as verifiable outcomes, never as steps.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof
+      description: The method that will demonstrate those invariants.
+    validations:
+      required: true
+  - type: textarea
+    id: offline-behavior
+    attributes:
+      label: Offline behavior
+      description: If this touches sync, what happens offline and what happens on reconnect. Write "N/A" if it does not touch sync.
+      placeholder: Offline ... / On reconnect ...
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-context
+    attributes:
       label: Primary context
-      description: Exactly one bounded context owns this story. Apply the matching ctx:* label after creation.
+      description: Exactly one context. A dropdown cannot apply a label, so set the matching label after creation.
       options:
         - ctx:access
         - ctx:site
@@ -21,47 +72,6 @@ body:
         - ctx:corrective-actions
         - ctx:media
         - ctx:notifications
+        - ctx:platform
     validations:
       required: true
-  - type: textarea
-    id: business-value
-    attributes:
-      label: Business value
-      description: One sentence — why this matters to the field user.
-      placeholder: As a site supervisor, I can ... so that ...
-    validations:
-      required: true
-  - type: textarea
-    id: acceptance-criteria
-    attributes:
-      label: Acceptance criteria
-      description: Testable criteria. One per line.
-      value: |
-        - [ ]
-        - [ ]
-    validations:
-      required: true
-  - type: textarea
-    id: offline-behavior
-    attributes:
-      label: Offline behavior
-      description: If this touches sync — what happens offline, and what happens on reconnect. Write "N/A" if it does not touch sync (and omit the offline label).
-      placeholder: Offline ... / On reconnect ...
-    validations:
-      required: true
-  - type: textarea
-    id: dependencies
-    attributes:
-      label: Dependencies
-      description: Blocking issues, specs, or ADRs. Link them.
-      placeholder: "Blocked by #.. / relates to ADR-.."
-    validations:
-      required: false
-  - type: checkboxes
-    id: dod
-    attributes:
-      label: Definition of Done acknowledgment
-      description: This story is not closed until all DoD items in issues-convention.md are met.
-      options:
-        - label: I understand this story follows the DoR/DoD defined in issues-convention.md
-          required: true

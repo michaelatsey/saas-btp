@@ -1,19 +1,71 @@
 name: Spike
 description: A time-boxed technical investigation. No production code is the outcome.
-title: "[ctx:<context>] spike: <question to resolve>"
 labels: ["type:spike"]
 body:
   - type: markdown
     attributes:
       value: |
-        A spike answers one technical question within a time box. After creating the
-        issue, apply the matching `ctx:*` label (or none if infra) and a `prio:*` label,
-        and assign it to the current increment milestone.
-  - type: dropdown
+        Title: plain imperative, no prefix (issues convention, "Title format").
+
+        A spike answers one technical question within a time box. This form applies
+        `type:spike` and nothing else. After creating the issue, set its `ctx:*` label
+        and a `prio:*` label. Assign it to its increment milestone, if it belongs to
+        one.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What this achieves, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
     id: context
     attributes:
+      label: Context
+      description: What is true today that makes it necessary. Link the inventory, ADR or issue it comes from.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue covers.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What it deliberately does not cover, so the scope cannot widen silently.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Invariants, stated as verifiable outcomes, never as steps.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof
+      description: The method that will demonstrate those invariants.
+    validations:
+      required: true
+  - type: input
+    id: time-box
+    attributes:
+      label: Time box
+      description: Maximum time allotted before stopping and reporting findings.
+      placeholder: e.g. 1 day
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-context
+    attributes:
       label: Primary context
-      description: One context, or "none" for cross-cutting/infra work.
+      description: Exactly one context. A dropdown cannot apply a label, so set the matching label after creation.
       options:
         - ctx:access
         - ctx:site
@@ -21,28 +73,6 @@ body:
         - ctx:corrective-actions
         - ctx:media
         - ctx:notifications
-        - none (cross-cutting / infra)
-    validations:
-      required: true
-  - type: textarea
-    id: question
-    attributes:
-      label: Question to resolve
-      description: The single technical question this spike answers.
-    validations:
-      required: true
-  - type: input
-    id: timebox
-    attributes:
-      label: Time box
-      description: Maximum time allotted before stopping and reporting findings.
-      placeholder: e.g. 1 day
-    validations:
-      required: true
-  - type: textarea
-    id: exit-criteria
-    attributes:
-      label: Exit criteria
-      description: How we know the spike is done (decision reached, ADR to write, go/no-go).
+        - ctx:platform
     validations:
       required: true

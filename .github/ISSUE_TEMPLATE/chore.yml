@@ -1,18 +1,62 @@
 name: Chore
 description: Internal work (tooling, CI, refactor, docs) with no direct user value.
-title: "[ctx:<context>] chore: <imperative description>"
 labels: ["type:chore"]
 body:
   - type: markdown
     attributes:
       value: |
-        After creating the issue, apply the matching `ctx:*` label (or none if infra)
-        and a `prio:*` label. Assign it to the current increment milestone.
-  - type: dropdown
+        Title: plain imperative, no prefix (issues convention, "Title format").
+
+        This form applies `type:chore` and nothing else. After creating the issue, set
+        its `ctx:*` label and a `prio:*` label. Assign it to its increment milestone,
+        if it belongs to one.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What this achieves, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
     id: context
     attributes:
+      label: Context
+      description: What is true today that makes it necessary. Link the inventory, ADR or issue it comes from.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue covers.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What it deliberately does not cover, so the scope cannot widen silently.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Invariants, stated as verifiable outcomes, never as steps.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof
+      description: The method that will demonstrate those invariants.
+    validations:
+      required: true
+  - type: dropdown
+    id: primary-context
+    attributes:
       label: Primary context
-      description: One context, or "none" for cross-cutting/infra work.
+      description: Exactly one context. A dropdown cannot apply a label, so set the matching label after creation.
       options:
         - ctx:access
         - ctx:site
@@ -20,20 +64,6 @@ body:
         - ctx:corrective-actions
         - ctx:media
         - ctx:notifications
-        - none (cross-cutting / infra)
-    validations:
-      required: true
-  - type: textarea
-    id: description
-    attributes:
-      label: Description
-      description: What needs doing and why.
-    validations:
-      required: true
-  - type: textarea
-    id: done
-    attributes:
-      label: Done when
-      description: The concrete condition that closes this chore.
+        - ctx:platform
     validations:
       required: true
