@@ -1,0 +1,51 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "SaasBtp.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/ping": {
+      "get": {
+        "tags": [
+          "SaasBtp.Api"
+        ],
+        "operationId": "Ping",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PingResponse": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Always `ok`: the endpoint only proves that the versioned API answers."
+          }
+        },
+        "description": "The body of `GET /api/v1/ping`."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "SaasBtp.Api"
+    }
+  ]
+}

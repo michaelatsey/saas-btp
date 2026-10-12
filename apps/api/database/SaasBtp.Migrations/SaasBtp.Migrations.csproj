@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!--
+    One flat folder, ordered by a global four-digit number: NNNN__<module>__<description>.sql
+    (ADR-ARCH-019). The scripts travel inside the assembly.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Scripts/*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="dbup-postgresql" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

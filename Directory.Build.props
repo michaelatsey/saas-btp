@@ -2,10 +2,14 @@
 
   <!--
     Repo-root MSBuild defaults: this file sits at the solution root and governs EVERY MSBuild
-    project in the tree — apps/api/ AND tools/ (the DbUp migrator inherits net10.0 / nullable /
-    warnings-as-errors from here). Mirrors libraries/microkit/Directory.Build.props (the shared
-    conventions), trimmed to what a product host needs (no NuGet packaging metadata — nothing here
-    is published). Only affects MSBuild projects; the pnpm/Next.js side of the repo is untouched.
+    project in the tree, in the layout of ADR-ARCH-020:
+      apps/api/src/hosts/<Project>/        the hosts
+      apps/api/src/modules/<Context>/      the bounded-context modules
+      apps/api/tests/<Project>/            the test projects
+      apps/api/database/SaasBtp.Migrations the schema migration runner (ADR-ARCH-019)
+      libraries/                           the .NET libraries owned by this repository
+    No nested Directory.Build.props is added below it: it would shadow this file for everything
+    underneath. Only affects MSBuild projects; the pnpm side of the repo is untouched.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,6 +20,16 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    Test projects (ADR-ARCH-021): the name of a test states what it proves, so a missing XML
+    comment (CS1591) is not reported there. Documentation generation stays on, so a malformed
+    XML comment is still reported. Test projects are recognized by the name ADR-ARCH-020 gives
+    them: <TestedProject>.Tests or <TestedProject>.IntegrationTests.
+  -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
 </Project>

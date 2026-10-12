@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../PostgresImage.cs" Link="PostgresImage.cs" />
+    <AssemblyMetadata Include="OpenApiDocumentPath" Value="$(MSBuildProjectDirectory)/../../openapi/v1.json" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

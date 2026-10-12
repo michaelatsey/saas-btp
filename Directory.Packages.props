@@ -3,10 +3,26 @@
     Central Package Management at the REPO ROOT: this file governs every MSBuild project in the
     tree. Do NOT add a second Directory.Packages.props below it: it would shadow this file for
     everything underneath and split version governance in two. Transitive pinning is
-    intentionally OFF: only direct references need a version here.
-    No package is pinned yet — versions are added with the first project that references them.
+    intentionally OFF: only direct references need a version here. VersionOverride is disabled:
+    a project cannot declare a version of its own.
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
   </PropertyGroup>
+  <ItemGroup Label="ASP.NET Core">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup Label="PostgreSQL">
+    <!-- A direct reference wherever PostgreSQL is reached, the migration runner included, so that
+         every project resolves this version rather than the one dbup-postgresql pulls. -->
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
+  </ItemGroup>
+  <ItemGroup Label="Testing (ADR-ARCH-021)">
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+  </ItemGroup>
 </Project>
