@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# .NET (apps/api — isolated from the JS workspace, see ADR-ARCH-001)
+# .NET (apps/api — isolated from the JS workspace, see ADR-ARCH-018)
 # ---------------------------------------------------------------------------
 bin/
 obj/
