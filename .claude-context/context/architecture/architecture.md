@@ -5,7 +5,7 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 
 > Backend: .NET 10 modular monolith — Hexagonal, DDD, CQRS, built on the MicroKit
 > ecosystem. Not microservices (CLAUDE.md 20). Contract boundary: OpenAPI
-> (ADR-ARCH-001). Naming: conventions/naming.md.
+> (ADR-ARCH-018). Naming: conventions/naming.md.
 
 ---
 

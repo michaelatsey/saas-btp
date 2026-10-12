@@ -1,6 +1,6 @@
 # SQL / DDL Conventions
 
-Applies to every DbUp migration script (ADR-ARCH-006). Domain identifier rules live in
+Applies to every DbUp migration script (ADR-ARCH-019). Domain identifier rules live in
 naming.md; this file covers the database schema surface only.
 
 ## Casing & naming

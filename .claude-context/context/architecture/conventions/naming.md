@@ -11,7 +11,7 @@ automatically. A field is named ONCE (in C#) and flows everywhere.
 | Layer | Convention | Example |
 |-------|-----------|---------|
 | C# code / domain model | PascalCase | `ObserverName`, `Severity` |
-| JSON / API wire (contract boundary, ADR-ARCH-001) | camelCase | `observerName` |
+| JSON / API wire (contract boundary, ADR-ARCH-018) | camelCase | `observerName` |
 | TypeScript (generated from OpenAPI) | camelCase | `observerName` |
 | PostgreSQL columns / tables | snake_case | `observer_name`, `safety_constat` |
 | Enum values on the wire | camelCase string tokens | `dangerousSituation` |

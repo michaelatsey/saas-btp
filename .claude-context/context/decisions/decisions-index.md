@@ -49,6 +49,9 @@ Options rejected and why.
 |-----|-------|--------|
 | ADR-PROD-001 | Market entry through Safety (not Quality) | accepted |
 | ADR-PROD-002 | Founding creation (BP-001) does not verify the legal link between the requester and the declared organization; organization is taken as declared | accepted |
+| ADR-ARCH-017 | Solution layout for the .NET side of the monorepo | accepted |
+| ADR-ARCH-018 | HTTP API surface: Minimal APIs, major version in the URL, committed OpenAPI | accepted |
+| ADR-ARCH-019 | Schema migrations with DbUp, run before the application | accepted |
 | ADR-ORG-001 | The repository stays public: Claude.ai needs read access; secret scanning and push protection become a priority; README and licence statement to correct | accepted |
 | ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
 | ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | accepted |
