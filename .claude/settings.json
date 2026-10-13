@@ -16,7 +16,11 @@
       "Read(*.p8)",
       "Read(*.jks)",
       "Read(*.keystore)",
-      "Read(*.mobileprovision)"
+      "Read(*.mobileprovision)",
+      "Bash(gh pr merge *)",
+      "Bash(gh api */pulls/*/merge*)",
+      "Bash(gh api *mergePullRequest*)",
+      "Bash(gh api *enablePullRequestAutoMerge*)"
     ]
   },
   "hooks": {
