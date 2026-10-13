@@ -1,6 +1,6 @@
 # ADR-ARCH-017 — Solution layout for the .NET side of the monorepo
 
-Status: accepted
+Status: superseded by ADR-ARCH-020
 Date: 2026-10-12
 
 ## Context

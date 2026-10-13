@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The build writes the OpenAPI document "v1" to apps/api/openapi/v1.json, where it is
+    committed (ADR-ARCH-018). CI fails when the build output differs from the committed file.
+    The file name is set here for the one document that exists: a second major needs its own
+    naming before it is added.
+  -->
+  <PropertyGroup>
+    <OpenApiDocumentsDirectory>../../../openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name v1</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

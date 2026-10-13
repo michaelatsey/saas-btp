@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../PostgresImage.cs" Link="PostgresImage.cs" />
+    <AssemblyMetadata Include="ComposeFilePath" Value="$(MSBuildProjectDirectory)/../../../../infra/docker/compose.dev.yml" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

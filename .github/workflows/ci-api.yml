@@ -15,6 +15,7 @@ jobs:
   api-build-test:
     name: api-build-test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,8 +28,22 @@ jobs:
       - name: Restore
         run: dotnet restore SaasBtp.slnx
 
+      # The build writes the OpenAPI documents again (ADR-ARCH-018). Removing the committed
+      # ones first turns a build that no longer writes them into a failure of the check below.
+      - name: Remove the committed OpenAPI documents
+        run: rm -f apps/api/openapi/*.json
+
       - name: Build (Release)
         run: dotnet build SaasBtp.slnx -c Release --no-restore
 
+      - name: Check the built OpenAPI documents against the committed ones
+        run: |
+          if ! git diff --exit-code -- apps/api/openapi || [ -n "$(git status --porcelain -- apps/api/openapi)" ]; then
+            git status --porcelain -- apps/api/openapi
+            echo "::error::apps/api/openapi differs from what the build writes: build locally and commit the result."
+            exit 1
+          fi
+
+      # Microsoft.Testing.Platform mode of dotnet test (global.json): the solution is an option.
       - name: Test (Release)
-        run: dotnet test SaasBtp.slnx -c Release --no-build
+        run: dotnet test --solution SaasBtp.slnx -c Release --no-build

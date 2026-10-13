@@ -1,15 +1,36 @@
-# Local development stack — PLACEHOLDER.
+# Local development stack.
 #
-# Intent: spin up the backing services needed to run the SaaS BTP locally.
-# Services are added just-in-time as the stack is built out. Planned:
-#   - postgres / supabase-local : PostgreSQL + Auth + Storage (Supabase) for dev
+# One PostgreSQL, initialized like the Supabase project: same major version, same locale
+# provider (ICU) and same locale (en-US). The image and the initdb arguments are repeated in
+# apps/api/tests/PostgresImage.cs, which the integration tests start; a test fails when the
+# two differ.
 #
-# No service definitions are committed yet on purpose — they will be added with
-# pinned images and explicit configuration when first needed, not invented here.
+# POSTGRES_INITDB_ARGS and POSTGRES_PASSWORD apply only when the data volume is created: to
+# change either, remove the volume (docker compose ... down --volumes).
 #
-# Usage (once services exist):
+# The password is read from infra/docker/.env, which is never committed:
+#   POSTGRES_PASSWORD=<a local password>
+#
+# Usage, from the repository root:
 #   docker compose -f infra/docker/compose.dev.yml up -d
 
 name: saas-btp-dev
 
-services: {}
+services:
+  postgres:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

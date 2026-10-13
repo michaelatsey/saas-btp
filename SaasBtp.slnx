@@ -1,7 +1,16 @@
 <Solution>
   <!--
-    .NET solution (slnx format).
-    Empty for now — projects under apps/api/ are added JIT with `dotnet sln add`
-    when the modular monolith bounded contexts are scaffolded.
+    .NET solution (slnx format). It references every .NET project of the repository, in the
+    layout of ADR-ARCH-020.
   -->
+  <Folder Name="/apps/api/src/hosts/">
+    <Project Path="apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
+  </Folder>
+  <Folder Name="/apps/api/database/">
+    <Project Path="apps/api/database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
+  </Folder>
+  <Folder Name="/apps/api/tests/">
+    <Project Path="apps/api/tests/SaasBtp.Api.IntegrationTests/SaasBtp.Api.IntegrationTests.csproj" />
+    <Project Path="apps/api/tests/SaasBtp.Migrations.IntegrationTests/SaasBtp.Migrations.IntegrationTests.csproj" />
+  </Folder>
 </Solution>
