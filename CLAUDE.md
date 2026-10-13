@@ -25,7 +25,7 @@ the domain, not a feature.
   repository and any model's knowledge of them are dated. Never configure a
   provider from memory.
 - **Workflow.** Issue -> branch -> pull request -> squash-merge into `main` with one
-  closing keyword per issue (ADR-ORG-002, ADR-ORG-003). Titles, labels, body structure,
+  closing keyword per issue (ADR-ORG-002, ADR-ORG-004). Titles, labels, body structure,
   DoR and DoD: `.claude-context/context/product/issues-convention.md`.
 - **Start and stay at the repository root.** Claude Code reads `.claude/settings.json`
   from the session's working directory, so this repository's permission rules apply

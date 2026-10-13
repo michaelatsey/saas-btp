@@ -56,6 +56,7 @@ Options rejected and why.
 | ADR-ARCH-021 | Test project conventions: xUnit v3, native assertions, XML documentation | accepted |
 | ADR-ORG-001 | The repository stays public: Claude.ai needs read access; secret scanning and push protection become a priority; README and licence statement to correct | accepted |
 | ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
-| ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | accepted |
+| ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | superseded by ADR-ORG-004 |
+| ADR-ORG-004 | Autonomous delivery with a second reviewer from another provider: agreement replaces approval within a two-cycle cap; commit, push and PR creation run without a prompt; merge stays human; auto-merge not used; run-01 agent blueprint retired for the `solution-design` plugin | accepted |
 
 
