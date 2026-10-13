@@ -58,5 +58,6 @@ Options rejected and why.
 | ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
 | ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | superseded by ADR-ORG-004 |
 | ADR-ORG-004 | Autonomous delivery with a second reviewer from another provider: agreement replaces approval within a two-cycle cap; commit, push and PR creation run without a prompt; merge stays human; auto-merge not used; run-01 agent blueprint retired for the `solution-design` plugin | accepted |
+| ADR-ORG-005 | Merge commands (`gh pr merge`, the REST merge endpoint and the GraphQL merge mutations through `gh api`) denied in `.claude/settings.json` as a second layer next to the auto-mode classifier, not a boundary; separate GitHub identity for Claude Code deferred to after the BP-001 pilot (#138) | accepted |
 
 
