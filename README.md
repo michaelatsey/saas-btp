@@ -34,18 +34,9 @@ The .NET API stays fully isolated from the pnpm/JS workspace. See
 
 ## Status
 
-Project bootstrap — repository skeleton only, no application code yet.
+API host skeleton and schema migration runner in place (`apps/api`); no business
+feature yet. Work is tracked in GitHub Issues.
 
 ## License
 
 This repository is public so that its contents can be read. Public visibility does not grant a software license: unless a license is explicitly granted, the source code remains subject to applicable copyright law. Other GitHub users may view and fork it, as GitHub's Terms of Service allow.
-
-
-## Setup dev
-
-Point important sur le partage du hook
-core.hooksPath est une config locale, pas committée. Donc le hook te suit (le fichier .githooks/pre-push est versionné), mais sur une nouvelle machine tu devras refaire une seule fois :
-
-```bash
-bashgit config core.hooksPath .githooks
-```
