@@ -1,6 +1,6 @@
 # ADR-ORG-003 — Claude's git authority, gated by permission rules
 
-Status: accepted (provisional: to be revisited after the end-to-end pilot, #75)
+Status: superseded by ADR-ORG-004
 Date: 2026-09-20
 Refs: issue #79 (D3); ADR-ORG-002.
 
