@@ -32,4 +32,14 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <!--
+    A green run never holds a test that did not run. dotnet test passes these arguments to
+    every test project, with or without a build: a skipped test fails the run, and an explicit
+    test, which xUnit otherwise reports as skipped, runs like any other. Either option given
+    again on the command line stops the run with exit code 5.
+  -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --fail-skips on --explicit on</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
 </Project>

@@ -12,16 +12,28 @@ version and the test runner are set by `global.json`.
 ```bash
 dotnet restore SaasBtp.slnx
 dotnet build SaasBtp.slnx -c Release --no-restore
-dotnet test --solution SaasBtp.slnx -c Release --no-build
+scripts/ci/test-api.sh --solution SaasBtp.slnx -c Release --no-build
 ```
 
 - These are the commands of `.github/workflows/ci-api.yml`. Keep the two in step.
 - Build in `Release`: `Directory.Build.props` turns warnings into errors in that
   configuration only.
+- Run the tests through `scripts/ci/test-api.sh`, never through `dotnet test` directly: the
+  script checks that Docker is reachable, then passes its arguments to `dotnet test`.
 - `dotnet test` runs on Microsoft Testing Platform: the solution is passed with
   `--solution`, a single project with `--project`.
-- `dotnet test` needs Docker running: the integration tests start PostgreSQL through
-  Testcontainers.
+- The tests need Docker running: the integration tests start PostgreSQL through
+  Testcontainers. When Docker is unreachable the script stops with `Docker is unavailable`
+  and runs no test. That is the state of the machine, not a defect of the change being
+  verified: report it instead of changing code.
+- A skipped test fails the run: `Directory.Build.props` passes `--fail-skips on` to every
+  test project, so a `Skip =` is reported as a failed test.
+- `Explicit = true` no longer keeps a test out of the verification: the same file passes
+  `--explicit on`, so an explicit test runs like any other. A test that must not run on
+  every pull request (slow, or touching an external service) needs another way to be kept
+  out, decided explicitly.
+- Never pass `--fail-skips` or `--explicit` on the command line: both are already set, and
+  an option given twice stops the run with `Zero tests ran` and exit code 5.
 
 ## OpenAPI contract
 

@@ -44,6 +44,7 @@ jobs:
             exit 1
           fi
 
+      # The script checks that Docker is reachable, then passes its arguments to dotnet test.
       # Microsoft.Testing.Platform mode of dotnet test (global.json): the solution is an option.
       - name: Test (Release)
-        run: dotnet test --solution SaasBtp.slnx -c Release --no-build
+        run: scripts/ci/test-api.sh --solution SaasBtp.slnx -c Release --no-build
