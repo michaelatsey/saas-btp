@@ -1,0 +1,246 @@
+name: Deploy API to staging
+
+# Deploys one commit of main to staging (ADR-ARCH-024): runs the migration runner image by digest,
+# then, on exit code 0 only, points the Coolify API application at the API image of the same
+# commit, by digest, and deploys it. Manual only: triggering it after CI is #145.
+#
+# Set up in the GitHub Environment "staging" (ADR-ARCH-025):
+#   secrets   DOPPLER_MIGRATOR_TOKEN  service token of saas-btp-migrator / stg
+#             COOLIFY_API_TOKEN       Coolify API token with the write, deploy and read abilities
+#   variables COOLIFY_URL             base URL of the Coolify instance, https://...
+#             COOLIFY_API_APPLICATION_UUID  uuid of the staging API application
+# The Doppler config holds the runner's connection string as MIGRATIONS_CONNECTION_STRING.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA (40 characters) of a commit on main whose images are published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One deployment of staging at a time, and a running one is never cancelled: stopping the runner
+# mid-script, or the API between its two Coolify calls, would leave staging half deployed.
+concurrency:
+  group: deploy-api-staging
+  cancel-in-progress: false
+
+# An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
+# step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: deploy-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SHA: ${{ inputs.sha }}
+      API_IMAGE: ghcr.io/${{ github.repository_owner }}/saas-btp-api
+      MIGRATOR_IMAGE: ghcr.io/${{ github.repository_owner }}/saas-btp-migrator
+    steps:
+      # The Environment's branch policy already refuses another ref; this keeps the reason in the
+      # log of a run dispatched from elsewhere.
+      - name: Check the workflow runs from main
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Run this workflow from main, not $GITHUB_REF."
+            exit 1
+          fi
+
+      # The input reaches the shell through the environment only, never interpolated into a
+      # script.
+      - name: Check the input is a full commit SHA
+        run: |
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::sha must be a full lowercase commit SHA of 40 hexadecimal characters."
+            exit 1
+          fi
+
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the commit is on main
+        run: |
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not on main."
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Both images are deployed by digest (ADR-ARCH-023). The tag only finds the digest; the
+      # revision label, read from that digest and not from the tag, which could move in between,
+      # proves the deployed image was built from this commit.
+      - name: Resolve the digests of the commit's images
+        id: digests
+        run: |
+          resolve() {
+            local image=$1 output=$2 revision digest
+            digest=$(docker buildx imagetools inspect "$image:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Could not read the digest of $image:sha-$SHA."
+              exit 1
+            fi
+            revision=$(docker buildx imagetools inspect "$image@$digest" --format '{{json .Image.Config.Labels}}' \
+              | jq -r '."org.opencontainers.image.revision" // empty')
+            if [[ "$revision" != "$SHA" ]]; then
+              echo "::error::$image@$digest has revision '${revision:-<none>}', not $SHA."
+              exit 1
+            fi
+            echo "$image@$digest"
+            echo "$output=$digest" >> "$GITHUB_OUTPUT"
+          }
+          resolve "$MIGRATOR_IMAGE" migrator
+          resolve "$API_IMAGE" api
+
+      # Everything the Coolify calls need is checked before the runner changes the database, so a
+      # missing setting or a refused token cannot leave the schema migrated and the API not
+      # deployed. The image the API application points at now is kept in the log.
+      - name: Check the Coolify settings and read the API application
+        env:
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          APP_UUID: ${{ vars.COOLIFY_API_APPLICATION_UUID }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+        run: |
+          if ! [[ "$COOLIFY_URL" =~ ^https://[^/]+$ ]] || [[ -z "$APP_UUID" ]] || [[ -z "$COOLIFY_API_TOKEN" ]]; then
+            echo "::error::Set COOLIFY_URL (https://<host>, no trailing slash), COOLIFY_API_APPLICATION_UUID and COOLIFY_API_TOKEN in the staging Environment."
+            exit 1
+          fi
+          # The token goes to curl through a config read from a pipe, never through its arguments.
+          application=$(printf 'header = "Authorization: Bearer %s"\n' "$COOLIFY_API_TOKEN" \
+            | curl --silent --show-error --fail-with-body --max-time 30 --config - \
+                "$COOLIFY_URL/api/v1/applications/$APP_UUID")
+          echo "API application before this deployment: $(jq -r '"\(.docker_registry_image_name), tag \(.docker_registry_image_tag), status \(.status)"' <<<"$application")"
+
+      # Service token: the token fixes the project and the config. Every value is masked in the
+      # log; none is exported to the job's environment.
+      - name: Fetch the runner's connection string from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_MIGRATOR_TOKEN }}
+          inject-env-vars: false
+
+      # Only this step receives the connection string, and the container receives it alone,
+      # passed by name so that its value never appears on a command line.
+      - name: Run the migration runner
+        env:
+          ConnectionStrings__Migrations: ${{ steps.doppler.outputs.MIGRATIONS_CONNECTION_STRING }}
+          MIGRATOR_DIGEST: ${{ steps.digests.outputs.migrator }}
+        run: |
+          if [[ -z "$ConnectionStrings__Migrations" ]]; then
+            echo "::error::MIGRATIONS_CONNECTION_STRING is missing from the Doppler config."
+            exit 1
+          fi
+          set +e
+          docker run --rm --env ConnectionStrings__Migrations "$MIGRATOR_IMAGE@$MIGRATOR_DIGEST"
+          code=$?
+          set -e
+          echo "Runner exit code: $code"
+          echo "- Runner \`$MIGRATOR_IMAGE@$MIGRATOR_DIGEST\` exited with code $code" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$code" -ne 0 ]]; then
+            echo "::error::The migration runner failed; the API is left untouched."
+            exit "$code"
+          fi
+
+      # Coolify refuses "sha256:" in a tag; it deploys the tag "sha256-<hex>" as
+      # <image>@sha256:<hex> (ADR-ARCH-024, from Coolify's source; the first staging runs prove
+      # it before it is relied on).
+      - name: Point the API application at the new digest
+        env:
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          APP_UUID: ${{ vars.COOLIFY_API_APPLICATION_UUID }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          API_DIGEST: ${{ steps.digests.outputs.api }}
+        run: |
+          tag="sha256-${API_DIGEST#sha256:}"
+          payload=$(jq -n --arg name "$API_IMAGE" --arg tag "$tag" \
+            '{docker_registry_image_name: $name, docker_registry_image_tag: $tag}')
+          printf 'header = "Authorization: Bearer %s"\n' "$COOLIFY_API_TOKEN" \
+            | curl --silent --show-error --fail-with-body --max-time 30 --config - \
+                --request PATCH --header 'Content-Type: application/json' --data "$payload" \
+                "$COOLIFY_URL/api/v1/applications/$APP_UUID"
+          echo
+          echo "API application set to $API_IMAGE, tag $tag"
+
+      - name: Deploy the API and wait for Coolify
+        env:
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          APP_UUID: ${{ vars.COOLIFY_API_APPLICATION_UUID }}
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          API_DIGEST: ${{ steps.digests.outputs.api }}
+        run: |
+          coolify() {
+            printf 'header = "Authorization: Bearer %s"\n' "$COOLIFY_API_TOKEN" \
+              | curl --silent --show-error --fail-with-body --max-time 30 --config - "$@"
+          }
+
+          response=$(coolify --request POST "$COOLIFY_URL/api/v1/deploy?uuid=$APP_UUID")
+          echo "$response"
+          message=$(jq -r '.deployments[0].message // empty' <<<"$response")
+          deployment=$(jq -r '.deployments[0].deployment_uuid // empty' <<<"$response")
+          # A deployment already queued is answered with a deployment uuid that Coolify never
+          # stores: it cannot be followed, so the run stops rather than reports someone else's.
+          if [[ "$message" == *"already queued"* || -z "$deployment" ]]; then
+            echo "::error::Coolify did not queue a new deployment (${message:-no deployment in the response})"
+            exit 1
+          fi
+
+          # A failed status request does not stop a deployment Coolify keeps running: the run only
+          # gives up after three in a row.
+          deadline=$((SECONDS + 15 * 60))
+          failed_reads=0
+          while true; do
+            if ! status=$(coolify "$COOLIFY_URL/api/v1/deployments/$deployment" | jq -r '.status'); then
+              failed_reads=$((failed_reads + 1))
+              if (( failed_reads >= 3 )); then
+                echo "::error::Could not read the status of Coolify deployment $deployment three times in a row."
+                exit 1
+              fi
+              status=unread
+            else
+              failed_reads=0
+            fi
+            echo "Deployment $deployment: $status"
+            case "$status" in
+              unread) ;;
+              finished) break ;;
+              queued | in_progress) ;;
+              *)
+                echo "::error::Coolify deployment $deployment ended as '$status'."
+                exit 1
+                ;;
+            esac
+            if (( SECONDS >= deadline )); then
+              echo "::error::Coolify deployment $deployment did not finish within 15 minutes."
+              exit 1
+            fi
+            sleep 10
+          done
+
+          application=$(coolify "$COOLIFY_URL/api/v1/applications/$APP_UUID")
+          name=$(jq -r '.docker_registry_image_name' <<<"$application")
+          tag=$(jq -r '.docker_registry_image_tag' <<<"$application")
+          echo "API application: $name, tag $tag, status $(jq -r '.status' <<<"$application")"
+          if [[ "$name" != "$API_IMAGE" || "$tag" != "sha256-${API_DIGEST#sha256:}" ]]; then
+            echo "::error::The API application does not point at $API_IMAGE@$API_DIGEST."
+            exit 1
+          fi
+          echo "- API \`$API_IMAGE@$API_DIGEST\` deployed by Coolify deployment \`$deployment\`" >> "$GITHUB_STEP_SUMMARY"
