@@ -55,21 +55,27 @@ naming.md; this file covers the database schema surface only.
 
 ## RLS
 - RLS enabled on every business table; tenant-isolation policy keyed on `tenant_id`.
-- The .NET domain is the write authority (ADR-ARCH-005) and connects with a privileged role
-  that bypasses RLS; RLS is defense-in-depth for any other access path.
-- RLS enabled with NO policy denies every non-owner role by default. That is correct only when a
-  table has no non-privileged consumer (e.g. `safety.constats`). A table read by a NON-privileged
-  role — one that does not bypass RLS — needs an explicit policy for that role, or its reads return
-  ZERO ROWS SILENTLY. `access.profiles` is the case in point: the JWT hook reads it as
-  `supabase_auth_admin` (which does not bypass RLS), so it carries exactly one
-  `FOR SELECT TO supabase_auth_admin` policy (0003), `USING (true)` — an infrastructure-role grant,
-  deliberately NOT keyed on `tenant_id`. The tenant-isolation default (bullet 1) does NOT apply here:
-  `supabase_auth_admin` is trusted GoTrue infrastructure, not a tenant, and the hook has no tenant
-  context (it looks a user up by `user_id`, across tenants). Adding a `tenant_id` predicate to "fix"
-  this policy would match zero rows on every call and silently truncate every token — do NOT do it.
+- The .NET domain is the write authority, but RLS applies to it: the API connects as
+  `saasbtp_api`, which owns nothing and does not bypass RLS (ADR-ARCH-028), and every table that
+  enables RLS also forces it (`alter table ... force row level security`, ADR-ARCH-027). A table
+  the API reads or writes therefore needs an explicit policy for `saasbtp_api`, or its reads
+  return ZERO ROWS SILENTLY.
+- A data script (a backfill) runs as `saasbtp_migrator`, which owns the table, but forced RLS
+  subjects it to the policies too: an `UPDATE` or `DELETE` they block affects zero rows without an
+  error, and DbUp still journals the script as applied, so it never runs again. Such a script
+  checks its affected row count and fails when it is not the expected one.
+- RLS enabled with NO policy denies every role without `bypassrls`, the table owner included,
+  since every table that enables RLS also forces it (ADR-ARCH-027). That is correct only when no
+  such role reads or writes the table. A table read by a role without `bypassrls` needs an
+  explicit policy for that role, or its reads return ZERO ROWS SILENTLY.
+- An infrastructure role that looks rows up by `user_id` across tenants, with no tenant context,
+  gets a policy for that role alone, deliberately NOT keyed on `tenant_id`: the tenant-isolation
+  default (bullet 1) does not apply to it. A `tenant_id` predicate on that policy would match zero
+  rows on every call, silently — do NOT add one.
 
 ## Auth-coupled scripts
-- Within the ADR-ARCH-005 auth-boundary exception (identity provisioning), a DbUp script MAY create
+- Within the auth-boundary exception (identity provisioning) of the removed ADR-ARCH-005 (tag
+  `archive/pre-reset`), a DbUp script MAY create
   objects ON GoTrue tables (a trigger on `auth.users`) and objects that name GoTrue roles
   (`supabase_auth_admin` grants, policies, or `SECURITY INVOKER` functions it executes). This is the
   ONLY place app DDL touches the `auth` schema or GoTrue roles; ordinary business DDL never does.
@@ -79,9 +85,5 @@ naming.md; this file covers the database schema surface only.
   auth-coupled script that is not listed will run on bare Postgres and fail loudly rather than be
   skipped silently. Auth-coupled scripts are validated only against a real Supabase project, via a
   manual checklist — never by faking `auth.users` / `supabase_auth_admin`, which would prove nothing.
-- Current auth-coupled script: `0003_access_identity_auth` (issue #45 identity model — the
-  `supabase_auth_admin` schema/table grant, the `profiles_auth_admin_select` FOR SELECT policy, and the
-  `access.custom_access_token_hook` JWT hook it executes). There is no trigger on `auth.users`:
-  onboarding is an application command (InviteMemberCommand, #48), not a signup trigger. (The earlier
-  `0003_access_profiles_permissions` / `0004_access_profiles_trigger` / `0005_access_profiles_jwt_hook`
-  / `0006_access_profiles_provisioning_fix` set was squashed into this baseline — ADR-ARCH-008.)
+- No auth-coupled script exists since the reset; any that BP-001 needs is decided when BP-001 is
+  implemented.

@@ -1,6 +1,6 @@
 # Safety domain model — Constat aggregate
 
-Status: frozen (paper design, pre-code)
+Status: pre-reset reference (paper design of 2026-07-09), not a decision. To be re-studied when the Safety context is designed; the ADRs it cites (ADR-ARCH-002, 004, 005) were removed with the reset and remain under the tag archive/pre-reset.
 Date: 2026-07-09
 Scope: Safety bounded context, first story (Constat capture).
 Refs: architecture.md (bounded contexts, event seam), ADR-ARCH-002 (CorrectiveActions

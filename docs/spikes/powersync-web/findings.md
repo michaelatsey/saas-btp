@@ -1,6 +1,7 @@
 # Findings — Spike #3: PowerSync Web offline + camera on target Android
 
-Gates ADR-ARCH-003 (increment-1 field client: offline PWA vs Expo).
+Gates the removed ADR-ARCH-003, tag `archive/pre-reset` (increment-1 field client: offline PWA
+vs Expo).
 Disposable spike; this file is the only surviving artifact.
 
 ## Environment
@@ -108,12 +109,13 @@ so none weighs toward Expo:
   Workbox precache (~8 MB incl. wa-sqlite WASM) and seed the local DB before it works fully
   offline; going offline before the SW reaches "activated" reproduces the failure above.
 
-## Decision (ADR-ARCH-003 mapping)
+## Decision (removed ADR-ARCH-003 mapping, tag `archive/pre-reset`)
 - 3 gates pass + clean rider            -> PWA for the MVP
 - 3 gates pass + tolerable rider limits -> PWA, limits documented in the ADR
 - any single gate fails                 -> Expo (PWA eliminated)
 
-**Verdict:** PWA retained for the increment-1 field client. ADR-ARCH-003 confirmed; the
+**Verdict:** PWA retained for the increment-1 field client.
+ADR-ARCH-003 (tag `archive/pre-reset`) confirmed; the
 native Expo app stays deferred to Phase 2.
 
 **Landing zone:** "3 gates pass + tolerable documented limits -> PWA, limits documented in
@@ -141,6 +143,7 @@ attachments maturity on web — proved MATURE for the offline-capture / deferred
 retry / volume paths, removing the main reason to escalate to Expo. Storage quota on target
 (~10 GB) makes eviction effectively unreachable, further favoring the PWA.
 
-**ADR-ARCH-003 action:** confirm accepted + document limits. The spike gating condition in
+**ADR-ARCH-003 (tag `archive/pre-reset`) action:** confirm accepted + document limits. The spike
+gating condition in
 Consequences is satisfied (spike passed); lift the "conditional on spike" wording, record
 the spike result, and carry the tolerable limits above into the ADR as build constraints.

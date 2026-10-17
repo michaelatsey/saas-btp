@@ -117,7 +117,8 @@ immutable) live in the corrective-action spec (created JIT) to avoid pre-inventi
 
 - Local-first writes; automatic sync on reconnect; conflict resolution; optimistic UI.
 - Photos captured offline, uploaded on sync (Media context).
-- Platform decision (offline web PWA vs Phase 2 Expo app): see ADR-ARCH-003.
+- Platform decision (offline web PWA vs Phase 2 Expo app): see the removed ADR-ARCH-003 (tag
+  `archive/pre-reset`).
 
 ### 4.9 Dependencies
 

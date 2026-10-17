@@ -24,6 +24,11 @@ internal static class MigrationRunner
 
     private const string JournalTable = "schemaversions";
 
+    // How long one command may run, journal commands included, whatever the connection string
+    // says. Above the role's statement_timeout of 110 seconds (infra/supabase/roles.sql,
+    // ADR-ARCH-027), so that the server cancels a long statement first and reports why.
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(120);
+
     /// <summary>Runs every script the journal does not hold yet, in the order of their names.</summary>
     /// <returns>The process exit code: zero only when every pending script was applied.</returns>
     public static int Run(string connectionString)
@@ -51,6 +56,7 @@ internal static class MigrationRunner
                     typeof(MigrationRunner).Assembly,
                     resourceName => resourceName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
                 .WithTransactionPerScript()
+                .WithExecutionTimeout(CommandTimeout)
                 .WithVariablesDisabled()
                 .LogTo(log)
                 .Build();
