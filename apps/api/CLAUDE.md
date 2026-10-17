@@ -72,6 +72,33 @@ dotnet run --project apps/api/database/SaasBtp.Migrations
 - Scripts go in `apps/api/database/SaasBtp.Migrations/Scripts/`. Their naming, their order
   and the rules they follow are ADR-ARCH-019.
 
+## Container images
+
+```bash
+docker build --platform linux/amd64 -f apps/api/src/hosts/SaasBtp.Api/Dockerfile -t saas-btp-api:local .
+docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dockerfile -t saas-btp-migrator:local .
+```
+
+- How the images are built is ADR-ARCH-022; where they are published, tagged and promoted,
+  ADR-ARCH-023; how the runner is sequenced before the API, ADR-ARCH-024; how secrets reach
+  them, ADR-ARCH-025.
+- The build context is the repository root. The root `.dockerignore` is an allow-list: a file
+  or a project a Dockerfile needs must be let back in there, or the build does not see it.
+- Base images are pinned by digest. The SDK image digest is written in both Dockerfiles:
+  bump it in both at once. A digest bump that moves `sdk:10.0-noble` to another feature band
+  moves the `global.json` pin in the same pull request, and the reverse (ADR-ARCH-022). Read
+  the SDK an image ships with `docker run --rm <sdk image@digest> dotnet --version`.
+- Both images run as the non-root user `app`, whose id the base images export as `APP_UID`.
+  Never add a secret to a Dockerfile, a build argument or the build context.
+- The API listens on port 8080. Its image carries `curl` for the Coolify health check.
+- The runner image is chiseled: no shell. Without `GSS Encryption Mode=Disable` in its
+  connection string, it prints that `libgssapi_krb5.so.2` cannot be loaded, then connects
+  normally; Npgsql documents the message as harmless.
+- Images are published by `.github/workflows/publish-api-images.yml`, run by hand from `main`
+  with the full SHA of a commit on `main`. It never overwrites an existing tag: an image
+  already published from the same commit is reported, not pushed again, so a run where one
+  image failed is completed by dispatching it again.
+
 ## Tests
 
 - Where test projects live and how they are named is ADR-ARCH-020; their conventions are

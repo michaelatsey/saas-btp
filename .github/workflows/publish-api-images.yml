@@ -1,0 +1,159 @@
+name: Publish API images
+
+# Builds the API and migration runner images for one commit of main and publishes them to GHCR
+# as sha-<full SHA> (ADR-ARCH-022, ADR-ARCH-023). Manual only: deploying them is #145.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA (40 characters) of a commit on main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Two runs for the same commit would race between the tag check and the push.
+concurrency:
+  group: publish-api-images-${{ inputs.sha }}
+  cancel-in-progress: false
+
+# An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
+# step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: publish-${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: saas-btp-api
+            dockerfile: apps/api/src/hosts/SaasBtp.Api/Dockerfile
+          - image: saas-btp-migrator
+            dockerfile: apps/api/database/SaasBtp.Migrations/Dockerfile
+    env:
+      SHA: ${{ inputs.sha }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+    steps:
+      # Only the version of this workflow on main may publish. A failed step, not a skipped
+      # job, so that a run dispatched from another branch cannot pass for a publication.
+      - name: Check the workflow runs from main
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Run this workflow from main, not $GITHUB_REF."
+            exit 1
+          fi
+
+      # The input reaches the shell through the environment only, never interpolated into a
+      # script.
+      - name: Check the input is a full commit SHA
+        run: |
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::sha must be a full lowercase commit SHA of 40 hexadecimal characters."
+            exit 1
+          fi
+
+      - name: Check out the commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # A published image is a release candidate: only reviewed code, merged into main, is built.
+      - name: Check the commit is on main
+        run: |
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not on main."
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GHCR has no tag immutability: a push would silently move the tag to another image, so
+      # an existing tag is never pushed again. One built from this commit (revision label) ends
+      # the job successfully, so a run where only the other image failed can be completed by
+      # dispatching again; any other image under the tag fails the run.
+      # Authenticated, GHCR answers 404 for a missing tag or package, which imagetools reports as
+      # "not found". A denied read is taken as absent too: a token that cannot read a package
+      # cannot push to it, so the push fails rather than overwrites. Any other failure stops the
+      # run rather than being read as absent.
+      - name: Check whether the tag is already published
+        id: existing
+        run: |
+          if output=$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{json .Image.Config.Labels}}' 2>&1); then
+            revision=$(jq -r '."org.opencontainers.image.revision" // empty' <<<"$output")
+            if [[ "$revision" != "$SHA" ]]; then
+              echo "::error::$IMAGE:sha-$SHA exists with revision '${revision:-<none>}'; a tag is never overwritten."
+              exit 1
+            fi
+            echo "::notice::$IMAGE:sha-$SHA is already published from this commit; nothing is pushed."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          elif grep -q -i -E 'not found|denied' <<<"$output"; then
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$output"
+            echo "::error::Could not tell whether $IMAGE:sha-$SHA exists."
+            exit 1
+          fi
+
+      # No provenance or SBOM attestation for now (ADR-ARCH-023): the pushed reference is a
+      # single linux/amd64 image manifest.
+      - name: Build
+        if: steps.existing.outputs.published == 'false'
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --load \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --file "$DOCKERFILE" \
+            --tag "$IMAGE:sha-$SHA" \
+            .
+
+      - name: Check the image runs as a non-root user
+        if: steps.existing.outputs.published == 'false'
+        run: |
+          user=$(docker image inspect --format '{{.Config.User}}' "$IMAGE:sha-$SHA")
+          echo "User: ${user:-<unset>}"
+          if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
+            echo "::error::$IMAGE runs as root."
+            exit 1
+          fi
+
+      - name: Push
+        if: steps.existing.outputs.published == 'false'
+        run: docker push "$IMAGE:sha-$SHA"
+
+      - name: Report the digest
+        run: |
+          digest=$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not read the digest of $IMAGE:sha-$SHA."
+            exit 1
+          fi
+          echo "Published $IMAGE:sha-$SHA"
+          echo "Deploy by digest: $IMAGE@$digest"
+          {
+            echo "### $IMAGE"
+            echo
+            echo "- Tag: \`sha-$SHA\`"
+            echo "- Digest: \`$IMAGE@$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
