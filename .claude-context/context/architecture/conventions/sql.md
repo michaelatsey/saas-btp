@@ -88,10 +88,7 @@ naming.md; this file covers the database schema surface only.
   auth-coupled script that is not listed will run on bare Postgres and fail loudly rather than be
   skipped silently. Auth-coupled scripts are validated only against a real Supabase project, via a
   manual checklist — never by faking `auth.users` / `supabase_auth_admin`, which would prove nothing.
-- Current auth-coupled script: `0003_access_identity_auth` (issue #45 identity model — the
-  `supabase_auth_admin` schema/table grant, the `profiles_auth_admin_select` FOR SELECT policy, and the
-  `access.custom_access_token_hook` JWT hook it executes). There is no trigger on `auth.users`:
-  onboarding is an application command (InviteMemberCommand, #48), not a signup trigger. (The earlier
-  `0003_access_profiles_permissions` / `0004_access_profiles_trigger` / `0005_access_profiles_jwt_hook`
-  / `0006_access_profiles_provisioning_fix` set was squashed into this baseline — the removed
-  ADR-ARCH-008 (tag `archive/pre-reset`).)
+- No auth-coupled script exists since the reset. The pre-reset `0003_access_identity_auth`, and the
+  `0003` to `0006` `access_profiles` set it replaced, are described only in this file as it stands
+  under the tag `archive/pre-reset`: no script of those names was ever committed, and the tag's one
+  migration script is `0001_access_founding_model.sql`.
