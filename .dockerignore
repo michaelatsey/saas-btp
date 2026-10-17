@@ -1,0 +1,21 @@
+# Build context of the API and migration runner images (ADR-ARCH-022): the repository root.
+# Allow-list: everything is excluded, then only what a Dockerfile copies is let back in, so a
+# local secret file can never reach the build context.
+*
+
+!global.json
+!Directory.Build.props
+!Directory.Packages.props
+!.editorconfig
+!apps/api/src/hosts/SaasBtp.Api/
+!apps/api/database/SaasBtp.Migrations/
+
+# Excluded again inside the projects let back in: local build output, and the files the root
+# .gitignore treats as secrets.
+**/bin/
+**/obj/
+**/.env
+**/.env.*
+**/appsettings.Development.json
+**/http-client.env.json
+**/Dockerfile

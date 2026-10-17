@@ -54,6 +54,10 @@ Options rejected and why.
 | ADR-ARCH-019 | Schema migrations with DbUp, run before the application | accepted |
 | ADR-ARCH-020 | Solution layout for the .NET side of the monorepo: hosts, modules and folder casing | accepted |
 | ADR-ARCH-021 | Test project conventions: xUnit v3, native assertions, XML documentation | accepted |
+| ADR-ARCH-022 | Container images built in CI from multi-stage Dockerfiles for linux/amd64; base images pinned by digest; a digest bump that moves the SDK to another feature band moves the `global.json` pin in the same pull request | accepted |
+| ADR-ARCH-023 | Image registry, tags and promotion: private GHCR, one immutable `sha-<full SHA>` tag per commit on `main`, deployment and promotion by digest, no environment tags | accepted |
+| ADR-ARCH-024 | The migration runner runs in a GitHub Actions job before the API, a Coolify Docker Image application, is deployed by digest; expand/contract mandatory | accepted |
+| ADR-ARCH-025 | Runtime secrets in Doppler, one project per role and a config per environment; the API through Coolify's integration, the runner through a GitHub Environment; no CLI in any image | accepted |
 | ADR-ORG-001 | The repository stays public: Claude.ai needs read access; secret scanning and push protection become a priority; README and licence statement to correct | accepted |
 | ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
 | ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | superseded by ADR-ORG-004 |
