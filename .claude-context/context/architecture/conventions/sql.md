@@ -64,8 +64,9 @@ naming.md; this file covers the database schema surface only.
   subjects it to the policies too: an `UPDATE` or `DELETE` they block affects zero rows without an
   error, and DbUp still journals the script as applied, so it never runs again. Such a script
   checks its affected row count and fails when it is not the expected one.
-- RLS enabled with NO policy denies every non-owner role by default. That is correct only when a
-  table has no non-privileged consumer (e.g. `safety.constats`). A table read by a NON-privileged
+- RLS enabled with NO policy denies every role without `bypassrls`, the table owner included,
+  since every table that enables RLS also forces it (ADR-ARCH-027). That is correct only when no
+  such role reads or writes the table. A table read by a NON-privileged
   role — one that does not bypass RLS — needs an explicit policy for that role, or its reads return
   ZERO ROWS SILENTLY. `access.profiles` is the case in point: the JWT hook reads it as
   `supabase_auth_admin` (which does not bypass RLS), so it carries exactly one
@@ -76,7 +77,8 @@ naming.md; this file covers the database schema surface only.
   this policy would match zero rows on every call and silently truncate every token — do NOT do it.
 
 ## Auth-coupled scripts
-- Within the ADR-ARCH-005 auth-boundary exception (identity provisioning), a DbUp script MAY create
+- Within the auth-boundary exception (identity provisioning) of the removed ADR-ARCH-005 (tag
+  `archive/pre-reset`), a DbUp script MAY create
   objects ON GoTrue tables (a trigger on `auth.users`) and objects that name GoTrue roles
   (`supabase_auth_admin` grants, policies, or `SECURITY INVOKER` functions it executes). This is the
   ONLY place app DDL touches the `auth` schema or GoTrue roles; ordinary business DDL never does.
@@ -91,4 +93,5 @@ naming.md; this file covers the database schema surface only.
   `access.custom_access_token_hook` JWT hook it executes). There is no trigger on `auth.users`:
   onboarding is an application command (InviteMemberCommand, #48), not a signup trigger. (The earlier
   `0003_access_profiles_permissions` / `0004_access_profiles_trigger` / `0005_access_profiles_jwt_hook`
-  / `0006_access_profiles_provisioning_fix` set was squashed into this baseline — ADR-ARCH-008.)
+  / `0006_access_profiles_provisioning_fix` set was squashed into this baseline — the removed
+  ADR-ARCH-008 (tag `archive/pre-reset`).)
