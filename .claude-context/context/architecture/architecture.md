@@ -22,7 +22,8 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   dangerous situation). Source of safety findings.
 - **Quality** — quality audits, non-conformities. Source of quality findings.
 - **CorrectiveActions** — the issue -> action -> validation -> closure lifecycle.
-  Transversal and SEPARATE (ADR-ARCH-002). Consumes findings from Safety and Quality;
+  Transversal and SEPARATE (removed ADR-ARCH-002, tag `archive/pre-reset`). Consumes findings
+  from Safety and Quality;
   owns the corrective-action entity and its state machine.
 - **Workforce** — daily labor tracking.
 - **Stock** — site stock (deliveries, withdrawals, thresholds).
@@ -94,7 +95,8 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 - Photos: captured offline, uploaded independently on sync (Media); never block the
   parent record's sync.
 - Platform of the increment-1 field client (offline web PWA vs Phase 2 Expo app):
-  OPEN — see ADR-ARCH-003. This gates whether increment 1 ships on web or mobile.
+  OPEN — see the removed ADR-ARCH-003 (tag `archive/pre-reset`). This gates whether increment 1
+  ships on web or mobile.
 
 ---
 
@@ -120,6 +122,6 @@ Reporting are NOT built in increment 1.
 | Decision | ADR |
 |----------|-----|
 | Market entry = Safety first | ADR-PROD-001 (decided) |
-| CorrectiveActions as a separate context | ADR-ARCH-002 (decided) |
-| Increment-1 field client platform (PWA vs Expo) | ADR-ARCH-003 (open) |
+| CorrectiveActions as a separate context | removed ADR-ARCH-002 (tag `archive/pre-reset`), not re-decided |
+| Increment-1 field client platform (PWA vs Expo) | removed ADR-ARCH-003 (tag `archive/pre-reset`), open |
 | Offline conflict-resolution strategy for safety data | future ADR (open) |
