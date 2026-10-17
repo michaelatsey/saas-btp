@@ -56,9 +56,9 @@ What Supabase and PostgreSQL offer, as of 2026-10-17:
   the first DbUp script that creates a function closes it, before any function exists.
 - Supabase's own roles lose `temporary` through `PUBLIC`. A Supabase service that needs it gets
   it back by an explicit grant in `roles.sql`, recorded when it is found.
-- `sql.md`, section RLS, still states that the .NET domain "connects with a privileged role that
-  bypasses RLS", after the removed ADR-ARCH-005. This decision replaces that statement; the
-  convention file is corrected separately.
+- `sql.md`, section RLS, stated that the .NET domain "connects with a privileged role that
+  bypasses RLS", after the removed ADR-ARCH-005. This decision replaces that statement, and the
+  convention file now requires a policy for `saasbtp_api` on every table the API reads or writes.
 
 ## Alternatives considered
 - Revoking `connect` from `PUBLIC` and granting it back to the roles that need it, as first

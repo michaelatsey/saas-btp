@@ -55,8 +55,15 @@ naming.md; this file covers the database schema surface only.
 
 ## RLS
 - RLS enabled on every business table; tenant-isolation policy keyed on `tenant_id`.
-- The .NET domain is the write authority (ADR-ARCH-005) and connects with a privileged role
-  that bypasses RLS; RLS is defense-in-depth for any other access path.
+- The .NET domain is the write authority, but RLS applies to it: the API connects as
+  `saasbtp_api`, which owns nothing and does not bypass RLS (ADR-ARCH-028), and every table that
+  enables RLS also forces it (`alter table ... force row level security`, ADR-ARCH-027). A table
+  the API reads or writes therefore needs an explicit policy for `saasbtp_api`, or its reads
+  return ZERO ROWS SILENTLY.
+- A data script (a backfill) runs as `saasbtp_migrator`, which owns the table, but forced RLS
+  subjects it to the policies too: an `UPDATE` or `DELETE` they block affects zero rows without an
+  error, and DbUp still journals the script as applied, so it never runs again. Such a script
+  checks its affected row count and fails when it is not the expected one.
 - RLS enabled with NO policy denies every non-owner role by default. That is correct only when a
   table has no non-privileged consumer (e.g. `safety.constats`). A table read by a NON-privileged
   role — one that does not bypass RLS — needs an explicit policy for that role, or its reads return
