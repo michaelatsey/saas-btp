@@ -1,8 +1,11 @@
 name: Deploy API to staging
 
-# Deploys one commit of main to staging (ADR-ARCH-024): runs the migration runner image by digest,
-# then, on exit code 0 only, points the Coolify API application at the API image of the same
-# commit, by digest, and deploys it. Manual only: triggering it after CI is #145.
+# Deploys one commit of main to staging (ADR-ARCH-024): verifies the attestation of both images of
+# the commit, runs the migration runner image by digest, then, on exit code 0 only, points the
+# Coolify API application at the API image of the same commit, by digest, and deploys it
+# (ADR-ARCH-030). Called by "Deliver API to staging" once CI API passes on a push to main, and
+# dispatched by hand from main to deploy a given commit again, an older one included (rollback).
+# Only an automatic deployment is held to the ordering rule.
 #
 # Set up in the GitHub Environment "staging" (ADR-ARCH-025):
 #   secrets   DOPPLER_MIGRATOR_TOKEN  service token of saas-btp-migrator / stg
@@ -17,15 +20,21 @@ on:
         description: Full SHA (40 characters) of a commit on main whose images are published
         required: true
         type: string
+  # A called workflow receives only the secrets its caller passes, environment secrets included.
+  workflow_call:
+    inputs:
+      sha:
+        description: Full SHA (40 characters) of a commit on main whose images are published
+        required: true
+        type: string
+    secrets:
+      DOPPLER_MIGRATOR_TOKEN:
+        required: true
+      COOLIFY_API_TOKEN:
+        required: true
 
 permissions:
   contents: read
-
-# One deployment of staging at a time, and a running one is never cancelled: stopping the runner
-# mid-script, or the API between its two Coolify calls, would leave staging half deployed.
-concurrency:
-  group: deploy-api-staging
-  cancel-in-progress: false
 
 # An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
 # step.
@@ -39,9 +48,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: staging
+    # One deployment of staging at a time, and a running one is never cancelled: stopping the
+    # runner mid-script, or the API between its two Coolify calls, would leave staging half
+    # deployed. With queue: max a pending one is not cancelled either, so an older commit queued
+    # last cannot evict a newer one waiting. GitHub does not guarantee the order of the queue: the
+    # ordering rule below does (ADR-ARCH-030 point 15). Set on the job: GitHub's documentation
+    # does not say whether a called workflow's top-level concurrency applies.
+    concurrency:
+      group: deploy-api-staging
+      cancel-in-progress: false
+      queue: max
+    # attestations: read lets gh attestation verify read the attestations API.
     permissions:
       contents: read
       packages: read
+      attestations: read
     env:
       SHA: ${{ inputs.sha }}
       API_IMAGE: ghcr.io/${{ github.repository_owner }}/saas-btp-api
@@ -85,9 +106,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Both images are deployed by digest (ADR-ARCH-023). The tag only finds the digest; the
-      # revision label, read from that digest and not from the tag, which could move in between,
-      # proves the deployed image was built from this commit.
+      # Both images are deployed by digest (ADR-ARCH-030 point 10). The tag only finds the digest;
+      # the revision label, read from that digest and not from the tag, which could move in
+      # between, proves the deployed image was built from this commit.
       - name: Resolve the digests of the commit's images
         id: digests
         run: |
@@ -110,10 +131,49 @@ jobs:
           resolve "$MIGRATOR_IMAGE" migrator
           resolve "$API_IMAGE" api
 
+      # A resolved digest is deployed only with an attestation that passes the verification
+      # policy of ADR-ARCH-030 point 6, the same flags as in publish-api-images.yml, checked
+      # before anything touches staging (point 13). Both digests are verified, so a refusal names
+      # each one that fails. Only an answer that no attestation exists reads as a missing one: the
+      # attestations API answers 404 for such a digest, and gh prints "No attestations found" when
+      # it returns an empty list. Any other failure, a permission or network error included, is
+      # reported with gh's output. gh's version is logged: it changes with the runner image.
+      - name: Verify the attestations of both digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MIGRATOR_DIGEST: ${{ steps.digests.outputs.migrator }}
+          API_DIGEST: ${{ steps.digests.outputs.api }}
+        run: |
+          gh --version
+          verify() {
+            local image=$1 digest=$2 output
+            if output=$(gh attestation verify "oci://$image@$digest" \
+                --repo "$GITHUB_REPOSITORY" \
+                --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish-api-images.yml" \
+                --source-ref refs/heads/main 2>&1); then
+              echo "$output"
+              echo "Verified $image@$digest"
+              return 0
+            fi
+            echo "$output"
+            if grep -q -F -e "No attestations found" -e "HTTP 404: Not Found (https://api.github.com/repos/$GITHUB_REPOSITORY/attestations/" <<<"$output"; then
+              echo "::error::$image@$digest (sha-$SHA) has no attestation; it is not deployed. A commit published before images were attested is never deployed again."
+            else
+              echo "::error::Could not verify the attestation of $image@$digest (sha-$SHA); see gh's output above. It is not deployed."
+            fi
+            return 1
+          }
+          failed=0
+          verify "$MIGRATOR_IMAGE" "$MIGRATOR_DIGEST" || failed=1
+          verify "$API_IMAGE" "$API_DIGEST" || failed=1
+          exit "$failed"
+
       # Everything the Coolify calls need is checked before the runner changes the database, so a
       # missing setting or a refused token cannot leave the schema migrated and the API not
-      # deployed. The image the API application points at now is kept in the log.
+      # deployed. The image the API application points at now is kept in the log, and is the
+      # input of the ordering rule. Line breaks are removed before an output is written.
       - name: Check the Coolify settings and read the API application
+        id: coolify
         env:
           COOLIFY_URL: ${{ vars.COOLIFY_URL }}
           APP_UUID: ${{ vars.COOLIFY_API_APPLICATION_UUID }}
@@ -128,6 +188,58 @@ jobs:
             | curl --silent --show-error --fail-with-body --max-time 30 --config - \
                 "$COOLIFY_URL/api/v1/applications/$APP_UUID")
           echo "API application before this deployment: $(jq -r '"\(.docker_registry_image_name), tag \(.docker_registry_image_tag), status \(.status)"' <<<"$application")"
+          echo "image=$(jq -r '.docker_registry_image_name // empty' <<<"$application" | tr -d '\r\n')" >> "$GITHUB_OUTPUT"
+          echo "tag=$(jq -r '.docker_registry_image_tag // empty' <<<"$application" | tr -d '\r\n')" >> "$GITHUB_OUTPUT"
+
+      # ADR-ARCH-030 point 15: an automatic deployment never moves staging to an older commit.
+      # Publications of different commits run in parallel and the queue is not ordered, so a
+      # deployment can start after a newer one. The commit staging runs is the revision label of
+      # the digest the API application points at, and must be a commit on main; without it, an
+      # automatic deployment stops. It proceeds only when that commit is the requested one or an
+      # ancestor of it: on main, which only takes squash merges, any other commit is older. A
+      # deployment dispatched by hand, a rollback included, is not held to the rule; every other
+      # event, the delivery workflow's workflow_run included, is automatic.
+      - name: Apply the ordering rule
+        env:
+          CURRENT_IMAGE: ${{ steps.coolify.outputs.image }}
+          CURRENT_TAG: ${{ steps.coolify.outputs.tag }}
+        run: |
+          current=
+          reason=
+          if [[ "$CURRENT_IMAGE" != "$API_IMAGE" ]]; then
+            reason="the API application points at '${CURRENT_IMAGE:-<none>}', not $API_IMAGE"
+          elif ! [[ "$CURRENT_TAG" =~ ^sha256-[0-9a-f]{64}$ ]]; then
+            reason="the API application's tag '${CURRENT_TAG:-<none>}' is not a digest"
+          else
+            digest="sha256:${CURRENT_TAG#sha256-}"
+            if ! labels=$(docker buildx imagetools inspect "$API_IMAGE@$digest" --format '{{json .Image.Config.Labels}}'); then
+              reason="the labels of $API_IMAGE@$digest could not be read"
+            else
+              revision=$(jq -r '."org.opencontainers.image.revision" // empty' <<<"$labels" 2>/dev/null) || revision=
+              if ! [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+                reason="$API_IMAGE@$digest has revision '${revision:-<none>}'"
+              elif ! git merge-base --is-ancestor "$revision" origin/main 2>/dev/null; then
+                reason="its revision $revision is not a commit on main"
+              else
+                current=$revision
+              fi
+            fi
+          fi
+          echo "Requested commit: $SHA"
+          echo "Commit staging runs: ${current:-cannot be established, $reason}"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            echo "::notice::Dispatched by hand: the ordering rule applies to automatic deployments only."
+            exit 0
+          fi
+          if [[ -z "$current" ]]; then
+            echo "::error::Ordering rule (ADR-ARCH-030 point 15): the commit staging runs cannot be established ($reason), so the automatic deployment of $SHA stops. Staging is left untouched; deploy a commit by hand to set it."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$current" "$SHA"; then
+            echo "::error::Ordering rule (ADR-ARCH-030 point 15): requested commit $SHA is older than $current, the commit staging runs; an automatic deployment never moves staging back. Staging is left untouched."
+            exit 1
+          fi
+          echo "$SHA is $current or a descendant of it: the deployment proceeds."
 
       # Service token: the token fixes the project and the config. Every value is masked in the
       # log; none is exported to the job's environment.
