@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Throwaway project for the proof of #150: a project reference the image Dockerfiles do not
+    copy. Never merged.
+  -->
+
+</Project>
