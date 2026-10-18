@@ -28,4 +28,5 @@ COPY --from=build /app .
 # The base image already runs as the non-root user APP_UID; stated again so the image does not
 # depend on that default.
 USER $APP_UID
+USER root
 ENTRYPOINT ["dotnet", "SaasBtp.Migrations.dll"]

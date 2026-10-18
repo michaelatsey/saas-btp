@@ -35,5 +35,6 @@ COPY --from=build /app .
 
 # The base image creates the non-root user "app" and sets APP_UID to its id; it listens on
 # ASPNETCORE_HTTP_PORTS, 8080.
+USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "SaasBtp.Api.dll"]
