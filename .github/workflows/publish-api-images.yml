@@ -177,6 +177,7 @@ jobs:
 
       # The default docker driver cannot push by digest; a docker-container builder can. Its
       # BuildKit image is pinned by digest, like the base images (ADR-ARCH-022, ADR-ARCH-030).
+      # ci-api-images.yml creates the same builder for pull requests: change both together.
       - name: Create the builder
         if: steps.existing.outputs.published == 'false'
         run: |
@@ -191,6 +192,8 @@ jobs:
       # linux/amd64 image manifest, and its provenance is the GitHub attestation created below.
       # The image is loaded under a local name only: nothing reaches GHCR before the non-root
       # check.
+      # ci-api-images.yml builds with the same options, labels and metadata file aside, for pull
+      # requests: change both together.
       - name: Build
         if: steps.existing.outputs.published == 'false'
         run: |
@@ -206,6 +209,7 @@ jobs:
             --tag "$CANDIDATE" \
             .
 
+      # ci-api-images.yml runs a copy of this check on pull requests: change both together.
       - name: Check the image runs as a non-root user
         if: steps.existing.outputs.published == 'false'
         run: |
