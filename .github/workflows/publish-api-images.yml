@@ -1,10 +1,17 @@
 name: Publish API images
 
 # Builds the API and migration runner images for one commit of main, attests them, and publishes
-# them to GHCR as sha-<full SHA> (ADR-ARCH-022, ADR-ARCH-029). Manual only: deploying them is
-# #145.
+# them to GHCR as sha-<full SHA> (ADR-ARCH-022, ADR-ARCH-030). Called by "Deliver API to staging"
+# once CI API passes on a push to main, before the commit is deployed; dispatched by hand from
+# main to publish a commit again, or to complete a run where one image failed.
 on:
   workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA (40 characters) of a commit on main
+        required: true
+        type: string
+  workflow_call:
     inputs:
       sha:
         description: Full SHA (40 characters) of a commit on main
@@ -13,11 +20,6 @@ on:
 
 permissions:
   contents: read
-
-# Two runs for the same commit would race between the tag check and the push.
-concurrency:
-  group: publish-api-images-${{ inputs.sha }}
-  cancel-in-progress: false
 
 # An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
 # step.
@@ -30,9 +32,18 @@ jobs:
     name: publish-${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Two runs for the same commit would race between the tag check and the push of an image.
+    # Set on the job, so per image: GitHub's documentation does not say whether a called
+    # workflow's top-level concurrency applies. With queue: max a waiting run is not cancelled
+    # by a third one, so a delivery run's publication is never dropped and its deployment
+    # always follows.
+    concurrency:
+      group: publish-api-images-${{ inputs.sha }}-${{ matrix.image }}
+      cancel-in-progress: false
+      queue: max
     # id-token and attestations let actions/attest sign with the job's OIDC token and store the
     # attestation in GitHub's attestations API, where gh attestation verify reads it back
-    # (ADR-ARCH-029).
+    # (ADR-ARCH-030).
     permissions:
       contents: read
       packages: write
@@ -133,8 +144,9 @@ jobs:
             exit 1
           fi
 
-      # A published digest is accepted only with an attestation from this workflow on main
-      # (ADR-ARCH-029): the attestation proves where the digest was built, and the revision label
+      # A published digest is accepted only with an attestation from this workflow on main, the
+      # verification policy of ADR-ARCH-030 point 6, the same flags as in deploy-api-staging.yml
+      # (point 5): the attestation proves where the digest was built, and the revision label
       # inside the digest names the commit. A copy of this workflow on another branch carries the
       # same path, hence the source ref. This path never attests: a provenance describes the run
       # that creates it, and this run did not build the digest.
@@ -164,7 +176,7 @@ jobs:
           exit 1
 
       # The default docker driver cannot push by digest; a docker-container builder can. Its
-      # BuildKit image is pinned by digest, like the base images (ADR-ARCH-022, ADR-ARCH-029).
+      # BuildKit image is pinned by digest, like the base images (ADR-ARCH-022, ADR-ARCH-030).
       - name: Create the builder
         if: steps.existing.outputs.published == 'false'
         run: |
@@ -175,7 +187,7 @@ jobs:
             --use \
             --bootstrap
 
-      # No BuildKit provenance or SBOM (ADR-ARCH-029): the published reference stays a single
+      # No BuildKit provenance or SBOM (ADR-ARCH-030): the published reference stays a single
       # linux/amd64 image manifest, and its provenance is the GitHub attestation created below.
       # The image is loaded under a local name only: nothing reaches GHCR before the non-root
       # check.
@@ -204,7 +216,7 @@ jobs:
             exit 1
           fi
 
-      # Pushed by digest, with no tag (ADR-ARCH-029): the tag is created only once this digest is
+      # Pushed by digest, with no tag (ADR-ARCH-030): the tag is created only once this digest is
       # attested, so a run that fails from here on leaves an untagged digest, never a tag without
       # an attestation. The same build comes from BuildKit's cache; equal config digests in the
       # metadata of both builds prove the pushed image is the one checked above, since the config
@@ -243,7 +255,7 @@ jobs:
           echo "Pushed $IMAGE@$digest (config $pushed)"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
-      # Attested by the run that pushed the digest, and by no other (ADR-ARCH-029). The
+      # Attested by the run that pushed the digest, and by no other (ADR-ARCH-030). The
       # attestation stays in GitHub's attestations API: nothing reads it from GHCR.
       - name: Attest the pushed digest
         id: attest
@@ -254,7 +266,7 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: false
 
-      # A sha-<SHA> tag designates an attested digest or does not exist (ADR-ARCH-029): this step
+      # A sha-<SHA> tag designates an attested digest or does not exist (ADR-ARCH-030): this step
       # runs only once the attestation step has succeeded. With one image manifest as source,
       # --prefer-index=false pushes its bytes unchanged, so the tag keeps the pushed digest.
       - name: Tag the attested digest

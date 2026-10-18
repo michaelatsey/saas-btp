@@ -1,0 +1,55 @@
+name: Deliver API to staging
+
+# Publishes, then deploys to staging, the commit of every push to main whose CI API run succeeds
+# (ADR-ARCH-030). Started by GitHub when a CI API run completes, whatever its event and
+# conclusion: only the conditions on the publish job decide that anything runs. A run that fails
+# can be an expected refusal, such as the ordering rule refusing a commit older than the one
+# staging runs; its log says which.
+#
+# A workflow_run run takes this file, GITHUB_REF and GITHUB_SHA from the default branch, not from
+# the triggering run: the commit published and deployed is the triggering run's head_sha. The
+# called workflows come from the same commit as this one, and see this run's github context.
+on:
+  workflow_run:
+    workflows: [CI API]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  # The branches filter matches the triggering run's branch name only, which a pull request from
+  # a fork can share: the event, the head repository and the workflow file are checked too.
+  publish:
+    name: publish
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.path == '.github/workflows/ci-api.yml'
+    uses: ./.github/workflows/publish-api-images.yml
+    with:
+      sha: ${{ github.event.workflow_run.head_sha }}
+    # The ceiling of the called workflow's permissions: it can only lower them.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+  # Runs only once both images of the commit are published and attested. The staging
+  # Environment's secrets are passed by name: a called workflow receives no other.
+  deploy:
+    name: deploy
+    needs: publish
+    uses: ./.github/workflows/deploy-api-staging.yml
+    with:
+      sha: ${{ github.event.workflow_run.head_sha }}
+    secrets:
+      DOPPLER_MIGRATOR_TOKEN: ${{ secrets.DOPPLER_MIGRATOR_TOKEN }}
+      COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+    permissions:
+      contents: read
+      packages: read
+      attestations: read

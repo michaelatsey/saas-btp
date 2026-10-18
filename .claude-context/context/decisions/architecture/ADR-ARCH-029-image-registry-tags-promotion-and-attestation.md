@@ -1,6 +1,6 @@
 # ADR-ARCH-029 — Image registry, tags, promotion and attestation: private GHCR, one tag per commit on an attested digest, deployment by digest
 
-Status: accepted
+Status: superseded by ADR-ARCH-030
 Date: 2026-10-18
 Supersedes: ADR-ARCH-023
 Refs: issue #151; ADR-ARCH-023; ADR-ARCH-024.

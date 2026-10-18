@@ -79,9 +79,9 @@ docker build --platform linux/amd64 -f apps/api/src/hosts/SaasBtp.Api/Dockerfile
 docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dockerfile -t saas-btp-migrator:local .
 ```
 
-- How the images are built is ADR-ARCH-022; where they are published, tagged and promoted,
-  ADR-ARCH-023; how the runner is sequenced before the API, ADR-ARCH-024; how secrets reach
-  them, ADR-ARCH-025.
+- How the images are built is ADR-ARCH-022; where they are published, tagged, promoted,
+  verified and delivered to staging, ADR-ARCH-030; how the runner is sequenced before the
+  API, ADR-ARCH-024; how secrets reach them, ADR-ARCH-025.
 - The build context is the repository root. The root `.dockerignore` is an allow-list: a file
   or a project a Dockerfile needs must be let back in there, or the build does not see it.
 - Base images are pinned by digest. The SDK image digest is written in both Dockerfiles:
@@ -94,10 +94,15 @@ docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dock
 - The runner image is chiseled: no shell. Without `GSS Encryption Mode=Disable` in its
   connection string, it prints that `libgssapi_krb5.so.2` cannot be loaded, then connects
   normally; Npgsql documents the message as harmless.
-- Images are published by `.github/workflows/publish-api-images.yml`, run by hand from `main`
-  with the full SHA of a commit on `main`. It never overwrites an existing tag: an image
-  already published from the same commit is reported, not pushed again, so a run where one
-  image failed is completed by dispatching it again.
+- Images are published by `.github/workflows/publish-api-images.yml`, which
+  `.github/workflows/deliver-api-staging.yml` calls once `CI API` passes on a push to `main`,
+  before deploying the commit to staging with `.github/workflows/deploy-api-staging.yml`. Both
+  can also be dispatched by hand from `main` with the full SHA of a commit on `main`. The
+  publish workflow never overwrites an existing tag: an image already published from the same
+  commit is reported, not pushed again, so a run where one image failed is completed by
+  dispatching it again. A deployment refuses a digest without a valid attestation; an
+  automatic one also refuses a commit older than the one staging runs, while a manual one
+  (rollback) does not.
 
 ## Tests
 
