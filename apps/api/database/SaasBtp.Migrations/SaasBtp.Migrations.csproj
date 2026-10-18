@@ -17,8 +17,4 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../../src/throwaway/SaasBtp.Throwaway/SaasBtp.Throwaway.csproj" />
-  </ItemGroup>
-
 </Project>
