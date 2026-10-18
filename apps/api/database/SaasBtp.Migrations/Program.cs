@@ -1,5 +1,8 @@
 using SaasBtp.Migrations;
 
+// Throwaway (#150 proof): the runner uses a type of the referenced project.
+_ = SaasBtp.Throwaway.ThrowawayMarker.Name;
+
 // The connection string comes from the environment, never from a committed file
 // (ADR-ARCH-019). It is never written to the output.
 var connectionString = Environment.GetEnvironmentVariable(MigrationRunner.ConnectionStringVariable);

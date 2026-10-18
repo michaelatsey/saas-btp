@@ -3,9 +3,6 @@ using SaasBtp.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Throwaway (#150 proof): the host uses a type of the referenced project.
-_ = SaasBtp.Throwaway.ThrowawayMarker.Name;
-
 // Structured logs (ADR-ARCH-018): one JSON object per line, UTC timestamps, and the scopes that
 // carry the TraceId and SpanId of the request.
 builder.Logging.AddJsonConsole(options =>
