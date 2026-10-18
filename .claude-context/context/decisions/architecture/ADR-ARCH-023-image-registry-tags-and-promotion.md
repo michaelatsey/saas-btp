@@ -1,6 +1,6 @@
 # ADR-ARCH-023 — Image registry, tags and promotion: private GHCR, one tag per commit, deployment by digest
 
-Status: accepted
+Status: superseded by ADR-ARCH-029
 Date: 2026-10-17
 Refs: issue #146.
 

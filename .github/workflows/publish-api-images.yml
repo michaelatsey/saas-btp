@@ -1,7 +1,8 @@
 name: Publish API images
 
-# Builds the API and migration runner images for one commit of main and publishes them to GHCR
-# as sha-<full SHA> (ADR-ARCH-022, ADR-ARCH-023). Manual only: deploying them is #145.
+# Builds the API and migration runner images for one commit of main, attests them, and publishes
+# them to GHCR as sha-<full SHA> (ADR-ARCH-022, ADR-ARCH-029). Manual only: deploying them is
+# #145.
 on:
   workflow_dispatch:
     inputs:
@@ -29,9 +30,14 @@ jobs:
     name: publish-${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # id-token and attestations let actions/attest sign with the job's OIDC token and store the
+    # attestation in GitHub's attestations API, where gh attestation verify reads it back
+    # (ADR-ARCH-029).
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +50,8 @@ jobs:
       SHA: ${{ inputs.sha }}
       IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
       DOCKERFILE: ${{ matrix.dockerfile }}
+      # The name the build is loaded under in the runner's engine; it never reaches GHCR.
+      CANDIDATE: local/${{ matrix.image }}:candidate
     steps:
       # Only the version of this workflow on main may publish. A failed step, not a skipped
       # job, so that a run dispatched from another branch cannot pass for a publication.
@@ -93,27 +101,84 @@ jobs:
       # "not found". A denied read is taken as absent too: a token that cannot read a package
       # cannot push to it, so the push fails rather than overwrites. Any other failure stops the
       # run rather than being read as absent.
+      # The tag is resolved to a digest once: the revision label here and the attestation in the
+      # next step are read from that digest, never from the tag, which could move in between.
       - name: Check whether the tag is already published
         id: existing
         run: |
-          if output=$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{json .Image.Config.Labels}}' 2>&1); then
-            revision=$(jq -r '."org.opencontainers.image.revision" // empty' <<<"$output")
-            if [[ "$revision" != "$SHA" ]]; then
-              echo "::error::$IMAGE:sha-$SHA exists with revision '${revision:-<none>}'; a tag is never overwritten."
+          # stderr is kept apart, so that a warning cannot mix into the digest.
+          if output=$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{json .Manifest.Digest}}' 2>"$RUNNER_TEMP/inspect.err"); then
+            digest=$(tr -d '"' <<<"$output")
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "$output"
+              cat "$RUNNER_TEMP/inspect.err"
+              echo "::error::Could not read the digest of $IMAGE:sha-$SHA."
               exit 1
             fi
-            echo "::notice::$IMAGE:sha-$SHA is already published from this commit; nothing is pushed."
+            revision=$(docker buildx imagetools inspect "$IMAGE@$digest" --format '{{json .Image.Config.Labels}}' \
+              | jq -r '."org.opencontainers.image.revision" // empty')
+            if [[ "$revision" != "$SHA" ]]; then
+              echo "::error::$IMAGE:sha-$SHA ($digest) exists with revision '${revision:-<none>}'; a tag is never overwritten."
+              exit 1
+            fi
+            echo "::notice::$IMAGE:sha-$SHA is already published from this commit as $digest; nothing is pushed."
             echo "published=true" >> "$GITHUB_OUTPUT"
-          elif grep -q -i -E 'not found|denied' <<<"$output"; then
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          elif grep -q -i -E 'not found|denied' "$RUNNER_TEMP/inspect.err"; then
             echo "published=false" >> "$GITHUB_OUTPUT"
           else
             echo "$output"
+            cat "$RUNNER_TEMP/inspect.err"
             echo "::error::Could not tell whether $IMAGE:sha-$SHA exists."
             exit 1
           fi
 
-      # No provenance or SBOM attestation for now (ADR-ARCH-023): the pushed reference is a
-      # single linux/amd64 image manifest.
+      # A published digest is accepted only with an attestation from this workflow on main
+      # (ADR-ARCH-029): the attestation proves where the digest was built, and the revision label
+      # inside the digest names the commit. A copy of this workflow on another branch carries the
+      # same path, hence the source ref. This path never attests: a provenance describes the run
+      # that creates it, and this run did not build the digest.
+      # Only an answer that no attestation exists reads as a missing one: the attestations API
+      # answers 404 for such a digest, and gh prints "No attestations found" when it returns an
+      # empty list. Any other failure, a permission or network error included, is reported with
+      # gh's output as a failed verification.
+      - name: Verify the attestation of the published digest
+        if: steps.existing.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.existing.outputs.digest }}
+        run: |
+          if output=$(gh attestation verify "oci://$IMAGE@$DIGEST" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish-api-images.yml" \
+              --source-ref refs/heads/main 2>&1); then
+            echo "$output"
+            exit 0
+          fi
+          echo "$output"
+          if grep -q -F -e "No attestations found" -e "HTTP 404: Not Found (https://api.github.com/repos/$GITHUB_REPOSITORY/attestations/" <<<"$output"; then
+            echo "::error::$IMAGE@$DIGEST (sha-$SHA) has no attestation: it was published before images were attested, and is never attested afterwards. Publish a newer commit of main."
+          else
+            echo "::error::Could not verify the attestation of $IMAGE@$DIGEST (sha-$SHA); see gh's output above."
+          fi
+          exit 1
+
+      # The default docker driver cannot push by digest; a docker-container builder can. Its
+      # BuildKit image is pinned by digest, like the base images (ADR-ARCH-022, ADR-ARCH-029).
+      - name: Create the builder
+        if: steps.existing.outputs.published == 'false'
+        run: |
+          docker buildx create \
+            --name publish \
+            --driver docker-container \
+            --driver-opt "image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea" \
+            --use \
+            --bootstrap
+
+      # No BuildKit provenance or SBOM (ADR-ARCH-029): the published reference stays a single
+      # linux/amd64 image manifest, and its provenance is the GitHub attestation created below.
+      # The image is loaded under a local name only: nothing reaches GHCR before the non-root
+      # check.
       - name: Build
         if: steps.existing.outputs.published == 'false'
         run: |
@@ -122,31 +187,93 @@ jobs:
             --provenance=false \
             --sbom=false \
             --load \
+            --metadata-file "$RUNNER_TEMP/load-metadata.json" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --label "org.opencontainers.image.revision=$SHA" \
             --file "$DOCKERFILE" \
-            --tag "$IMAGE:sha-$SHA" \
+            --tag "$CANDIDATE" \
             .
 
       - name: Check the image runs as a non-root user
         if: steps.existing.outputs.published == 'false'
         run: |
-          user=$(docker image inspect --format '{{.Config.User}}' "$IMAGE:sha-$SHA")
+          user=$(docker image inspect --format '{{.Config.User}}' "$CANDIDATE")
           echo "User: ${user:-<unset>}"
           if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
             echo "::error::$IMAGE runs as root."
             exit 1
           fi
 
-      - name: Push
+      # Pushed by digest, with no tag (ADR-ARCH-029): the tag is created only once this digest is
+      # attested, so a run that fails from here on leaves an untagged digest, never a tag without
+      # an attestation. The same build comes from BuildKit's cache; equal config digests in the
+      # metadata of both builds prove the pushed image is the one checked above, since the config
+      # names every layer. OCI media types are set explicitly: Docker documents the exporter's
+      # default as false.
+      - name: Push by digest
+        id: push
         if: steps.existing.outputs.published == 'false'
-        run: docker push "$IMAGE:sha-$SHA"
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --output "type=image,name=$IMAGE,push-by-digest=true,push=true,oci-mediatypes=true" \
+            --metadata-file "$RUNNER_TEMP/push-metadata.json" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --file "$DOCKERFILE" \
+            .
+          checked=$(jq -r '."containerimage.config.digest" // empty' "$RUNNER_TEMP/load-metadata.json")
+          pushed=$(jq -r '."containerimage.config.digest" // empty' "$RUNNER_TEMP/push-metadata.json")
+          digest=$(jq -r '."containerimage.digest" // empty' "$RUNNER_TEMP/push-metadata.json")
+          media_type=$(jq -r '."containerimage.descriptor".mediaType // empty' "$RUNNER_TEMP/push-metadata.json")
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not read the pushed digest of $IMAGE."
+            exit 1
+          fi
+          if [[ -z "$checked" || "$pushed" != "$checked" ]]; then
+            echo "::error::$IMAGE@$digest has config '${pushed:-<none>}', not the checked '${checked:-<none>}'; it is neither attested nor tagged."
+            exit 1
+          fi
+          if [[ "$media_type" != application/vnd.oci.image.manifest.v1+json ]]; then
+            echo "::error::$IMAGE@$digest is a '${media_type:-<none>}', not a single image manifest."
+            exit 1
+          fi
+          echo "Pushed $IMAGE@$digest (config $pushed)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # Attested by the run that pushed the digest, and by no other (ADR-ARCH-029). The
+      # attestation stays in GitHub's attestations API: nothing reads it from GHCR.
+      - name: Attest the pushed digest
+        id: attest
+        if: steps.existing.outputs.published == 'false'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: false
+
+      # A sha-<SHA> tag designates an attested digest or does not exist (ADR-ARCH-029): this step
+      # runs only once the attestation step has succeeded. With one image manifest as source,
+      # --prefer-index=false pushes its bytes unchanged, so the tag keeps the pushed digest.
+      - name: Tag the attested digest
+        if: steps.existing.outputs.published == 'false' && steps.attest.outcome == 'success'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: docker buildx imagetools create --prefer-index=false --tag "$IMAGE:sha-$SHA" "$IMAGE@$DIGEST"
 
       - name: Report the digest
+        env:
+          EXPECTED: ${{ steps.push.outputs.digest || steps.existing.outputs.digest }}
         run: |
           digest=$(docker buildx imagetools inspect "$IMAGE:sha-$SHA" --format '{{json .Manifest.Digest}}' | tr -d '"')
           if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "::error::Could not read the digest of $IMAGE:sha-$SHA."
+            exit 1
+          fi
+          if [[ "$digest" != "$EXPECTED" ]]; then
+            echo "::error::$IMAGE:sha-$SHA designates $digest, not the attested $EXPECTED."
             exit 1
           fi
           echo "Published $IMAGE:sha-$SHA"
