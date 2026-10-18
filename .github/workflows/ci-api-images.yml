@@ -1,0 +1,122 @@
+name: CI API images
+
+# Builds the API and migration runner images on every pull request into main, and fails when
+# either does not build or would run as root. Without it, a project reference missing from a
+# Dockerfile or from the .dockerignore allow-list, or a base-image bump that breaks the build
+# stage, showed only at the next publication (ADR-ARCH-022, Consequences), which since #145 is
+# the delivery to staging right after the merge: the broken commit was already on main.
+#
+# Required by ruleset 18697625 under its job name, alongside api-build-test. No paths filter: a
+# required check that does not run blocks the merge.
+#
+# The builder, the build options and the non-root assertion are copies of those in
+# publish-api-images.yml and change with them. They are copied rather than shared for the reason
+# ADR-ARCH-030 (Alternatives considered) gives against a shared script for its verification
+# policy: the publish job checks out the commit it publishes, which for an older commit would
+# not contain the script. A divergence can let one fail where the other passes, but publication
+# still applies its own copy: nothing it refuses is published.
+#
+# Not named "CI API": deliver-api-staging.yml starts on workflow runs of that name.
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
+# step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # One job for both images, so the required check keeps one name whatever the number of images.
+  api-images:
+    name: api-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      # No ref: the merge commit the pull_request event checks out, as api-build-test builds.
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Same command as in publish-api-images.yml, so the images are built by the same BuildKit
+      # image. Nothing is pushed from here.
+      - name: Create the builder
+        id: builder
+        run: |
+          docker buildx create \
+            --name publish \
+            --driver docker-container \
+            --driver-opt "image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea" \
+            --use \
+            --bootstrap
+
+      # The build options of publish-api-images.yml's "Build" step, without its OCI labels and
+      # --metadata-file: they describe the published image and do not change whether it builds.
+      - name: Build saas-btp-api
+        id: build-api
+        env:
+          DOCKERFILE: apps/api/src/hosts/SaasBtp.Api/Dockerfile
+          CANDIDATE: local/saas-btp-api:candidate
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --load \
+            --file "$DOCKERFILE" \
+            --tag "$CANDIDATE" \
+            .
+
+      # The script of publish-api-images.yml's "Check the image runs as a non-root user",
+      # unchanged; it runs only on an image this job built.
+      - name: Check saas-btp-api runs as a non-root user
+        if: ${{ !cancelled() && steps.build-api.outcome == 'success' }}
+        env:
+          IMAGE: saas-btp-api
+          CANDIDATE: local/saas-btp-api:candidate
+        run: |
+          user=$(docker image inspect --format '{{.Config.User}}' "$CANDIDATE")
+          echo "User: ${user:-<unset>}"
+          if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
+            echo "::error::$IMAGE runs as root."
+            exit 1
+          fi
+
+      # Built even when the API image failed, so one run reports both; never on the default
+      # docker driver, which a failed builder creation would leave in use.
+      - name: Build saas-btp-migrator
+        id: build-migrator
+        if: ${{ !cancelled() && steps.builder.outcome == 'success' }}
+        env:
+          DOCKERFILE: apps/api/database/SaasBtp.Migrations/Dockerfile
+          CANDIDATE: local/saas-btp-migrator:candidate
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --sbom=false \
+            --load \
+            --file "$DOCKERFILE" \
+            --tag "$CANDIDATE" \
+            .
+
+      - name: Check saas-btp-migrator runs as a non-root user
+        if: ${{ !cancelled() && steps.build-migrator.outcome == 'success' }}
+        env:
+          IMAGE: saas-btp-migrator
+          CANDIDATE: local/saas-btp-migrator:candidate
+        run: |
+          user=$(docker image inspect --format '{{.Config.User}}' "$CANDIDATE")
+          echo "User: ${user:-<unset>}"
+          if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
+            echo "::error::$IMAGE runs as root."
+            exit 1
+          fi
