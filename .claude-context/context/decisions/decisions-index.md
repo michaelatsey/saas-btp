@@ -55,12 +55,13 @@ Options rejected and why.
 | ADR-ARCH-020 | Solution layout for the .NET side of the monorepo: hosts, modules and folder casing | accepted |
 | ADR-ARCH-021 | Test project conventions: xUnit v3, native assertions, XML documentation | accepted |
 | ADR-ARCH-022 | Container images built in CI from multi-stage Dockerfiles for linux/amd64; base images pinned by digest; a digest bump that moves the SDK to another feature band moves the `global.json` pin in the same pull request | accepted |
-| ADR-ARCH-023 | Image registry, tags and promotion: private GHCR, one immutable `sha-<full SHA>` tag per commit on `main`, deployment and promotion by digest, no environment tags | accepted |
+| ADR-ARCH-023 | Image registry, tags and promotion: private GHCR, one immutable `sha-<full SHA>` tag per commit on `main`, deployment and promotion by digest, no environment tags | superseded by ADR-ARCH-029 |
 | ADR-ARCH-024 | The migration runner runs in a GitHub Actions job before the API, a Coolify Docker Image application, is deployed by digest; expand/contract mandatory | accepted |
 | ADR-ARCH-025 | Runtime secrets in Doppler, one project per role and a config per environment; the API through Coolify's integration, the runner through a GitHub Environment; no CLI in any image | accepted |
 | ADR-ARCH-026 | The staging database is a separate Supabase project, `saas-btp-staging`, sharing no credential with production and never receiving production data; Free-plan pausing accepted | accepted |
 | ADR-ARCH-027 | The migration runner connects as `saasbtp_migrator` through Supavisor in session mode, owns the schema, forces RLS on every application table; role `statement_timeout` 110 s, runner command timeout 120 s | accepted |
 | ADR-ARCH-028 | The API connects as `saasbtp_api` through Supavisor in session mode, owns nothing and is subject to RLS; `temporary` and `usage` on `public` revoked from `PUBLIC`, `connect` kept | accepted |
+| ADR-ARCH-029 | Image registry, tags, promotion and attestation: private GHCR, one `sha-<full SHA>` tag per commit on `main` created only on a digest attested by the run that pushed it, attestations in GitHub's attestations API only, verified for `publish-api-images.yml` on `refs/heads/main`; deployment and promotion by digest; supersedes ADR-ARCH-023 | accepted |
 | ADR-ORG-001 | The repository stays public: Claude.ai needs read access; secret scanning and push protection become a priority; README and licence statement to correct | accepted |
 | ADR-ORG-002 | GitHub flow: short-lived branches → PR → `main` (default), squash, branch deleted after merge; `dev` retired after a final promotion | accepted |
 | ADR-ORG-003 | Claude Code may commit, push and open PRs, each gated by an `ask` permission rule; merge stays human; GitHub through `gh` only; supersedes "Claude never runs git" (provisional, revisit after pilot #75) | superseded by ADR-ORG-004 |
