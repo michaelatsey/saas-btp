@@ -75,9 +75,19 @@ snake_case — those are derived, not authored in specs.
   (`readonly record struct XId(Guid Value)`). A raw `Guid`/`string` is never used
   as an identifier in Domain.
 - Generation: at aggregate creation time, by the creator of the aggregate.
-- Offline-created aggregates (field capture): generated client-side. The id doubles as
-  the idempotency key — a replayed create carries the same id, the server returns the
-  existing resource, never 409.
+- Client-generated identifiers: an aggregate whose creation may be sent more than once
+  is identified by the client, before the first send. This covers offline-created
+  aggregates (field capture) and online creations the client may retry (founding a
+  company, BP-001). The id doubles as the idempotency key:
+  - A replayed create returns the existing resource, never 409. The replay's payload is
+    not compared with the original. Who may replay is defined by the business process
+    of the creation; when it says nothing, any requester who can see the resource may.
+  - Any other create whose id already identifies a resource is refused with 409. The
+    response says only that the id is in use, nothing about the resource. The client
+    generates a new id and may send again.
+  - A creation that produces several aggregates at once names, in its business
+    process, the aggregate whose id is the key (for example, BP-001 names the
+    organization).
 - Rationale: time-ordered → B-tree locality on append-heavy tables + free chronological
   sort; native in .NET 10 (`Guid.CreateVersion7`) and Postgres; generatable in JS for the
   offline client.

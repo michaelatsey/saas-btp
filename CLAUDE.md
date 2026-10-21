@@ -39,7 +39,8 @@ the domain, not a feature.
 | Need | Load |
 |------|------|
 | Phase 1 scope and increments | `docs/product/scope-phase-1.md` |
-| A business process (spec, design package, implementation design) | `docs/business-processes/BP-XXX/` |
+| A business process (process, acceptance, contract) | `docs/business-processes/BP-XXX-<slug>/` |
+| Concepts and invariants shared by several processes | `docs/domain/` |
 | Domain / feature specs (non-BP) | `docs/product/specifications/` |
 | How to design any new feature | `.claude-context/context/architecture/conventions/process-first-method.md` |
 | Issues convention, and where durable artifacts live | `.claude-context/context/product/issues-convention.md` |
@@ -53,13 +54,14 @@ the domain, not a feature.
 ## Documentary model
 
 A Business Process is the autonomous documentary unit: anyone, human or AI, must be able
-to pick up a BP under `docs/business-processes/BP-XXX/` and derive an implementation
-without the conversation history. Specification (WHY) -> Design Package (WHAT, business
-model, closed) -> Implementation Design (software HOW, stable contract) -> Implementation
-Plan, which is derived per tool and never consigned.
+to pick up a BP under `docs/business-processes/BP-XXX-<slug>/` and derive an
+implementation without the conversation history. `process.md` (the business process) and
+`acceptance.md` (identified, observable scenarios) are validated by the maintainer;
+`contract.md` (the software contract) by agreement of the two reviewers. Shared concepts
+and invariants live once in `docs/domain/`. The implementation plan is never consigned.
 
-`issues-convention.md` section 12 is authoritative for this layout and for the derivation
-rules. This file carries only the orientation above.
+`issues-convention.md` section 12 is authoritative for this layout and for its rules.
+This file carries only the orientation above.
 
 ---
 
