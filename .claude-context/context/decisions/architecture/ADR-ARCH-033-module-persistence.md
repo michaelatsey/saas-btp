@@ -45,6 +45,11 @@ xmin, created_at`:
 - an organization committed without its ownership row fails on the deferred foreign key;
 - another person can neither give themselves an access to that workspace (under its
   organization or under one they own), nor a membership, nor add a workspace, and sees nothing;
+- with workspace visibility read through `access.may_act_in` alone, another person who inserts,
+  under an organization they own, an access naming someone else's workspace sees that workspace,
+  and any module's data keyed on it, until the deferred key fails at commit; with visibility
+  requiring the access's organization to be the workspace's, they see nothing, in the same
+  transaction too;
 - a policy of another schema calling its own function, which delegates to
   `access.may_act_in`, admits the participant and refuses the other person.
 
@@ -54,14 +59,18 @@ xmin, created_at`:
    module's record is its identifier. A module's only dependency in the database is its own
    function `<module>.may_act_in(workspace_id uuid)`, `security invoker`, `stable`, which
    delegates to `access.may_act_in` and which every policy of the module on workspace data calls;
-   this is how such a policy calls `access.may_act_in` (ADR-ARCH-032 §2). Moving the module out
-   replaces that one function, for instance by a local copy of workspace accesses fed by Access's
-   events. A request that changes two modules writes in at most one of them; the other reacts to
-   its integration event (ADR-ARCH-031).
+   this is how such a policy calls `access.may_act_in` (ADR-ARCH-032 §2). The script that
+   creates it grants `execute` on it to `saasbtp_api` only, as for Access's functions
+   (ADR-ARCH-032, Consequences). Moving the module out replaces that one function. No
+   transaction spans two modules (ADR-ARCH-031); how a request involving two modules
+   coordinates them is decided with the module structure (#174).
 2. **One journal today.** All scripts stay in the runner's single folder and journal
    (ADR-ARCH-019). A module's scripts depend on no other module's scripts, except its
    `<module>.may_act_in` on Access's function, which the global number orders first. Moving a
-   module out takes its scripts, named `NNNN__<module>__…`, with it.
+   module out takes its scripts, named `NNNN__<module>__…`, with it. ADR-ARCH-019 advised
+   per-module journals before many scripts exist if modules became fully independent; since a
+   module's scripts touch only its schema and are named after it, its journal rows can be
+   carried with them when it moves out, so the single journal does not grow harder to split.
 3. **Each module chooses its storage and access layer.** A module on the shared database uses
    EF Core at run time by default, one context per module mapping its schema, on the Npgsql
    provider, never creating or altering the schema. Whether the context comes through
@@ -70,11 +79,12 @@ xmin, created_at`:
    the integration test `MappingMatchesMigratedSchema`: it migrates a PostgreSQL container with
    the runner, applying the portable subset and the same named exclusion list as `sql.md`
    (Auth-coupled scripts), then compares, for every entity of the module's context, its table,
-   columns, store types, nullability, primary and unique keys with the catalog, and fails on any
-   difference, including a non-null column without a default the model does not map. Foreign
-   keys are compared in one direction: every relationship of the model exists in the database;
-   a database foreign key the model leaves out is admitted only when it is named in the test's
-   list, with its reason. System columns such as `xmin` are outside the comparison.
+   columns, store types, nullability and primary key with the catalog. Columns, unique keys and
+   foreign keys are compared in one direction: everything the model maps exists in the database
+   with the same definition; a column, unique key or foreign key the database holds and the
+   model leaves out is admitted only when it is named in the test's list with its reason, and a
+   non-null column without a default is never admitted. System columns such as `xmin` are
+   outside the comparison.
 4. **One transaction per unit of work, its subject first.** A unit of work belongs to one module
    and opens one explicit transaction on its context. Every context of the API:
    - disables EF's automatic transactions, so that no transaction starts outside a unit of work;
@@ -87,7 +97,8 @@ xmin, created_at`:
    - registers a command interceptor that stops any command without a transaction, with an
      error.
    Raw SQL goes through EF's parameterized forms only (ADR-ARCH-032 §3). Work that runs without
-   a request, such as an event consumer, has no subject until its first case decides one.
+   a request, such as an event consumer or the relay of an outbox, cannot run under these rules
+   until its first case decides its subject and its transaction.
 5. **Statements that return rows, and the creation order.** EF may read generated values back
    with `RETURNING`, so a creation inserts each row only once the subject may see it. This
    replaces the order of ADR-ARCH-032 §4: for a founding, the author's profile, their ownership,
@@ -98,14 +109,25 @@ xmin, created_at`:
      to commit, so that the access names a workspace of that organization;
    - the insert policies of a membership, an access and a workspace admit a row only when the
      subject is the current owner of the organization it names, which the subject can read
-     through their own ownership;
+     through their own ownership; the organization's insert policy admits any row, since it
+     cannot be committed without an ownership (decision 6) and grants nothing until its owner
+     reads it through that ownership;
+   - a workspace is visible only through a current access of the subject whose organization is
+     the workspace's own, read in the workspace's select policy itself, and
+     `access.may_act_in(workspace_id)` is true when that workspace is visible to the subject:
+     an access naming a workspace of another organization, admitted at insert under an
+     organization the subject owns, grants no sight of it before its deferred key fails at
+     commit;
    - the EF model declares the relation from the organization to its current ownership, and maps
      the ownership's `organization_id` and the access's `workspace_id` as plain columns, so that
-     EF orders the inserts as above and sees no cycle; `MappingMatchesMigratedSchema` lists
-     these two foreign keys.
-   The founding's integration test, run as `saasbtp_api`, fails when the order is reversed. A
-   later process that creates a record and the relation that makes it visible (adding a
-   workspace, BP-007) follows the same rule.
+     EF sees no cycle; `MappingMatchesMigratedSchema` lists these two foreign keys and the unique
+     key `(id, organization_id)` of `access.workspaces`. Since those relations no longer order
+     the inserts, the unit of work saves each row that must precede another in its own
+     `SaveChanges`, inside the one transaction.
+   The founding's integration test, run as `saasbtp_api`, fails when the order is reversed, and
+   includes the case of an access naming another organization's workspace, read before
+   rollback. Whether a later process that creates a workspace (BP-007) gives its author an
+   access is that process's decision; without one, its insert does not read values back.
 6. **Exactly one current owner.** The form proposed by ADR-ARCH-032 §4 is kept:
    `access.organizations.current_ownership_id` is non-null, with a composite foreign key
    `(id, current_ownership_id)` to `access.ownerships (organization_id, id)`, deferrable,
@@ -115,7 +137,13 @@ xmin, created_at`:
 
 ## Consequences
 - Moving a module out touches its `may_act_in` function, its scripts and its journal rows, and
-  no other module; its storage may then change.
+  no other module; its storage may then change. A replacement fed by Access's events, the
+  alternative ADR-ARCH-032 rejected, lets an ended access stay in force until its event is
+  consumed, unlike BP-005's immediate effect today; the decision that moves a module out chooses
+  between that delay and a synchronous check against Access.
+- A module's check now goes through two functions, and `access.may_act_in` reads the workspace
+  through its select policy: the evaluation once per statement of ADR-ARCH-032 and its
+  measurement on the first module with volume apply to that whole path.
 - A module that does not use EF Core states its own guard against drift between its storage and
   its code before its first record.
 - A command sent outside a unit of work fails loudly instead of returning no row.
@@ -138,6 +166,9 @@ xmin, created_at`:
   would add little and tie every module's schema to Access's, against extraction.
 - Policies calling `access.may_act_in` directly: moving a module out would mean rewriting every
   policy instead of one function.
+- Workspace visibility through `access.may_act_in` alone, with the pairing of access and
+  workspace left to the deferred key: shown by the reproduction to expose a foreign workspace
+  inside a transaction.
 - One journal per module now: it does not help while the database is shared, and the module
   prefix already lets a module's scripts leave with it.
 - EF Core imposed on every module: a module whose work suits another storage would have to
