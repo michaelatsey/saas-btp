@@ -58,12 +58,16 @@ security.
    policy on a relation (membership, access, any relation of a later module) admits a row only if
    it names the subject and the subject already holds, in the same transaction or before, the
    relation that the producing process requires on the target. For a creation that precedes any
-   relation of its author, the order is: the author's profile; the root record, admitted when a
-   subject is set; the author's ownership of it, admitted when it names the subject, and unique
-   per root record; then every other relation, admitted when the subject owns the root record
-   through that ownership. Unique constraints, which PostgreSQL applies outside row level security,
+   relation of its author, the order is: the author's profile, admitted only when its user is the
+   subject; the root record, admitted when a subject is set; the author's ownership of it,
+   admitted when it names the subject, with at most one current ownership per root record; then
+   every other record or relation of the creation, admitted only when the subject owns the root
+   record through that ownership. Unique constraints, which PostgreSQL applies outside row level security,
    stop a second owner. No function runs as `security definer` and no role bypasses row level
-   security. A statement that returns rows applies the select policies to them, so a creation does
+   security. The policies enforce isolation between organizations and the claims above; process
+   rules finer than that, such as the founder's access covering the first workspace only
+   (BP001-R4) or ownership never granting access by itself (INV-ACCESS-05), are enforced by the
+   owning module's domain and proven by its tests. A statement that returns rows applies the select policies to them, so a creation does
    not return a row before the subject may see it; what this means for the runtime mapping is
    decided with persistence (#176). A later process that creates relations for others (an
    invitation, an added workspace) adds its own insert policies under the same rule.
@@ -72,8 +76,8 @@ security.
    workspace" for data access. It answers "not found" for a row the policies hide, never
    "forbidden". A creation refused because an identifier is already in use is answered as
    naming.md states ("Aggregate identifiers"), and every unique or foreign key error caused by
-   another person's data is answered only as "in use", never with the constraint or the row it
-   names, so that nothing is revealed (INV-ACCESS-09).
+   another person's data is answered only as "in use" or "not found", never with the constraint
+   or the row it names, so that nothing is revealed (INV-ACCESS-09).
 6. **Tests.** Each module's integration tests run as `saasbtp_api` on a database migrated by the
    runner and prove, for its tables: no row without a subject, both on a fresh connection and on
    a reused one after a committed transaction; no row of a workspace the subject has no current
