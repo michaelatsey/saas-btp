@@ -51,9 +51,13 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   events through the outbox/inbox pattern (MicroKit.Messaging), at-least-once with
   idempotent handlers; an outbox is introduced with the first event a consumer needs
   (ADR-ARCH-032).
-- Authorization across contexts: every policy on workspace data calls
-  `access.may_act_in(workspace_id)`, published by Access; no context reads another's tables
-  (ADR-ARCH-032).
+- Authorization across contexts: every policy on workspace data calls its context's own
+  `<context>.may_act_in(workspace_id)`, which delegates to `access.may_act_in`, published by
+  Access; no context reads another's tables (ADR-ARCH-032, ADR-ARCH-033).
+- Extraction: every context shares one database today, and any context can be moved out as a
+  service with its own storage. No foreign key crosses schemas; a reference to another
+  context's record is its identifier; a context's `may_act_in` is the one function to replace
+  when it moves out (ADR-ARCH-033).
 - Example (increment 1): Safety raises `SafetyConstatRaised` -> CorrectiveActions
   reacts to create/track a corrective action; CorrectiveActions raises
   `CorrectiveActionDue` -> Notifications schedules a reminder.

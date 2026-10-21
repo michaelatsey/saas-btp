@@ -1,23 +1,27 @@
-# ADR-ARCH-033 — Module persistence: one schema per module, references to Access only, one journal, EF Core at run time inside an explicit transaction
+# ADR-ARCH-033 — Module persistence: one database shared today, each module extractable, no foreign key across modules, EF Core by default inside an explicit transaction
 
 Status: accepted
 Date: 2026-10-21
 Refs: issue #176; parent #125; ADR-ARCH-019; ADR-ARCH-027; ADR-ARCH-028; ADR-ARCH-031;
-ADR-ARCH-032; `sql.md`; `naming.md`; `docs/domain/access.md`.
+ADR-ARCH-032; `architecture.md` §2-§4; `sql.md`; `naming.md`; `docs/domain/access.md`.
 
 ## Context
+Modules do not reference one another and communicate by integration events (`architecture.md`
+§2-§3); an indivisible business step lives in one module (ADR-ARCH-031). Today every module
+lives in one PostgreSQL database. The maintainer requires that any module can later be moved
+out as a service of its own, with the storage and internal organization its work calls for.
+
 DbUp owns every DDL change, from one flat folder applied in one global order, with one journal
-in the schema `dbup`; per-module journals were left to the module design (ADR-ARCH-019). Each
-bounded context has its own schema (`sql.md`). `sql.md` and `naming.md` already assume EF Core
-at run time, with migrations disabled. The removed ADR-ARCH-006 (tag `archive/pre-reset`) had an
-integration test validating the EF mapping against a database migrated by DbUp; it was not
-carried over.
+in the schema `dbup`, and EF Core migrations are not used (ADR-ARCH-019). `sql.md` and
+`naming.md` are written for EF Core at run time. The removed ADR-ARCH-006 (tag
+`archive/pre-reset`) had an integration test validating the EF mapping against a database
+migrated by DbUp; it was not carried over.
 
 ADR-ARCH-032 left to this decision: how every database access runs inside a transaction whose
-first statement sets the subject; what statements returning rows mean for the creation order of
-its decision 4; the form of the "exactly one current owner" constraint; whether tables reference
-Access by foreign key. An indivisible business step lives in one module (ADR-ARCH-031). No
-process ends a workspace (INV-ACCESS-03).
+first statement sets the subject; what statements returning rows mean for its creation order;
+the form of the "exactly one current owner" constraint; whether tables reference Access by
+foreign key. A workspace is known only through an access to it (INV-ACCESS-09), and owning an
+organization never lets a person act in a workspace by itself (INV-ACCESS-05).
 
 What the documentation states, read on 2026-10-21:
 - PostgreSQL 17, `CREATE POLICY`: when a data-modifying statement has a `RETURNING` clause, the
@@ -25,105 +29,125 @@ What the documentation states, read on 2026-10-21:
   raised; they are never silently ignored. An `UPDATE` that reads the relation applies the
   `SELECT` policies too.
 - EF Core: database-generated values are read back after an insert (Npgsql, "Generated
-  properties"); `SaveChanges` orders inserts so that the model's constraints are not violated,
-  and fails on a circular dependency in the data to save; since EF Core 7 a single statement is
-  sent without an explicit transaction ("What's new in EF Core 7.0"). A transaction interceptor
-  sees transactions start and savepoints created; a command interceptor runs before each
+  properties"); `SaveChanges` orders inserts so that the model's constraints are not violated
+  and fails on a circular dependency; since EF Core 7 a single statement is sent without an
+  explicit transaction ("What's new in EF Core 7.0"); a transaction interceptor sees a
+  transaction start or an existing one being used, and a command interceptor runs before each
   command and may stop it ("Interceptors").
-- `xmin`, the concurrency token of `sql.md`, is mapped as a property EF reads back.
 
-A reproduction on a disposable PostgreSQL 16 (2026-10-21), as a role without `bypassrls`, forced
-row level security, the policies and deferred constraints of ADR-ARCH-032: inserting an
-organization with `RETURNING xmin` before its owner's ownership row fails ("new row violates
-row-level security policy"); inserting the ownership row first, then the organization with
-`RETURNING`, succeeds; an organization committed without its ownership row fails on the deferred
-foreign key; an ownership row inserted by another person on that organization is accepted but
-makes them see nothing and change nothing.
+A reproduction on a disposable PostgreSQL 16, on 2026-10-21, as a role without `bypassrls`, with
+forced row level security and the policies of ADR-ARCH-032, every insert carrying `RETURNING
+xmin, created_at`:
+- a full founding passes in the order profile, ownership, organization, membership, access,
+  workspace;
+- an organization inserted before its ownership row, or a workspace before its access, fails
+  with "new row violates row-level security policy";
+- an organization committed without its ownership row fails on the deferred foreign key;
+- another person can neither give themselves an access to that workspace (under its
+  organization or under one they own), nor a membership, nor add a workspace, and sees nothing;
+- a policy of another schema calling its own function, which delegates to
+  `access.may_act_in`, admits the participant and refuses the other person.
 
 ## Decision
-1. **Schemas and references across them.** Each module owns one schema and its tables; no module
-   writes another's schema. A module's table may reference, by foreign key, only the keys Access
-   publishes: `access.workspaces (id)` and `access.profiles (id)`. Such a key is `on delete
-   restrict`; no process deletes a workspace or a profile today, and one that would must first
-   decide what becomes of the rows referencing it. A foreign key check bypasses row level
-   security, so it proves that the referenced row exists, never that the subject may use it: the
-   module's insert policy still calls `access.may_act_in(workspace_id)` (ADR-ARCH-032), and a
-   foreign key error is answered as "not found" (ADR-ARCH-032 §5). Between other modules, a
-   reference is an identifier without a foreign key, kept consistent by integration events.
-2. **One journal.** All modules share the runner, its single flat folder and its one journal in
-   `dbup` (ADR-ARCH-019). A module's script may depend on an earlier script of Access, which the
-   global number orders.
-3. **EF Core at run time.** Each module maps its own schema with one EF Core context, on the
-   Npgsql provider. EF Core never creates or alters the schema: no migrations, no
-   `EnsureCreated`. Whether the context comes through MicroKit.Persistence is decided with
-   MicroKit (#177). Each module's integration tests include `MappingMatchesMigratedSchema`: it
-   migrates a PostgreSQL container with the runner, then compares, for every entity of the
-   module's context, the table, columns, store types, nullability and keys of the EF model with
-   the catalog of the migrated database, and fails on any difference, including a non-null
-   column without a default that the model does not map.
+1. **One database today, each module extractable.** No module's tables reference another
+   module's, Access included: there is no foreign key across schemas, and a reference to another
+   module's record is its identifier. A module's only dependency in the database is its own
+   function `<module>.may_act_in(workspace_id uuid)`, `security invoker`, `stable`, which
+   delegates to `access.may_act_in` and which every policy of the module on workspace data calls;
+   this is how such a policy calls `access.may_act_in` (ADR-ARCH-032 §2). Moving the module out
+   replaces that one function, for instance by a local copy of workspace accesses fed by Access's
+   events. A request that changes two modules writes in at most one of them; the other reacts to
+   its integration event (ADR-ARCH-031).
+2. **One journal today.** All scripts stay in the runner's single folder and journal
+   (ADR-ARCH-019). A module's scripts depend on no other module's scripts, except its
+   `<module>.may_act_in` on Access's function, which the global number orders first. Moving a
+   module out takes its scripts, named `NNNN__<module>__…`, with it.
+3. **Each module chooses its storage and access layer.** A module on the shared database uses
+   EF Core at run time by default, one context per module mapping its schema, on the Npgsql
+   provider, never creating or altering the schema. Whether the context comes through
+   MicroKit.Persistence is decided with MicroKit (#177); where the context and its interceptors
+   are registered is decided with the module structure (#174). Every module using EF Core has
+   the integration test `MappingMatchesMigratedSchema`: it migrates a PostgreSQL container with
+   the runner, applying the portable subset and the same named exclusion list as `sql.md`
+   (Auth-coupled scripts), then compares, for every entity of the module's context, its table,
+   columns, store types, nullability, primary and unique keys with the catalog, and fails on any
+   difference, including a non-null column without a default the model does not map. Foreign
+   keys are compared in one direction: every relationship of the model exists in the database;
+   a database foreign key the model leaves out is admitted only when it is named in the test's
+   list, with its reason. System columns such as `xmin` are outside the comparison.
 4. **One transaction per unit of work, its subject first.** A unit of work belongs to one module
-   and opens one explicit transaction on that module's context; a request that touches two
-   modules uses two transactions, consistent with ADR-ARCH-031. Two interceptors, registered by
-   every module's context, enforce ADR-ARCH-032 §3 in one place:
-   - a transaction interceptor, when the transaction has started and before any other command or
-     savepoint, sends `select set_config('app.user_id', @subject, true)` with the subject taken
-     from the validated token, as a parameter;
-   - a command interceptor stops any command that has no transaction, with an error, so that EF's
-     single-statement shortcut and any read outside a unit of work are refused instead of
-     running without a subject.
-   Raw SQL goes through EF's parameterized forms only (ADR-ARCH-032 §3).
-5. **Statements that return rows.** EF may read generated values back with `RETURNING`. A
-   creation therefore inserts every row only once the subject may see it: a row whose select
-   policy depends on another row of the same creation is inserted after that row. For a founding,
-   the ownership row precedes the organization, its foreign key to the organization being
-   deferred to commit. The EF model declares only the relation from the organization to its
-   current ownership; the ownership's `organization_id` is mapped as a plain column, so that EF
-   orders the ownership first and sees no cycle. The founding's integration test, run as
-   `saasbtp_api`, fails when this order is reversed.
+   and opens one explicit transaction on its context. Every context of the API:
+   - disables EF's automatic transactions, so that no transaction starts outside a unit of work;
+   - registers a transaction interceptor that, once the transaction has started and before any
+     other command or savepoint, sends `select set_config('app.user_id', @subject, true)`
+     through ADO.NET on that transaction's own connection, in both its synchronous and
+     asynchronous callbacks, with the subject taken from the validated token as a parameter;
+     starting a transaction without a subject, or using a transaction the unit of work did not
+     open, is an error;
+   - registers a command interceptor that stops any command without a transaction, with an
+     error.
+   Raw SQL goes through EF's parameterized forms only (ADR-ARCH-032 §3). Work that runs without
+   a request, such as an event consumer, has no subject until its first case decides one.
+5. **Statements that return rows, and the creation order.** EF may read generated values back
+   with `RETURNING`, so a creation inserts each row only once the subject may see it. This
+   replaces the order of ADR-ARCH-032 §4: for a founding, the author's profile, their ownership,
+   the organization, their membership, their access, then the workspace. To allow it:
+   - the ownership's foreign key to its organization is deferred to commit;
+   - a workspace access carries its workspace's organization, and its composite foreign key
+     `(workspace_id, organization_id)` to `access.workspaces (id, organization_id)` is deferred
+     to commit, so that the access names a workspace of that organization;
+   - the insert policies of a membership, an access and a workspace admit a row only when the
+     subject is the current owner of the organization it names, which the subject can read
+     through their own ownership;
+   - the EF model declares the relation from the organization to its current ownership, and maps
+     the ownership's `organization_id` and the access's `workspace_id` as plain columns, so that
+     EF orders the inserts as above and sees no cycle; `MappingMatchesMigratedSchema` lists
+     these two foreign keys.
+   The founding's integration test, run as `saasbtp_api`, fails when the order is reversed. A
+   later process that creates a record and the relation that makes it visible (adding a
+   workspace, BP-007) follows the same rule.
 6. **Exactly one current owner.** The form proposed by ADR-ARCH-032 §4 is kept:
-   - `access.organizations.current_ownership_id` is non-null, with a composite foreign key
-     `(id, current_ownership_id)` to `access.ownerships (organization_id, id)`, deferrable,
-     initially deferred;
-   - `access.ownerships.organization_id` references `access.organizations (id)`, deferrable,
-     initially deferred, and `(organization_id, id)` is unique.
-   An ownership row that no organization references grants nothing; such rows are not removed
+   `access.organizations.current_ownership_id` is non-null, with a composite foreign key
+   `(id, current_ownership_id)` to `access.ownerships (organization_id, id)`, deferrable,
+   initially deferred, and `(organization_id, id)` is unique on `access.ownerships`. An
+   ownership row that no organization references grants nothing; such rows are not removed
    today. A later root record with an owner takes the same form.
 
 ## Consequences
-- Every module's tests need the `access` schema migrated, which they already need for
-  `access.may_act_in`: the runner applies all scripts, Access's first.
-- Renaming or replacing `access.workspaces (id)` or `access.profiles (id)` is a change to a
-  published contract of Access, made by expand and contract (ADR-ARCH-019).
-- A command sent outside a unit of work fails loudly instead of returning no row: a missing
-  transaction is found by the first test that takes that path.
-- The mapping test is the anti-drift guard between the DbUp scripts and the EF model; the
-  integration tests of ADR-ARCH-032 §6 remain the authorization guard. Neither replaces the
-  other.
-- Another person can insert an orphan ownership row on an organization whose identifier they
-  know; it reveals nothing beyond what "in use" already does (`naming.md`) and grants nothing.
-  Whether to forbid it is decided with ownership transfer (BP-008).
+- Moving a module out touches its `may_act_in` function, its scripts and its journal rows, and
+  no other module; its storage may then change.
+- A module that does not use EF Core states its own guard against drift between its storage and
+  its code before its first record.
+- A command sent outside a unit of work fails loudly instead of returning no row.
+- The mapping test guards against drift between the scripts and the EF model; the integration
+  tests of ADR-ARCH-032 §6 guard authorization. Neither replaces the other.
+- An update returning rows applies the select policies too: ownership transfer (BP-008) must
+  leave the person making it able to see the organization when the update returns, or not read
+  values back from it.
+- Another person can insert an ownership row on an organization whose identifier they know; it
+  reveals nothing beyond what "in use" already does (`naming.md`) and grants nothing. Whether to
+  forbid it is decided with ownership transfer (BP-008).
+- The reproduction ran on PostgreSQL 16; the tests of decisions 3 and 5 run on the image the
+  repository pins (`apps/api/tests/PostgresImage.cs`).
 - The exact Npgsql API for `xmin` is confirmed when the first mutable aggregate is mapped
   (`sql.md`, Optimistic concurrency).
 
 ## Alternatives considered
-- No foreign key across schemas: an identifier pointing to no workspace would be caught only by
-  the policies; a data script run as the migrator, or a policy defect, could leave rows without a
-  workspace.
-- Foreign keys between any modules: every module's DDL would depend on the others' tables,
-  against ADR-ARCH-020.
-- One journal per module: several runs, no global order across modules, and a module's script
-  could no longer rely on an Access script; ADR-ARCH-019's single folder already orders them.
-- Dapper or hand-written SQL instead of EF Core: `sql.md` and `naming.md` are written for EF
-  Core's converters and concurrency token; a second access layer would need its own conventions
-  and tests.
-- Setting the subject in each repository: every path would have to remember it; one omission
-  reads nothing, or worse, runs under a previous subject on a reused connection if the setting
-  were not transaction-local.
-- Not reading values back on insert (no `xmin` on root records): it removes optimistic
-  concurrency from the organization, which ownership transfer (BP-008) updates.
-- A select policy admitting a row to its creator during the creation: there is no
-  transaction-scoped notion of creator in the database without a further setting the API would
-  have to keep correct.
+- Foreign keys from every module to `access.workspaces` and `access.profiles`: the insert policy
+  already requires `may_act_in`, which is false for a workspace that does not exist; the keys
+  would add little and tie every module's schema to Access's, against extraction.
+- Policies calling `access.may_act_in` directly: moving a module out would mean rewriting every
+  policy instead of one function.
+- One journal per module now: it does not help while the database is shared, and the module
+  prefix already lets a module's scripts leave with it.
+- EF Core imposed on every module: a module whose work suits another storage would have to
+  justify leaving the default anyway; the default keeps one set of conventions for the common
+  case.
+- Setting the subject in each repository: every path would have to remember it.
+- The workspace visible to its organization's owner: INV-ACCESS-09 and INV-ACCESS-05 make a
+  workspace known only through an access.
+- Not reading values back on insert: it removes optimistic concurrency from records that are
+  later updated, such as the organization in ownership transfer (BP-008).
 
 ## References
 - PostgreSQL 17, `CREATE POLICY` (`RETURNING` and `SELECT` policies), read 2026-10-21.
