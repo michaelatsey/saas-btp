@@ -119,8 +119,8 @@ An issue may be pulled into active work only when all of the following hold:
 2. "Done when" and "Proof" are written, and "Done when" is verifiable.
 3. Primary context is identified (`ctx:*` label set).
 4. Known dependencies are linked (blocking issues, specs, ADRs). For work deriving
-   from a Business Process, the BP unit under `docs/business-processes/BP-XXX/` is
-   linked (see "Durable documentation layout").
+   from a Business Process, the BP unit under `docs/business-processes/BP-XXX-<slug>/`
+   is linked (see "Durable documentation layout").
 5. Scope is small enough to fit within a single increment slice.
 6. For anything touching sync: the offline behavior is described (what happens
    offline, what happens on reconnect).
@@ -207,32 +207,48 @@ A Business Process is the autonomous documentary unit. Anyone (human or AI) must
 able to pick up a BP and derive an implementation without conversation history.
 
 ```
-docs/business-processes/BP-XXX/
-  BP-XXX-specification.md          WHY: business intent, scope, actors, initial business rules
-  BP-XXX-design-package.md         WHAT (closed business model): process, domain/MCD, invariants, lifecycle, boundaries
-  BP-XXX-implementation-design.md  SOFTWARE HOW (durable): architecture, persistence, API, security/sync, technical constraints
+docs/
+  domain/
+    <context>.md            concepts and invariants shared by several processes
+  business-processes/
+    BP-XXX-<slug>/
+      process.md            the business process
+      acceptance.md         the expected behaviour, as identified scenarios
+      contract.md           the software contract of this process
 ```
 
-Derivation chain — consigned vs derived:
+| Artifact | Holds | Validated by |
+|---|---|---|
+| `process.md` | Intent, actor, trigger, boundary with the owner of each excluded flow, precondition, flow, task contracts (trigger, performer, preconditions, inputs, rules, outputs, errors, event), states, the rules and decisions local to this process, open questions. Business language only. | The maintainer |
+| `acceptance.md` | Scenarios `BPXXX-AC-nn` in Given / When / Then, each stating an observable outcome and no mechanism, covering only behaviour this process produces. | The maintainer |
+| `contract.md` | What this process introduces or changes in software: the owning bounded context of each element, interfaces, transactional and security guarantees, failure, retry and concurrency, the guarantor of every invariant and scenario, the verification commands. It references conventions and ADRs by path and section, never copies them. | Agreement of the two reviewers (ADR-ORG-004) |
+| `docs/domain/<context>.md` | Concepts and invariants `INV-<CONTEXT>-nn` that several processes create, read or change. Created when a second process consumes them, or when the context map makes the context foundational. | The maintainer |
 
-```
-Specification         (docs/business-processes/BP-XXX/)        consigned
-Design Package        (docs/business-processes/BP-XXX/)        consigned — business model, closed
-Implementation Design (docs/business-processes/BP-XXX/)        consigned — software contract, stable
-Implementation Plan   (per tool: dev, Claude Code, other AI)   DERIVED — NOT consigned
-Code
-```
+Every artifact starts with a header: `status` (`draft` or `validated`),
+`validated_by`, `validated_on`, and `applies`, the list of its normative references
+(invariants, ADRs, conventions).
 
 Rules:
-- The Design Package holds no realization decisions. The Implementation Design is not
-  an Implementation Plan in disguise: no task breakdown, no file-creation order, no
-  tool-specific prompt. Anything resembling an execution step belongs to the
-  (non-consigned) Implementation Plan.
-- The three consigned documents must let any developer or AI derive a plan and a
-  faithful implementation without the conversation history.
+- One authoritative source per rule. A rule used by one process lives in its
+  `process.md`; a concept or invariant shared by several lives in `docs/domain/`; a
+  cross-cutting technical decision is an ADR; a change to a convention is made in that
+  convention, in the same pull request. Other artifacts reference a rule by its
+  identifier; they never restate it.
+- A normative reference points to an active decision: an ADR listed as accepted in
+  decisions-index.md and not superseded. A reference kept for history is marked as such
+  and is not listed in `applies`.
+- Every scenario identifier appears in the name of at least one test that covers it.
+  A test proves the scenario in the conditions it runs; the guarantor named in
+  `contract.md` is what holds it in production.
+- A tool or agent that consumes these artifacts stops and reports, rather than choosing,
+  when an artifact it needs is not `validated`, a reference in `applies` is missing or
+  no longer active, the contract contradicts the process, a domain file or an ADR, or a
+  scenario cannot be met by the contract.
+- None of these artifacts is an implementation plan: no task breakdown, no
+  file-creation order, no tool-specific prompt. Plans and work breakdown live in issues.
 - Decisions (ADRs) are governed separately (see "Definition of Done" and
   "Relationship to ADRs", and decisions-index.md) and live at
   `.claude-context/context/decisions/`, not in the BP folder.
 - `.claude-context/` holds agent context, conventions, architecture rules, decisions,
-  and sessions — not produced product artifacts. Durable product specs/designs live
+  and sessions, not produced product artifacts. Durable product specs and designs live
   under `docs/`.

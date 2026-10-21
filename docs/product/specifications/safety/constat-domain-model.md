@@ -164,8 +164,8 @@ All aggregates use a client-generated UUIDv7, wrapped in a strongly-typed id VO.
 - UUIDv7: time-ordered -> B-tree index locality on append-heavy tables, free
   chronological sort; native in .NET 10 (Guid.CreateVersion7, RFC 9562); native Postgres
   uuid; generatable client-side in JS.
-- The client-generated id is the idempotency key: a replayed create carries the same id,
-  the server returns the existing resource (200), never 409. No separate Idempotency-Key.
+- The client-generated id is the idempotency key; replays and ids already in use follow
+  naming.md, section "Aggregate identifiers". No separate Idempotency-Key.
 - To validate at persistence wiring (not blockers): .NET's v7 has no intra-ms monotonic
   counter and an endianness representation quirk — verify the Npgsql Guid->uuid mapping
   preserves order; the offline client needs a uuidv7 JS generator (not only .NET).
