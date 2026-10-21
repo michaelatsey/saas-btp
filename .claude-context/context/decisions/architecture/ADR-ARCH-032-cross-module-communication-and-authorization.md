@@ -104,6 +104,20 @@ security.
   volume.
 - ADR-ARCH-028 §6 is answered: the user reaches each transaction through `app.user_id`, and no
   grant on `auth` is needed.
+- The scripts that create these functions and policies live in the runner's single flat folder,
+  `apps/api/database/SaasBtp.Migrations/Scripts/`, named `NNNN__access__<description>.sql`
+  (ADR-ARCH-019). The runner applies each script in its own transaction, with DbUp variables
+  disabled, so a function body in dollar quotes is applied as written (`MigrationRunner.cs`).
+- `access.may_act_in` is the first function the runner creates. Its script first revokes, as
+  `saasbtp_migrator`, the default `execute` on functions from `PUBLIC`, then grants `execute` to
+  `saasbtp_api` only (ADR-ARCH-028, Consequences).
+- A data script on workspace data runs as `saasbtp_migrator` with no `app.user_id`, so these
+  policies admit none of its rows; such a script needs a policy for `saasbtp_migrator` alone,
+  decided with it (`sql.md`, RLS).
+- The tests of decision 6 need the two roles. Today the runner's tests connect as the
+  container's superuser (`EmptyDatabaseRun.cs`); these tests apply `infra/supabase/roles.sql`
+  to the container first, which holds no Supabase-specific role, run the runner as
+  `saasbtp_migrator`, and connect as `saasbtp_api`.
 
 ## Alternatives considered
 - Each module keeps a local projection of workspace access, fed by events: the rule exists in
