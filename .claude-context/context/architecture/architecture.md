@@ -49,7 +49,11 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 
 - Contexts do NOT reference each other directly. They communicate via integration
   events through the outbox/inbox pattern (MicroKit.Messaging), at-least-once with
-  idempotent handlers.
+  idempotent handlers; an outbox is introduced with the first event a consumer needs
+  (ADR-ARCH-032).
+- Authorization across contexts: every policy on workspace data calls
+  `access.may_act_in(workspace_id)`, published by Access; no context reads another's tables
+  (ADR-ARCH-032).
 - Example (increment 1): Safety raises `SafetyConstatRaised` -> CorrectiveActions
   reacts to create/track a corrective action; CorrectiveActions raises
   `CorrectiveActionDue` -> Notifications schedules a reminder.

@@ -55,8 +55,10 @@ naming.md; this file covers the database schema surface only.
 
 ## RLS
 - RLS enabled on every business table. The workspace is the tenant (ADR-ARCH-031): a table of
-  workspace data carries `workspace_id` and is isolated by it. How a row is admitted (the
-  predicate, how the user reaches the database) is decided in #175 and #176.
+  workspace data carries `workspace_id` and is isolated by it. Its policies call
+  `access.may_act_in(workspace_id)`, the one published workspace check, and the user reaches each
+  transaction through `app.user_id`, set transaction-locally by the API (ADR-ARCH-032). A policy
+  never reads another module's tables and never calls `auth.uid()`.
 - The .NET domain is the write authority, but RLS applies to it: the API connects as
   `saasbtp_api`, which owns nothing and does not bypass RLS (ADR-ARCH-028), and every table that
   enables RLS also forces it (`alter table ... force row level security`, ADR-ARCH-027). A table
