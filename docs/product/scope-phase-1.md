@@ -123,8 +123,9 @@ immutable) live in the corrective-action spec (created JIT) to avoid pre-inventi
 ### 4.9 Dependencies
 
 Increment 1 depends on:
-- Access (authentication, tenancy, RBAC)
-- Site (scoping root)
+- Access (people, organizations, workspaces and their relations; the workspace is the tenant,
+  ADR-ARCH-031)
+- Site (construction sites, each in one workspace)
 - Offline sync infrastructure (PowerSync)
 - Media storage (Supabase Storage)
 - Notification scheduling (reminders, critical-severity alerts)
