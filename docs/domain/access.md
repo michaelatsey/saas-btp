@@ -1,9 +1,9 @@
 ---
 id: domain-access
-status: draft
-validated_by:
-validated_on:
-applies: [ADR-PROD-002]
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-10-21
+applies: [ADR-PROD-002, ADR-ARCH-031]
 ---
 
 # Access domain
@@ -15,10 +15,9 @@ these concepts references the invariants below by their identifier; it never res
 This file holds what several processes share. A rule that only one process uses stays in that
 process's `process.md`.
 
-Bounded context: Access, as listed today in `architecture.md`, which describes it as
-"authentication, tenancy, RBAC". Which concept is the tenant, and whether Organization and
-Workspace form a separate context, are decided by #125; if they move, their part of this file
-moves to its own file with its identifiers unchanged. Roles and permissions are not modelled
+Bounded context: Access owns every concept below except the person, whom the identity provider
+establishes (ADR-ARCH-031). The workspace is the tenant: other modules isolate their data by
+workspace. Roles and permissions are not modelled
 here: no process produces them yet.
 
 ## Concepts

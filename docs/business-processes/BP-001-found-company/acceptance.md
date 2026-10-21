@@ -1,8 +1,8 @@
 ---
 id: BP-001-acceptance
-status: draft
-validated_by:
-validated_on:
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-10-21
 applies: [BP-001, INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09]
 ---
 

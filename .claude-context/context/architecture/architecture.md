@@ -12,12 +12,15 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 ## 1. Bounded contexts
 
 ### Platform
-- **Access** — authentication, tenancy, RBAC. Built on MicroKit.Auth + MicroKit.Tenancy.
-  Foundational: every other context assumes an authenticated, tenant-scoped user.
+- **Access** — the people, organizations and workspaces of the product, and the ownership,
+  membership and workspace access that tie them (`docs/domain/access.md`, ADR-ARCH-031).
+  The workspace is the tenant. Authentication itself is the identity provider's; Access holds
+  the profile that projects a person. Foundational: every other context assumes a signed-in
+  person acting in a workspace.
 
 ### Domain
-- **Site** (Chantier) — organisation root. Sites, periods, membership. Everything in
-  the product is scoped to a site. Foundational alongside Access.
+- **Site** (Chantier) — a construction site and what is scoped to it. A site belongs to
+  exactly one workspace (ADR-ARCH-031). Foundational alongside Access.
 - **Safety** — safety audits, sensibilisations, constats (incident / accident /
   dangerous situation). Source of safety findings.
 - **Quality** — quality audits, non-conformities. Source of quality findings.
@@ -50,7 +53,8 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 - Example (increment 1): Safety raises `SafetyConstatRaised` -> CorrectiveActions
   reacts to create/track a corrective action; CorrectiveActions raises
   `CorrectiveActionDue` -> Notifications schedules a reminder.
-- Shared identity: everything carries `siteId` (Site) and tenant scope (Access).
+- Shared identity: workspace data carries `workspaceId` (Access, the tenant); site data also
+  carries `siteId` (Site).
 - Media and Notifications are referenced/triggered by id and events, never by direct
   domain coupling.
 
@@ -81,7 +85,8 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   - MediatR — commands/queries/domain events.
   - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
   - Messaging — inter-context integration events.
-  - Auth, Tenancy — the Access context.
+  - Auth, Tenancy — the Access context, subject to the MicroKit decision of #177 and to the
+    workspace as tenant (ADR-ARCH-031).
 - All persisted entities carry audit fields and soft delete (naming.md, CLAUDE.md 22).
 
 ---

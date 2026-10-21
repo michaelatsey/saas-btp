@@ -36,7 +36,7 @@ their label just-in-time, when they enter active work - never up front.
 
 | Label | Bounded context | Role in Increment 1 |
 |-------|-----------------|---------------------|
-| `ctx:access` | Authentication, tenancy, RBAC | Foundational |
+| `ctx:access` | People, organizations, workspaces and their relations (ADR-ARCH-031) | Foundational |
 | `ctx:site` | Site (chantier) scoping | Foundational |
 | `ctx:safety` | Safety constats | Core |
 | `ctx:corrective-actions` | Corrective action lifecycle | Differentiator |

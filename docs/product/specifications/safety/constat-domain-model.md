@@ -44,7 +44,7 @@ classDiagram
     class Constat {
         <<Aggregate Root>>
         +ConstatId id
-        +TenantId tenantId
+        +WorkspaceId workspaceId
         +SiteId siteId
         +ConstatType type
         +Severity severity
@@ -96,7 +96,7 @@ classDiagram
 ```
 
 Value Objects:
-- ConstatId / TenantId / SiteId — strongly-typed id wrappers (`readonly record struct
+- ConstatId / WorkspaceId / SiteId — strongly-typed id wrappers (`readonly record struct
   ConstatId(Guid Value)`). Value is a client-generated UUIDv7 (section 6).
 - ConstatType — closed set: Incident, Accident, DangerousSituation. Modeled as a VO
   (not an open string), so it can carry behavior/localization later without an API break.
@@ -113,7 +113,8 @@ Value Objects:
 ## 4. Invariants (enforced by the factory, not settable afterwards)
 
 - siteId required (a constat is intrinsically attached to a chantier).
-- tenantId required.
+- workspaceId required: the workspace is the tenant (ADR-ARCH-031). The constat's site belongs to
+  that workspace.
 - type required.
 - severity required.
 - observer required (derived from the authenticated identity — see section 5).
@@ -134,7 +135,7 @@ Single entry point — a business factory, never a public constructor:
 ```
 Constat.Create(
     ConstatId id,
-    TenantId tenantId,
+    WorkspaceId workspaceId,
     SiteId siteId,
     ConstatType type,
     Severity severity,
@@ -154,8 +155,8 @@ Trust boundaries at creation:
 - observer is derived from the JWT identity, never taken from the body.
 - siteId comes from the request payload (business data, persisted, historical), NOT from
   a request-context header — an offline replay batch may carry constats captured under
-  different current sites. It is validated against the tenant's site catalogue
-  (ISiteScopeProvider from Story A). This is site-belongs-to-tenant only, NOT
+  different current sites. It is validated against the workspace's site catalogue
+  (ISiteScopeProvider from Story A). This is site-belongs-to-workspace only, NOT
   user-belongs-to-site (Membership, Story B #20).
 
 ## 6. Identity convention (cross-cutting)
