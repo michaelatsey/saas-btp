@@ -94,8 +94,7 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   - Domain, Result — everywhere.
   - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
   - Messaging — inter-context integration events.
-  - Auth, Tenancy — the Access context, subject to the MicroKit decision of #177 and to the
-    workspace as tenant (ADR-ARCH-031).
+  - Auth, Tenancy — the Access context, subject to the workspace as tenant (ADR-ARCH-031).
 - Audit fields and soft delete follow `sql.md` (Audit / lifecycle) and `naming.md`; this file
   sets no rule of its own on them.
 

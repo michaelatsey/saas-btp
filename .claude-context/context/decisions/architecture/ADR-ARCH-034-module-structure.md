@@ -52,9 +52,11 @@ What was read on 2026-10-23:
    | `SaasBtp.<Context>.Adapters` | the implementation of every port, one folder per adapter (`Persistence/`, …); the module's entry point | its Features and Domain; the data access and client packages its adapters need |
 
    The endpoint is the slice's driving adapter: it translates the request and calls its handler
-   directly. A handler depends on no ASP.NET Core type. A further adapter becomes a project of its
-   own only when it brings a dependency the other adapters must not load, or when it has
-   interchangeable implementations; the decision is recorded where it is made. How a module models
+   directly. In a slice, the endpoint is the class whose name ends in `Endpoint` and the handler
+   the class whose name ends in `Handler`; a handler depends on no ASP.NET Core type. A further
+   adapter becomes a project of its own only when it brings a dependency the other adapters must
+   not load, or when it has interchangeable implementations, by an ADR that adds its rules to the
+   table of decision 7. How a module models
    its domain beyond this is the module's own.
 2. **One entry point.** `<Context>Module`, a public static class of the Adapters project, offers
    `Add<Context>Module(IServiceCollection, IConfiguration)`, which registers everything the module
@@ -71,7 +73,8 @@ What was read on 2026-10-23:
    copy per module; which library holds it is decided with #177. A read in SQL runs on the
    connection and transaction of the module's unit of work, never on a connection opened apart: a
    connection opened apart carries no subject and reads nothing (ADR-ARCH-032 §3). A module's
-   context maps only its own schema, and its SQL names no other module's schema.
+   context maps only its own schema, and its SQL names no other module's schema: this is how the
+   rule of ADR-ARCH-032 §2 that a module never queries Access's tables is checked.
 4. **Communication between modules.** Modules communicate by integration events, delivered as
    ADR-ARCH-032 §1 states, and a module that needs another's data keeps a local copy fed by its
    events. No project of a module references a project of another, whatever it holds
@@ -106,25 +109,28 @@ What was read on 2026-10-23:
    its xUnit v3 integration for type dependencies, and reads the source tree and project files
    where type dependencies cannot tell. It finds the modules by listing the folders under
    `apps/api/src/modules/`, and fails when one of them lacks any of its three projects or is not
-   loaded by the test.
+   loaded by the test. Its name does not follow `<TestedProject>.Tests` (ADR-ARCH-020), since it
+   tests the solution rather than one project; it still ends in `Tests`.
 
    | Rule | Enforced by |
    |---|---|
-   | Domain depends on no data access, web or hosting type (`Microsoft.EntityFrameworkCore*`, `Npgsql*`, `Microsoft.AspNetCore*`, `Microsoft.Extensions.Hosting*`, `Microsoft.Extensions.DependencyInjection*`) | `DomainDependsOnNoInfrastructure` |
-   | Features depends on no Adapters type; only endpoint types of Features depend on `Microsoft.AspNetCore*` | `FeaturesDependOnNoAdapters`, `OnlyEndpointsDependOnAspNetCore` |
-   | No project of a module references, or depends on a type of, another module | `ModulesDoNotDependOnOneAnother`: type dependencies, and every `ProjectReference` of a module's project files staying inside its folder |
+   | Domain depends on no data access, web or hosting type (`Microsoft.EntityFrameworkCore*`, `Npgsql*`, `Microsoft.AspNetCore*`, `Microsoft.Extensions.Hosting*`, `Microsoft.Extensions.DependencyInjection*`), and references no such package | `DomainDependsOnNoInfrastructure`: type dependencies, and the `PackageReference` items of its project file |
+   | Features depends on no Adapters type; in Features, only `*Endpoint` types depend on `Microsoft.AspNetCore*`, and no `*Handler` type does | `FeaturesDependOnNoAdapters`, `OnlyEndpointsDependOnAspNetCore` |
+   | No project of a module references, or depends on a type of, another module | `ModulesDoNotDependOnOneAnother`: type dependencies, and no `ProjectReference` of a module's project files resolving into another folder under `apps/api/src/modules/` |
    | A host uses a module only through `<Context>Module`, and the API host calls every module's entry point | `HostsUseOnlyModuleEntryPoints`, `ApiHostLoadsEveryModule` |
    | `<Context>Module` is the only public type of Adapters; Features types are internal; `InternalsVisibleTo` names only the projects of decision 2 | `ModuleSurfaceIsItsEntryPoint`, `InternalsVisibleToStaysInsideTheModule` |
-   | No mediator and no registration by scanning, in modules and hosts: no dependency on `MediatR*`, `Scrutor*`, `System.Reflection.Assembly` nor `System.Type.Assembly` | `NoMediatorNorAssemblyScanning` |
+   | No mediator and no registration by scanning, in modules and hosts (not the migration runner, whose embedded scripts need `Assembly`): no dependency on `MediatR*`, `Scrutor*` or `System.Reflection.Assembly`, and no call to `System.Type.get_Assembly` | `NoMediatorNorAssemblyScanning` |
    | No module defines its own transaction or command interceptor, and no type of a module opens a connection (`NpgsqlConnection`, `NpgsqlDataSource`) | `ModulesDefineNoInterceptorNorConnection` |
    | A command without a transaction is refused, the subject is set first, and a SQL read sees the unit of work's subject | each module's integration tests (decision 6) |
-   | A module's context maps only its own schema | `MappingMatchesMigratedSchema`, which also fails on an entity mapped to another schema |
-   | Unit-test projects use no data access or test container package | `UnitTestsUseNoDatabase` |
+   | A module's context maps only its own schema | an assertion this ADR adds to `MappingMatchesMigratedSchema`: every entity's schema is the module's own |
+   | A module's SQL names no other module's schema | `ModuleSqlNamesOnlyItsSchema`: no string literal in a module's source contains `<schema>.` for the schema of another module |
+   | Unit-test projects use no data access, web or test container package | `UnitTestsUseNoInfrastructure` |
    | A module missing from the image while the host uses it | the build and the image check of ADR-ARCH-022 |
    | A consumer's event types match the producer's schema | the consumer's contract test (decision 5), from the first consumed event |
-   | No synchronous call between modules other than through a code dependency (HTTP, raw SQL on another schema); no authorization on a local copy; an event changed only additively and kept while consumed | review, against this ADR: these cannot be detected by a test |
+   | No synchronous call between modules other than through a code dependency (HTTP); no authorization on a local copy; an event changed only additively and kept while consumed; a module's `tests/` folder kept out of the image build context | review, against this ADR: these cannot be detected by a test |
 
-   The last row is the one exception to "every rule names its test or build check".
+   The last row is the one exception to "every rule names its test or build check" (#174), for
+   the maintainer to accept in review.
 
 ## Consequences
 - Moving a module out moves one folder, its tests and event schemas included, with its
