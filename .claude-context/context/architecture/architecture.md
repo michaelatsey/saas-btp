@@ -90,7 +90,7 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   endpoint calling its handler, no mediator) and `.Adapters` (port implementations and the
   module's single entry point), with its tests in the module's `tests/` folder; beyond that, a
   module's internal design is its own (ADR-ARCH-034).
-- MicroKit consumption:
+- MicroKit consumption, subject to the MicroKit decision of #177:
   - Domain, Result — everywhere.
   - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
   - Messaging — inter-context integration events.

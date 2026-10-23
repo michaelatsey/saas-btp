@@ -1,7 +1,7 @@
 # API - .NET modular monolith
 
 Conventions specific to `apps/api`. Repository-wide rules are in the root `CLAUDE.md`; the
-layout is ADR-ARCH-020, the HTTP surface ADR-ARCH-018, the migrations ADR-ARCH-019 and the
+layout is ADR-ARCH-020, a module's structure and the location of its tests ADR-ARCH-034, the HTTP surface ADR-ARCH-018, the migrations ADR-ARCH-019 and the
 test conventions ADR-ARCH-021.
 
 Run every command from the repository root. The solution file is `SaasBtp.slnx`; the SDK
