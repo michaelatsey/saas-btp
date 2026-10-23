@@ -51,7 +51,11 @@ xmin, created_at`:
   requiring the access's organization to be the workspace's, they see nothing, in the same
   transaction too;
 - a policy of another schema calling its own function, which delegates to
-  `access.may_act_in`, admits the participant and refuses the other person.
+  `access.may_act_in`, admits the participant and refuses the other person;
+- with `access.may_act_in` defined as "the workspace is visible", adding a select policy that
+  lets an owner see their organization's workspaces makes it true for the owner on a workspace
+  they hold no access to; with `access.may_act_in` reading the paired access itself, it stays
+  false there and true where the access exists.
 
 ## Decision
 1. **One database today, each module extractable.** No module's tables reference another
@@ -96,7 +100,10 @@ xmin, created_at`:
      open, is an error;
    - registers a command interceptor that stops any command without a transaction, with an
      error.
-   Raw SQL goes through EF's parameterized forms only (ADR-ARCH-032 §3). Work that runs without
+   Raw SQL goes through EF's parameterized forms only (ADR-ARCH-032 §3). These rules govern
+   every access through a module's context; the readiness check of the host
+   (`DatabaseHealthCheck.cs`), which opens a connection without a context to test that the
+   database answers and reads no application table, is the one database access outside them. Work that runs without
    a request, such as an event consumer or the relay of an outbox, cannot run under these rules
    until its first case decides its subject and its transaction.
 5. **Statements that return rows, and the creation order.** EF may read generated values back
@@ -113,17 +120,27 @@ xmin, created_at`:
      cannot be committed without an ownership (decision 6) and grants nothing until its owner
      reads it through that ownership;
    - a workspace is visible only through a current access of the subject whose organization is
-     the workspace's own, read in the workspace's select policy itself, and
-     `access.may_act_in(workspace_id)` is true when that workspace is visible to the subject:
-     an access naming a workspace of another organization, admitted at insert under an
-     organization the subject owns, grants no sight of it before its deferred key fails at
-     commit;
+     the workspace's own, read in the workspace's select policy itself: an access naming a
+     workspace of another organization, admitted at insert under an organization the subject
+     owns, grants no sight of it before its deferred key fails at commit;
+   - `access.may_act_in(workspace_id)` reads the subject's current access to that workspace,
+     joined to the workspace on the pair of workspace and organization, and never reduces to
+     "the workspace is visible": select policies add up, so a later policy letting someone see a
+     workspace (an owner managing accesses, BP-005) must not let them act in it;
    - the EF model declares the relation from the organization to its current ownership, and maps
      the ownership's `organization_id` and the access's `workspace_id` as plain columns, so that
      EF sees no cycle; `MappingMatchesMigratedSchema` lists these two foreign keys and the unique
      key `(id, organization_id)` of `access.workspaces`. Since those relations no longer order
      the inserts, the unit of work saves each row that must precede another in its own
      `SaveChanges`, inside the one transaction.
+   A deferred constraint never stands in for a check a policy needs before commit: a policy
+   checks, in the rows it reads, everything it relies on, since a row admitted under a deferred
+   key can be read until the key fails.
+
+   The insert policy of an access admits the owner giving themselves an access to any workspace
+   of their organization; that the founder's access covers the first workspace only (BP001-R4)
+   is the domain's rule and its tests' (ADR-ARCH-032 §4).
+
    The founding's integration test, run as `saasbtp_api`, fails when the order is reversed, and
    includes the case of an access naming another organization's workspace, read before
    rollback. Whether a later process that creates a workspace (BP-007) gives its author an
@@ -141,9 +158,10 @@ xmin, created_at`:
   alternative ADR-ARCH-032 rejected, lets an ended access stay in force until its event is
   consumed, unlike BP-005's immediate effect today; the decision that moves a module out chooses
   between that delay and a synchronous check against Access.
-- A module's check now goes through two functions, and `access.may_act_in` reads the workspace
-  through its select policy: the evaluation once per statement of ADR-ARCH-032 and its
-  measurement on the first module with volume apply to that whole path.
+- A module's check now goes through two functions, and `access.may_act_in` joins the access to
+  the workspace through its select policy: the evaluation once per statement of ADR-ARCH-032
+  and its measurement on the first module with volume apply to that whole path, and the index
+  on workspace accesses covers profile, workspace and organization.
 - A module that does not use EF Core states its own guard against drift between its storage and
   its code before its first record.
 - A command sent outside a unit of work fails loudly instead of returning no row.
@@ -169,6 +187,8 @@ xmin, created_at`:
 - Workspace visibility through `access.may_act_in` alone, with the pairing of access and
   workspace left to the deferred key: shown by the reproduction to expose a foreign workspace
   inside a transaction.
+- `access.may_act_in` as "the workspace is visible": shown by the reproduction to grant acting
+  to whoever a later select policy lets see a workspace.
 - One journal per module now: it does not help while the database is shared, and the module
   prefix already lets a module's scripts leave with it.
 - EF Core imposed on every module: a module whose work suits another storage would have to
