@@ -90,11 +90,14 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   endpoint calling its handler, no mediator) and `.Adapters` (port implementations and the
   module's single entry point), with its tests in the module's `tests/` folder; beyond that, a
   module's internal design is its own (ADR-ARCH-034).
-- MicroKit consumption, subject to the MicroKit decision of #177:
-  - Domain, Result — everywhere.
-  - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
-  - Messaging — inter-context integration events.
-  - Auth, Tenancy — the Access context, subject to the workspace as tenant (ADR-ARCH-031).
+- MicroKit, copied into `libraries/` once a library is sound and a work needs it
+  (ADR-ARCH-035):
+  - Domain, Result — every module.
+  - Persistence (EF Core, PostgreSQL) — repositories, unit of work, the interceptors of
+    ADR-ARCH-033.
+  - Messaging — integration events, with the first event a consumer uses.
+  - MediatR and Tenancy are not copied (no mediator, ADR-ARCH-034; isolation by row level
+    security, ADR-ARCH-031); Auth and any other library only when a decision needs it (ADR-ARCH-035).
 - Audit fields and soft delete follow `sql.md` (Audit / lifecycle) and `naming.md`; this file
   sets no rule of its own on them.
 
