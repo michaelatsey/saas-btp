@@ -86,16 +86,17 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
 ## 4. Modular monolith mapping
 
 - One bounded context = one module in the .NET modular monolith.
-- Each module: Hexagonal (Domain / Application / Infrastructure), DDD aggregates,
-  CQRS via MicroKit.MediatR.
-- MicroKit consumption:
+- Each module: three projects, `SaasBtp.<Context>.Domain`, `.Features` (vertical slices, an
+  endpoint calling its handler, no mediator) and `.Adapters` (port implementations and the
+  module's single entry point), with its tests in the module's `tests/` folder; beyond that, a
+  module's internal design is its own (ADR-ARCH-034).
+- MicroKit consumption, subject to the MicroKit decision of #177:
   - Domain, Result — everywhere.
-  - MediatR — commands/queries/domain events.
   - Persistence (EF Core, PostgreSql) — repositories, outbox/inbox storage.
   - Messaging — inter-context integration events.
-  - Auth, Tenancy — the Access context, subject to the MicroKit decision of #177 and to the
-    workspace as tenant (ADR-ARCH-031).
-- All persisted entities carry audit fields and soft delete (naming.md, CLAUDE.md 22).
+  - Auth, Tenancy — the Access context, subject to the workspace as tenant (ADR-ARCH-031).
+- Audit fields and soft delete follow `sql.md` (Audit / lifecycle) and `naming.md`; this file
+  sets no rule of its own on them.
 
 ---
 

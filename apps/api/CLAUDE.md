@@ -1,8 +1,8 @@
 # API - .NET modular monolith
 
 Conventions specific to `apps/api`. Repository-wide rules are in the root `CLAUDE.md`; the
-layout is ADR-ARCH-020, the HTTP surface ADR-ARCH-018, the migrations ADR-ARCH-019 and the
-test conventions ADR-ARCH-021.
+layout is ADR-ARCH-020, a module's structure and the location of its tests ADR-ARCH-034, the
+HTTP surface ADR-ARCH-018, the migrations ADR-ARCH-019 and the test conventions ADR-ARCH-021.
 
 Run every command from the repository root. The solution file is `SaasBtp.slnx`; the SDK
 version and the test runner are set by `global.json`.
@@ -106,8 +106,8 @@ docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dock
 
 ## Tests
 
-- Where test projects live and how they are named is ADR-ARCH-020; their conventions are
-  ADR-ARCH-021.
+- How test projects are named is ADR-ARCH-020; where they live is ADR-ARCH-020, and
+  ADR-ARCH-034 for a module's tests; their conventions are ADR-ARCH-021.
 - `apps/api/tests/PostgresImage.cs` is the one definition of the PostgreSQL the tests
   start: image, locale provider and locale, matching the Supabase project. It is linked
   into each test project. `infra/docker/compose.dev.yml` repeats its values, and a test

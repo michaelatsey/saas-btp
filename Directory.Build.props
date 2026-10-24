@@ -2,10 +2,10 @@
 
   <!--
     Repo-root MSBuild defaults: this file sits at the solution root and governs EVERY MSBuild
-    project in the tree, in the layout of ADR-ARCH-020:
+    project in the tree, in the layout of ADR-ARCH-020 and ADR-ARCH-034:
       apps/api/src/hosts/<Project>/        the hosts
-      apps/api/src/modules/<Context>/      the bounded-context modules
-      apps/api/tests/<Project>/            the test projects
+      apps/api/src/modules/<Context>/      the bounded-context modules, their tests in tests/
+      apps/api/tests/<Project>/            the test projects that belong to no module
       apps/api/database/SaasBtp.Migrations the schema migration runner (ADR-ARCH-019)
       libraries/                           the .NET libraries owned by this repository
     No nested Directory.Build.props is added below it: it would shadow this file for everything
