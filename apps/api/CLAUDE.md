@@ -106,8 +106,9 @@ docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dock
 
 ## Tests
 
-- How test projects are named is ADR-ARCH-020; where they live is ADR-ARCH-020, and
-  ADR-ARCH-034 for a module's tests; their conventions are ADR-ARCH-021.
+- How test projects are named is ADR-ARCH-020; where they live is ADR-ARCH-020,
+  ADR-ARCH-034 for a module's tests and ADR-ARCH-035 for a library's; their conventions are
+  ADR-ARCH-021.
 - `apps/api/tests/PostgresImage.cs` is the one definition of the PostgreSQL the tests
   start: image, locale provider and locale, matching the Supabase project. It is linked
   into each test project. `infra/docker/compose.dev.yml` repeats its values, and a test
