@@ -44,7 +44,8 @@ naming.md; this file covers the database schema surface only.
 - `NOT NULL` by default; every nullable column is explicit and justified.
 
 ## Audit / lifecycle
-- `created_at timestamptz NOT NULL` (server-stamped) on every table.
+- `created_at timestamptz NOT NULL` on every table, set by the API before the write from an
+  injected clock; no database default.
 - `updated_at` / `deleted_at` / `version` are NOT added by default. They appear only when a
   real behavior requires them. Insert-only aggregates carry none.
 
