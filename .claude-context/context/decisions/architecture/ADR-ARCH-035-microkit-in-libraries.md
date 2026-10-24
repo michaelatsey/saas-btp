@@ -30,8 +30,9 @@ What the MicroKit repository holds, read at `michaelatsey/microkit@a930a97` on 2
   them: a project reference by default, a package reference when `CIReleaseBuild` is `true`;
 - MicroKit.Persistence.Abstractions depends on MicroKit.Result and MicroKit.Domain;
   MicroKit.Messaging depends on MicroKit.Execution.Abstractions;
-- `MicroKit.Persistence.Analyzers`, a Roslyn analyzer (netstandard2.0) enforcing the separation
-  of reads and writes;
+- `MicroKit.Persistence.Analyzers`, a Roslyn analyzer (netstandard2.0) that reports a read
+  repository writing, `SaveChanges` called outside the unit of work, a context injected outside
+  infrastructure code, and a repository exposing `IQueryable`;
 - tests on `xunit` 2.9.3 with `Microsoft.NET.Test.Sdk`, `xunit.runner.visualstudio` and
   `coverlet.collector`, assertions with `Shouldly`, substitutes with `NSubstitute`, architecture
   tests on `NetArchTest.Rules`; test projects that turn documentation off and suppress CS1591;
@@ -55,16 +56,19 @@ already pinned here is equal to or newer than MicroKit's.
      MicroKit.Result.AspNetCore; MicroKit.Persistence.Abstractions, MicroKit.Persistence,
      MicroKit.Persistence.EntityFrameworkCore, its PostgreSQL provider, and
      MicroKit.Persistence.Analyzers;
-   - with the first event a consumer uses: MicroKit.Messaging, with MicroKit.Execution.Abstractions.
+   - with the first event a consumer uses: MicroKit.Messaging.Abstractions, MicroKit.Messaging and
+     MicroKit.Messaging.EntityFrameworkCore, with MicroKit.Execution.Abstractions; not
+     MicroKit.Messaging.MediatR nor its tests.
 
    Not copied: MicroKit.MediatR (no mediator, ADR-ARCH-034), MicroKit.Tenancy (isolation is row
    level security keyed on the workspace, ADR-ARCH-031, ADR-ARCH-032), the SQL Server provider,
    samples, benchmarks and performance tests. MicroKit.Auth, MicroKit.Persistence.Specifications,
-   MicroKit.Persistence.Testing and every other library are copied only when a decision or a work
-   needs them.
+   MicroKit.Persistence.Testing and every other library are copied only when a decision needs them.
 3. **A module's persistence comes through it.** A module on EF Core builds its context and unit of
    work through the copied MicroKit.Persistence.EntityFrameworkCore and its PostgreSQL provider,
-   which answers ADR-ARCH-033 §3. The persistence analyzer applies to every module's projects.
+   which answers ADR-ARCH-033 §3. Each module's Adapters project, where the context lives,
+   references the persistence analyzer; Domain and Features cannot reach a context
+   (ADR-ARCH-034), and test projects do not reference it.
 4. **Layout.** `libraries/MicroKit.<Lib>/src/<Project>/` holds a library's projects and
    `libraries/MicroKit.<Lib>/tests/` their tests; this replaces, for libraries, the location of
    tests set by ADR-ARCH-020. Each `libraries/MicroKit.<Lib>/README.md` states the commit it was
@@ -73,14 +77,16 @@ already pinned here is equal to or newer than MicroKit's.
    removes the package form of every reference and the package publication properties. The
    analyzer is referenced as an analyzer (`OutputItemType="Analyzer"`,
    `ReferenceOutputAssembly="false"`), keeps its own target framework, and adds
-   `Microsoft.CodeAnalysis.CSharp` to the central file. A copied library carries no version of its
+   `Microsoft.CodeAnalysis.CSharp` to the central file as a reference private to the analyzer
+   (`PrivateAssets="all"`), so that it reaches neither the modules nor an image. A copied library carries no version of its
    own; its version is this repository's commit. Every library in the project-reference closure of
    a host is copied by its Dockerfile and let back in by the `.dockerignore` allow-list, by project
    folder, never by its `tests/` folder (ADR-ARCH-022).
 6. **Build settings.** The root `Directory.Build.props` and `Directory.Packages.props` govern the
    copied projects (ADR-ARCH-020): no nested `Directory.*.props` comes with them. A setting of
    MicroKit absent from the root, such as `IsTrimmable`, is kept only if the pull request that
-   copies the library states why; transitive pinning stays off. The package versions a copied
+   copies the library states why, and so is a `NoWarn` or `NuGetAuditSuppress` of a copied
+   project file; transitive pinning stays off. The package versions a copied
    library needs are added to the root's central file; where a version is already pinned here, the
    one pinned here is kept. The SDK is the one `global.json` pins; warnings the newer SDK and
    analysis level report in the copied code are fixed by the copy.
@@ -89,17 +95,22 @@ already pinned here is equal to or newer than MicroKit's.
      `xunit.runner.visualstudio` and `coverlet.collector` are removed;
    - `Shouldly` assertions are rewritten with `Assert`; `NSubstitute` may be added to the central
      file, since ADR-ARCH-021 does not cover substitutes;
-   - architecture tests move to ArchUnitNET and into the library's `<TestedProject>.Tests`;
+   - architecture tests move to ArchUnitNET, in `MicroKit.<Lib>.Architecture.Tests`, which tests the
+     library as a whole and so is named after it, as `SaasBtp.Architecture.Tests` is
+     (ADR-ARCH-034 §7);
    - project files lose `GenerateDocumentationFile` and `NoWarn` for CS1591; projects take the
      names of ADR-ARCH-020 (`<TestedProject>.Tests`, `<TestedProject>.IntegrationTests`);
-   - a test that needs a library not copied, or MicroKit's documentation, is dropped or rewritten,
+   - a test project that needs a project not copied, or MicroKit's documentation, is dropped or
+     rewritten,
      as the pull request states; a test is never skipped for a missing Docker, since the
      repository's test script requires it.
 8. **The interceptors of ADR-ARCH-033 and the changes they need.** The transaction and command
-   interceptors of ADR-ARCH-033 §4 live in the copy of the PostgreSQL provider. In the same copy,
-   the unit of work runs every command in one explicit transaction it opens, or joins one already
-   open, and the library adds the way for a read in SQL to obtain the connection and transaction
-   of the unit of work (ADR-ARCH-034 §3). These changes are made in this repository, each by its
+   interceptors of ADR-ARCH-033 §4 live in the copy of the PostgreSQL provider, which defines the
+   port through which they obtain the subject; the host implements it from the validated token
+   (ADR-ARCH-033 §4). In the same copy, the unit of work runs every command in the one explicit
+   transaction it opened: a command inside that transaction runs in it, and a transaction it did
+   not open is refused (ADR-ARCH-033 §4). The library adds the way for a read in SQL to obtain the
+   connection and transaction of the unit of work (ADR-ARCH-034 §3). These changes are made in this repository, each by its
    own pull request with the tests that prove it.
 9. **How it is checked.** `SaasBtp.Architecture.Tests` (ADR-ARCH-034 §7) also reads `libraries/`:
 
@@ -108,6 +119,8 @@ already pinned here is equal to or newer than MicroKit's.
    | No `PackageReference` to a `MicroKit.*` package anywhere | `NoMicroKitPackageReference`, reading the project files |
    | No `Directory.*.props` below the root | `NoNestedBuildProps` |
    | Copied test projects reference no VSTest package nor assertion library | `TestProjectsFollowAdr021`, reading the project files |
+   | Each module's Adapters project references the persistence analyzer as an analyzer, and no test project does | `ModulesReferenceThePersistenceAnalyzer`, reading the project files |
+   | A module's EF Core context and unit of work come through MicroKit.Persistence (decision 3) | `ModuleContextsUseMicroKitPersistence`: every `DbContext` type of a module is registered through the copied provider's registration, checked on the module's service collection |
    | A library missing from an image while a host uses it | the build and the image check of ADR-ARCH-022 |
    | The source commit and the changes since in each library's `README.md`; a library's `tests/` kept out of the image build context | review, against this ADR |
 

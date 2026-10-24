@@ -97,7 +97,7 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
     ADR-ARCH-033.
   - Messaging — integration events, with the first event a consumer uses.
   - MediatR and Tenancy are not copied (no mediator, ADR-ARCH-034; isolation by row level
-    security, ADR-ARCH-031); Auth and any other library only when a decision needs it.
+    security, ADR-ARCH-031); Auth and any other library only when a decision needs it (ADR-ARCH-035).
 - Audit fields and soft delete follow `sql.md` (Audit / lifecycle) and `naming.md`; this file
   sets no rule of its own on them.
 
