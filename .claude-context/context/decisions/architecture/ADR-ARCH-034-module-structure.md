@@ -82,7 +82,10 @@ What was read on 2026-10-23:
    authorization decision relies on a local copy, unless an ADR accepts it, stating why an event
    or a local copy does not fit and the consequences on transactions, availability and
    extraction. The one exception accepted is `<module>.may_act_in` (ADR-ARCH-032, ADR-ARCH-033). A
-   request that involves two modules writes in one; the other reacts to its event.
+   request that involves two modules writes in one; the other reacts to its event. A domain event
+   and an integration event are distinct: the first belongs to the module's model, the second is
+   the contract published to other modules; how a module writes an integration event to its outbox
+   is decided with the first event a consumer uses (ADR-ARCH-032 §1).
 5. **Event schemas.** The producer owns the schema of each event it publishes, in
    `apps/api/src/modules/<Context>/events/`. Each consumer declares its own types for the events
    it consumes, and a contract test of the consumer fails when its types no longer match the
@@ -120,10 +123,10 @@ What was read on 2026-10-23:
    | A host uses a module only through `<Context>Module`, and the API host calls every module's entry point | `HostsUseOnlyModuleEntryPoints`, `ApiHostLoadsEveryModule` |
    | `<Context>Module` is the only public type of Adapters; Features types are internal; `InternalsVisibleTo` names only the projects of decision 2 | `ModuleSurfaceIsItsEntryPoint`, `InternalsVisibleToStaysInsideTheModule` |
    | No mediator and no registration by scanning, in modules and hosts (not the migration runner, whose embedded scripts need `Assembly`): no dependency on `MediatR*`, `Scrutor*` or `System.Reflection.Assembly`, and no call to `System.Type.get_Assembly` | `NoMediatorNorAssemblyScanning` |
-   | No module defines its own transaction or command interceptor, and no type of a module opens a connection (`NpgsqlConnection`, `NpgsqlDataSource`) | `ModulesDefineNoInterceptorNorConnection` |
+   | No module defines its own transaction or command interceptor, and no type of a module opens a connection of its own: no call to a constructor of `NpgsqlConnection`, nor to `NpgsqlDataSource.Create*`, `OpenConnection*` or `CreateConnection`; the context is configured with `UseNpgsql` | `ModulesDefineNoInterceptorNorConnection` |
    | A command without a transaction is refused, the subject is set first, and a SQL read sees the unit of work's subject | each module's integration tests (decision 6) |
    | A module's context maps only its own schema | an assertion this ADR adds to `MappingMatchesMigratedSchema`: every entity's schema is the module's own |
-   | A module's SQL names no other module's schema | `ModuleSqlNamesOnlyItsSchema`: no string literal in a module's source contains `<schema>.` for the schema of another module |
+   | A module's SQL names no other module's schema | `ModuleSqlNamesOnlyItsSchema`: no string passed as SQL (to `FromSql*`, `SqlQuery*`, `ExecuteSql*` or a command's text) matches `\b<schema>\.[a-z_][a-z0-9_]*\b` for the schema of another module; prose such as "no access." is not SQL and is not read |
    | Unit-test projects use no data access, web or test container package | `UnitTestsUseNoInfrastructure` |
    | A module missing from the image while the host uses it | the build and the image check of ADR-ARCH-022 |
    | A consumer's event types match the producer's schema | the consumer's contract test (decision 5), from the first consumed event |
