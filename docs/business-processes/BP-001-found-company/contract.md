@@ -103,9 +103,12 @@ The reference is the idempotency key (`naming.md` "Aggregate identifiers", BP001
   | profiles | the subject's own profile | the subject's own profile |
   | ownerships | an ownership naming the subject's profile | the subject's own ownerships |
   | organizations | any row (ADR-ARCH-033 §5) | organizations whose current owner is the subject (§3) |
-  | memberships | as ADR-ARCH-033 §5 | the subject's own memberships |
-  | workspace_accesses | as ADR-ARCH-033 §5 | the subject's own accesses |
+  | memberships | a row naming the subject's profile, under an organization the subject currently owns (ADR-ARCH-032 §4, ADR-ARCH-033 §5) | the subject's own memberships |
+  | workspace_accesses | a row naming the subject's profile, under an organization the subject currently owns (ADR-ARCH-032 §4, ADR-ARCH-033 §5) | the subject's own accesses |
   | workspaces | as ADR-ARCH-033 §5 | as ADR-ARCH-033 §5 |
+
+  The select policy of ownerships reads no other table, so that the organization's select
+  policy can read it without recursion.
 
   BP-001 creates no `UPDATE` or `DELETE` policy on any Access table: no founded record can be
   changed or removed through the API until a process adds one.
@@ -150,7 +153,7 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 
 | Invariant | Guarantor in production | Proof |
 |---|---|---|
-| INV-ACCESS-01 | Unique key on the profile's user identifier; the profile policies of §5 | Integration |
+| INV-ACCESS-01 | Unique key on the profile's user identifier; the profile policies of §5; a non-null profile reference with a foreign key to `access.profiles` on ownerships, memberships and workspace accesses | Integration |
 | INV-ACCESS-02 | Non-null `current_ownership_id` with its deferred composite key (ADR-ARCH-033 §6) | Integration |
 | INV-ACCESS-03 | The founding creates the first workspace in its unit of work; no `DELETE` policy on workspaces | Domain, Integration |
 | INV-ACCESS-04 | The workspace's organization set at creation, no `UPDATE` policy; unique key on organization and name | Integration |
@@ -169,18 +172,18 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 | BP001-AC-03 | The profile reused (INV-ACCESS-01); the domain (BP001-R4); no `UPDATE` policy | Domain, Integration |
 | BP001-AC-04 | As AC-03 | Domain, Integration |
 | BP001-AC-05 | The domain (BP001-R4); the listing of §2 | Domain, Integration, with `BP001_AC_05_WorkspaceListMatchesMayActIn` (§8) |
-| BP001-AC-06 | No founder read from the body; the subject from the validated token (ADR-ARCH-032 §3); the insert policies of §5 | Integration, with a body carrying a `founderId` naming another person |
-| BP001-AC-07 | The 422 of §2, nothing written; the description kept by the client store | Features (no write), Host (422 and field); client part not in the pilot |
-| BP001-AC-08 | The 422 of §2, nothing written | Features (no write), Host (422 and field) |
-| BP001-AC-09 | The identity-level check before the unit of work (403), on the source of §9 | Host, once the identity ADR exists |
-| BP001-AC-10 | The level checked on every submission (§4); the request kept by the client store | Host, once the identity ADR exists; client part not in the pilot |
-| BP001-AC-11 | Authentication of the API host (401) | Host, once the identity ADR exists |
+| BP001-AC-06 | No founder read from the body; the subject from the validated token (ADR-ARCH-032 §3); the insert policies of §5 | Integration (relations naming another profile refused); Host, pending the identity ADR (a body carrying a `founderId` ignored) |
+| BP001-AC-07 | The 422 of §2, nothing written; the description kept by the client store | Features (no write); Host, pending the identity ADR (422 and field); client part not in the pilot |
+| BP001-AC-08 | The 422 of §2, nothing written | Features (no write); Host, pending the identity ADR (422 and field) |
+| BP001-AC-09 | The identity-level check before the unit of work (403), on the source of §9 | Host, pending the identity ADR |
+| BP001-AC-10 | The level checked on every submission (§4); the request kept by the client store | Host, pending the identity ADR; client part not in the pilot |
+| BP001-AC-11 | Authentication of the API host (401) | Host, pending the identity ADR |
 | BP001-AC-12 | The client store | Not in the pilot |
 | BP001-AC-13 | The organization's primary key and the replay of §3 | Integration |
 | BP001-AC-14 | As AC-13, two submissions in parallel; the profile retry of §4 | Integration |
 | BP001-AC-15 | As AC-13 | Integration |
 | BP001-AC-16 | The client store; the replay of §3 | Server part as AC-13; client part not in the pilot |
-| BP001-AC-17 | The one transaction; the deferred keys | Integration, with a failure forced before commit |
+| BP001-AC-17 | The one transaction; the deferred keys; the API never writes to the identity provider (§4) | Integration, with a failure forced before commit |
 | BP001-AC-18 | The client store; the subject from the validated token | Not in the pilot |
 | BP001-AC-19 | No unique key on the organization name (BP001-R5); the select policies of §5 | Integration |
 | BP001-AC-20 | The select policies of §5; the 404 of §2; no operation exposes an owner | Integration |
@@ -189,8 +192,10 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 
 The tests of ADR-ARCH-032 §6 and ADR-ARCH-033 §5, and `MappingMatchesMigratedSchema`
 (ADR-ARCH-033 §3), apply to the Access tables. `PoliciesCoverEveryCommandTheApiUses`, an
-Integration test, reads `pg_policies` and fails when an Access table lacks a policy for
-`saasbtp_api` on a command §5 lists, or has one on a command §5 does not list.
+Integration test, fails when an Access table does not both enable and force row level security,
+lacks a policy applying to `saasbtp_api` on a command §5 lists, or has one on a command §5 does
+not list; a policy applies to `saasbtp_api` when its roles name it or `public`, and a policy
+for `ALL` counts for every command.
 
 ## 8. Obligations carried from July (#162)
 
@@ -211,7 +216,8 @@ Integration test, reads `pg_policies` and fails when an Access table lacks a pol
 Cited, not decided here:
 
 - Token validation in the API, and where the "confirmed contact" level is read and how fresh it
-  is: the identity ADR of BP-002. BP001-AC-09 to 11 are proven once it exists.
+  is: the identity ADR of BP-002. Every proof of §7 marked "pending the identity ADR" is
+  written once it exists.
 - The audit columns of the Access tables other than `created_at`: #184.
 - MicroKit.Result and MicroKit.Persistence declared sound before implementation (ADR-ARCH-035 §2).
 - The format of the API's error bodies: no decision sets it. This contract fixes only what each
@@ -241,4 +247,5 @@ scripts/ci/test-api.sh \
   --filter-method "*BP001_AC_13*"
 ```
 
-Every identifier of §7 whose proof is not "Not in the pilot" names at least one test.
+Every identifier of §7 names at least one test, except proofs marked "Not in the pilot" or
+"pending the identity ADR".
