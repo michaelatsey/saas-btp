@@ -237,8 +237,10 @@ Rules:
 - A normative reference points to an active decision: an ADR listed as accepted in
   decisions-index.md and not superseded. A reference kept for history is marked as such
   and is not listed in `applies`.
-- Every scenario identifier appears in the name of at least one test that covers it.
-  A test proves the scenario in the conditions it runs; the guarantor named in
+- Every scenario identifier appears in the name of at least one test that covers it,
+  at the start of the name, with `-` written `_` where the language forbids it
+  (`BP001_AC_13_...`). An invariant identifier is carried the same way by the tests
+  that prove it. A test proves the scenario in the conditions it runs; the guarantor named in
   `contract.md` is what holds it in production.
 - A tool or agent that consumes these artifacts stops and reports, rather than choosing,
   when an artifact it needs is not `validated`, a reference in `applies` is missing or
