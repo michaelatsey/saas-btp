@@ -1,8 +1,8 @@
 ---
 id: BP-001-contract
-status: draft
-validated_by:
-validated_on:
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-10-31
 issue: 178
 applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
 ---
