@@ -10,7 +10,15 @@ set -u
 REPO="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
 R="$REPO/.claude/skills/fix-issue/review.sh"
 W="$(mktemp -d)"; F="$W/fixtures"; mkdir -p "$F"
-trap 'rm -f "$REPO/review-guard-fixture.tmp" "$REPO/rel-out.json" "$REPO/guard-record"; rm -rf "$W"' EXIT
+made_codex_dir=0; made_fixtures=0; made_worktree=0
+cleanup() {
+  rm -f "$REPO/review-guard-fixture.tmp" "$REPO/rel-out.json" "$REPO/guard-record"
+  [ "$made_fixtures" -eq 1 ] && rm -f "$REPO/.env.review-fixture" "$REPO/review-copy-fixture.tmp" "$REPO/review-link-fixture.tmp"
+  [ "$made_codex_dir" -eq 1 ] && rm -rf "$REPO/.codex"
+  [ "$made_worktree" -eq 1 ] && { git -C "$REPO" worktree remove --force "$W/wt" 2>/dev/null; git -C "$REPO" worktree prune; }
+  rm -rf "$W"
+}
+trap cleanup EXIT
 pass=0; fail=0
 expect() { # name expected_exit actual_exit
   if [ "$2" = "$3" ]; then echo "PASS $1 (exit $3)"; pass=$((pass+1)); else echo "FAIL $1 (expected $2, got $3)"; fail=$((fail+1)); fi
@@ -177,6 +185,92 @@ printf '```json\n{"verdict":"approve"}\n```\n' > "$W/fenced.json"
 bash "$R" check "$W/fenced.json" >"$W/17.log" 2>&1; expect "check unparsable output" 5 $?
 # 18. check prints the pnpm version (finding 8)
 grep -q '^check: pnpm [0-9]' "$W/3.log" && { echo "PASS check printed pnpm version"; pass=$((pass+1)); } || { echo "FAIL check did not print pnpm version"; fail=$((fail+1)); }
+
+# 19-23. codex runs on a copy of the working tree, under a permission profile (issue #192).
+# Fixtures in the repository, removed by the EXIT trap: an ignored file (matches .env.*), an
+# untracked file, and an untracked symlink to the ignored file. Their content is not secret.
+ign="$REPO/.env.review-fixture"; unt="$REPO/review-copy-fixture.tmp"; lnk="$REPO/review-link-fixture.tmp"
+marker="ignored-fixture-content-$$-$RANDOM"
+for p in "$ign" "$unt" "$lnk"; do [ -e "$p" ] || [ -L "$p" ] && { echo "FAIL fixture path already exists, left untouched: $p"; trap - EXIT; rm -rf "$W"; exit 1; }; done
+made_fixtures=1
+printf '%s\n' "$marker" > "$ign"; echo untracked > "$unt"; ln -s .env.review-fixture "$lnk"
+git -C "$REPO" check-ignore -q "$ign" && ! git -C "$REPO" check-ignore -q "$unt" \
+  && { echo "PASS fixtures: one ignored, one not"; pass=$((pass+1)); } || { echo "FAIL fixtures ignore status"; fail=$((fail+1)); }
+# The stub records its arguments one per line, keeps a copy of the -C directory (symlinks
+# kept as links), and writes a valid output; STUB_EXIT makes it fail after recording.
+cat > "$W/bin/codex" <<STUB
+#!/usr/bin/env bash
+case "\$1" in --version) echo "codex-cli 0.0.0-stub";; login) echo "Logged in using ChatGPT";;
+  *) printf '%s\n' "\$@" > "$W/args"; out=""; cd_dir=""
+     while [ \$# -gt 0 ]; do case "\$1" in -o) out="\$2";; -C) cd_dir="\$2";; esac; shift; done
+     printf '%s\n' "\$cd_dir" > "$W/cdir"; rm -rf "$W/seen"; cp -a "\$cd_dir" "$W/seen"
+     [ -n "\${STUB_EXIT:-}" ] && exit "\$STUB_EXIT"
+     cp "$F/valid-approve.json" "\$out";; esac
+STUB
+chmod +x "$W/bin/codex"
+PATH="$W/bin:$PATH" bash "$R" codex "$W/clean.in" "$W/copy-out.json" "$W/copy" >"$W/19.log" 2>&1; expect "codex on the copy" 0 $?
+cdir="$(cat "$W/cdir" 2>/dev/null)"
+ok() { if eval "$2"; then echo "PASS $1"; pass=$((pass+1)); else echo "FAIL $1"; fail=$((fail+1)); fi; }
+# 19. the copy: outside the repository and the scratch directory, tracked and new files, no ignored file
+ok "copy is outside the repository" '[ -n "$cdir" ] && case "$cdir/" in "$REPO"/*) false;; *) true;; esac'
+ok "copy is outside the scratch directory" '[ -n "$cdir" ] && case "$cdir/" in "$W"/*) false;; *) true;; esac'
+ok "copy holds a tracked file" '[ -f "$W/seen/AGENTS.md" ]'
+ok "copy holds a new untracked file" '[ -f "$W/seen/review-copy-fixture.tmp" ]'
+ok "copy holds no ignored file" '[ ! -e "$W/seen/.env.review-fixture" ]'
+# 20. the call: a permission profile denying every path of the repository root, no legacy sandbox
+ok "no --sandbox" '! grep -qxE -e "--sandbox(=.*)?|-s" "$W/args"'
+ok "no -m" '! grep -qxE -e "-m|--model(=.*)?" "$W/args"'
+ok "skip git repo check" 'grep -qxF -e "--skip-git-repo-check" "$W/args"'
+ok "profile extends :read-only" 'grep -qxF "permissions.fix-issue-review.extends=\":read-only\"" "$W/args"'
+ok "profile selected" 'grep -qxF "default_permissions=\"fix-issue-review\"" "$W/args"'
+fsarg="$(grep -m1 '^permissions\.fix-issue-review\.filesystem=' "$W/args")"
+ok "repository root denied" 'grep -qF "\"$REPO\"=\"deny\"" <<< "$fsarg"'
+# every denied path is a worktree root of this repository (or its common git directory),
+# reached through some mount
+ids="$( { git -C "$REPO" worktree list --porcelain | sed -n 's/^worktree //p'; git -C "$REPO" rev-parse --path-format=absolute --git-common-dir; } \
+  | while IFS= read -r d; do stat -L -c %d:%i "$d" 2>/dev/null; done)"; all_same=1
+while IFS= read -r p; do grep -qxF -- "$(stat -L -c %d:%i "$p" 2>/dev/null)" <<< "$ids" || all_same=0
+done < <(grep -oE '"[^"]+"="deny"' <<< "$fsarg" | sed -E 's/^"(.*)"="deny"$/\1/')
+ok "every denied path is a root of this repository" '[ "$all_same" -eq 1 ]'
+if [ -e "/mnt/wslg/distro$REPO" ]; then
+  ok "WSL second mount of the repository denied" 'grep -qF "\"/mnt/wslg/distro$REPO\"=\"deny\"" <<< "$fsarg"'
+fi
+# 21. symlinks are copied as links, never followed
+ok "symlink copied as a link" '[ -L "$W/seen/review-link-fixture.tmp" ]'
+ok "ignored content not in the copy" '! grep -rqF -- "$marker" "$W/seen"'
+# 22. the copy is removed, after a normal run and after a failing one
+ok "copy removed after the run" '[ -n "$cdir" ] && [ ! -e "$cdir" ]'
+rm -f "$W/cdir"
+STUB_EXIT=1 PATH="$W/bin:$PATH" bash "$R" codex "$W/clean.in" "$W/copyfail-out.json" "$W/copyfail" >"$W/22.log" 2>&1; expect "codex failing on the copy" 6 $?
+cdir="$(cat "$W/cdir" 2>/dev/null)"
+ok "copy removed after a failing run" '[ -n "$cdir" ] && [ ! -e "$cdir" ]'
+# 23. an untracked .codex/ would be copied and could restore the legacy sandbox: refused (2)
+if [ -e "$REPO/.codex" ]; then
+  echo "SKIP .codex/ refusal: $REPO/.codex already exists and is not this test's to remove"
+else
+  made_codex_dir=1; mkdir "$REPO/.codex"; echo 'sandbox_mode = "read-only"' > "$REPO/.codex/config.toml"; rm -f "$W/args"
+  copies_before="$(ls -d "${TMPDIR:-/tmp}"/fix-issue-review.* 2>/dev/null | sort)"
+  PATH="$W/bin:$PATH" bash "$R" codex "$W/clean.in" "$W/codexdir-out.json" "$W/codexdir" >"$W/23.log" 2>&1; expect "codex refuses a .codex/ entry" 2 $?
+  ok "codex not called with a .codex/ entry" '[ ! -e "$W/args" ]'
+  ok "no copy left after a refused run" '[ "$(ls -d "${TMPDIR:-/tmp}"/fix-issue-review.* 2>/dev/null | sort)" = "$copies_before" ]'
+  rm -rf "$REPO/.codex"; made_codex_dir=0
+fi
+rm -f "$ign" "$unt" "$lnk"; made_fixtures=0
+
+# 24. run from a linked worktree, the main checkout is denied too (code-review finding 2):
+# a temporary worktree of HEAD, holding the working tree's review.sh, removed afterwards.
+wt="$W/wt"
+if git -C "$REPO" worktree add -q --detach "$wt" HEAD >/dev/null 2>&1; then
+  made_worktree=1
+  cp "$R" "$wt/.claude/skills/fix-issue/review.sh"; rm -f "$W/args"
+  PATH="$W/bin:$PATH" bash "$wt/.claude/skills/fix-issue/review.sh" codex "$W/clean.in" "$W/wt-out.json" "$W/wtp" >"$W/24.log" 2>&1; expect "codex from a linked worktree" 0 $?
+  wfs="$(grep -m1 '^permissions\.fix-issue-review\.filesystem=' "$W/args" 2>/dev/null)"
+  ok "linked worktree denied" 'grep -qF "\"$wt\"=\"deny\"" <<< "$wfs"'
+  ok "main checkout denied from a linked worktree" 'grep -qF "\"$REPO\"=\"deny\"" <<< "$wfs"'
+  git -C "$REPO" worktree remove --force "$wt"; made_worktree=0
+else
+  echo "FAIL could not create a temporary worktree"; fail=$((fail+1))
+fi
 
 echo "== $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
