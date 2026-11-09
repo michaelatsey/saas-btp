@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "review-output.schema.json",
   "title": "Review output",
-  "description": "The answer of a reviewer of a plan, an issue breakdown, a design artifact or a diff (ADR-ORG-004, section 1). Independent of the reviewer tool. The verdict is 'block' if and only if blocking_findings is non-empty. A finding is blocking only if it affects correctness, a stated requirement or a recorded decision (ADR-ORG-004, section 2); any other finding is non-blocking.",
+  "description": "The answer of a reviewer of a plan, an issue breakdown, a design artifact or a diff (ADR-ORG-004, section 1). Independent of the reviewer tool. The verdict is 'block' if and only if blocking_findings is non-empty. A finding is blocking only if it affects correctness, a stated requirement or a recorded decision (ADR-ORG-004, section 2), so a blocking finding rests on a requirement or a decision, never on a convention alone; any other finding is non-blocking.",
   "type": "object",
   "additionalProperties": false,
   "required": ["verdict", "summary", "blocking_findings", "non_blocking_findings"],
@@ -17,16 +17,57 @@
       "type": "string"
     },
     "blocking_findings": {
+      "description": "Findings that affect correctness, a stated requirement or a recorded decision. Each rests on a requirement or a decision.",
       "type": "array",
-      "items": { "$ref": "#/$defs/finding" }
+      "items": { "$ref": "#/$defs/blocking_finding" }
     },
     "non_blocking_findings": {
+      "description": "Every other finding. Each rests on a requirement, a decision or a convention.",
       "type": "array",
-      "items": { "$ref": "#/$defs/finding" }
+      "items": { "$ref": "#/$defs/non_blocking_finding" }
     }
   },
   "$defs": {
-    "finding": {
+    "blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "detail", "location", "basis", "recommendation"],
+      "properties": {
+        "title": {
+          "description": "One-line statement of the defect.",
+          "type": "string"
+        },
+        "detail": {
+          "description": "What is wrong and why, with the evidence the reviewer read.",
+          "type": "string"
+        },
+        "location": {
+          "description": "Where the defect is: 'path:line', 'path section', or a plan step. Null when the finding concerns the whole artifact.",
+          "type": ["string", "null"]
+        },
+        "basis": {
+          "description": "The requirement or decision the finding is tied to. A convention alone cannot make a finding blocking.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reference"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["requirement", "decision"]
+            },
+            "reference": {
+              "description": "Its identifier, for example an issue's 'Done when' item, or an ADR and section.",
+              "type": "string"
+            }
+          }
+        },
+        "recommendation": {
+          "description": "What would resolve the finding.",
+          "type": "string"
+        }
+      }
+    },
+    "non_blocking_finding": {
       "type": "object",
       "additionalProperties": false,
       "required": ["title", "detail", "location", "basis", "recommendation"],
