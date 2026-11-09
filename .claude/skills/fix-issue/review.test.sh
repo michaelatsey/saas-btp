@@ -272,5 +272,40 @@ else
   echo "FAIL could not create a temporary worktree"; fail=$((fail+1))
 fi
 
+# 25-27. a git call that fails while the deny list is collected stops the run (2) before
+# codex starts, instead of shortening the list (PR #193 fail-open). A fake git fails, or
+# answers nothing, on one call only, and passes every other call to the real git, so that
+# review.sh still finds its repository. A codex stub records every call.
+realgit="$(command -v git)"; mkdir -p "$W/gitfail"
+cat > "$W/gitfail/git" <<STUB
+#!/usr/bin/env bash
+for a in "\$@"; do
+  case "\$a" in "\$GIT_FAIL_ON")
+    [ "\${GIT_FAIL_MODE:-}" = empty ] && exit 0
+    echo "fake git: failing on \$a" >&2; exit 128;; esac
+done
+exec "$realgit" "\$@"
+STUB
+cat > "$W/gitfail/codex" <<STUB
+#!/usr/bin/env bash
+echo "\$*" >> "$W/gitfail-codex-called"
+exit 0
+STUB
+chmod +x "$W/gitfail/git" "$W/gitfail/codex"
+gitfail() { # name fail-on mode
+  local gf="$1"   # ok evaluates its check in its own frame: $1 there is the test name
+  rm -f "$W/gitfail-codex-called"
+  GIT_FAIL_ON="$2" GIT_FAIL_MODE="$3" PATH="$W/gitfail:$PATH" bash "$R" codex "$W/clean.in" "$W/$gf-out.json" "$W/$gf" >"$W/$gf.log" 2>&1
+  expect "codex stops when git $2 ${3:-fails}" 2 $?
+  ok "git $2 ${3:-fails}: stopped at the deny list" 'grep -qF "could not list the paths to deny" "$W/$gf.log"'
+  ok "git $2 ${3:-fails}: codex not called" '[ ! -e "$W/gitfail-codex-called" ]'
+}
+# 25. `git worktree list` fails: the linked worktrees would drop out of the deny list
+gitfail gitfail-worktree worktree ""
+# 26. `git rev-parse --git-common-dir` fails: the common git directory would become "" then "/"
+gitfail gitfail-commondir --git-common-dir ""
+# 27. `git rev-parse --git-common-dir` exits 0 with no output: an empty common dir is refused
+gitfail gitfail-commondir-empty --git-common-dir empty
+
 echo "== $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

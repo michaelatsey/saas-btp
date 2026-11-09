@@ -163,11 +163,16 @@ pjoin() { local p; if [ "$1" = / ]; then p="$2"; else p="$1$2"; fi; printf '%s\n
 
 # The directories to deny: this worktree, every other worktree of the same repository (a
 # run from a linked worktree must not reach the main checkout's ignored files), and the
-# common git directory when it lies outside them all.
+# common git directory when it lies outside them all. It runs on the left of `|| die`,
+# where bash turns set -e off: each git output is captured on its own and checked, so that
+# a failing git call stops the run instead of shortening the list.
 repo_roots() {
-  local roots common r inside_one=0
-  roots="$( { printf '%s\n' "$REPO"; git -C "$REPO" worktree list --porcelain | sed -n 's/^worktree //p'; } | sort -u)"
-  common="$(realpath -m -- "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)")"
+  local worktrees roots common r inside_one=0
+  worktrees="$(git -C "$REPO" worktree list --porcelain)" || return 1
+  roots="$( { printf '%s\n' "$REPO"; sed -n 's/^worktree //p' <<< "$worktrees"; } | sort -u)" || return 1
+  common="$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)" || return 1
+  [ -n "$common" ] || return 1
+  common="$(realpath -m -- "$common")" || return 1
   while IFS= read -r r; do under "$common" "$r" && inside_one=1; done <<< "$roots"
   printf '%s\n' "$roots"
   [ "$inside_one" -eq 1 ] || printf '%s\n' "$common"
@@ -235,7 +240,8 @@ cmd_codex() {
   cmd_scan "$input" || return 3
 
   # The denied paths go to Codex as TOML keys, through -c only, never in the prompt. They
-  # are collected first, so that a failure while finding them stops the run instead of
+  # are collected first, so that a failure while finding them (a git call in repo_roots,
+  # a mount in mount_paths, both reaching here through pipefail) stops the run instead of
   # shortening the list.
   paths="$(repo_paths)" || die 2 "could not list the paths to deny for $REPO"
   while IFS= read -r p; do
