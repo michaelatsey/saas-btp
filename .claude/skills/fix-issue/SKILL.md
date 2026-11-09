@@ -118,7 +118,9 @@ Do not merge. Report, in the pull request body and in the conversation:
   identifier, its origin or origins, its basis, the author's change and its status per
   cycle;
 - for each second-reviewer run, the Codex version, the model, the `tokens used` and the
-  authentication it used, as `review.sh codex` printed them;
+  authentication it used, the copy (`copy:` lines), the permission profile and the
+  denied paths (`permissions:` line), and the `workdir:` and `sandbox:` lines Codex
+  printed, as `review.sh codex` printed them;
 - the `pnpm` and `ajv-cli` versions used;
 - the write-guard records (`guard:` lines) of every review;
 - anything found and deliberately not fixed;
@@ -157,7 +159,9 @@ A cycle is one evaluation by each reviewer. A step has at most two cycles.
    against issue #N, focused on its Done when: every item addressed, each change in
    behaviour covered by a test, nothing changed outside its scope." in step 7); then
    the issue body
-   (`gh issue view N --json body -q .body`); then the plan (step 2) or `git diff main`
+   (`gh issue view N --json body -q .body`); then, when the maintainer has directed a
+   change of scope during the run, that direction, verbatim; then the plan (step 2) or
+   `git diff main`
    (step 7); then, in step 7, the latest output of step 6; then, from the second cycle
    on, that reviewer's own earlier blocking findings, under their identifiers, each with
    what the author changed for it. Within a cycle, neither input holds the other
@@ -172,11 +176,18 @@ A cycle is one evaluation by each reviewer. A step has at most two cycles.
    - `$R check <dir>/<step>-c<n>-claude.json`.
 3. The second reviewer:
    `$R codex <input> <dir>/<step>-c<n>-codex.json <dir>/<step>-c<n>-codex`. It scans
-   the input for secret-shaped values before anything reaches Codex, records the
-   authentication, guards the working tree around the run, runs
-   `codex exec --sandbox read-only --ephemeral --ignore-user-config -C <repo>
-   --output-schema .claude-context/context/ai-os/review-output.schema.json -o <output> -
-   < <input>`, and checks the output.
+   the input for secret-shaped values before anything reaches Codex; copies every file
+   git does not ignore (tracked and untracked) into its own `mktemp -d`, outside the
+   repository and the scratch directory, and refuses (`2`) when that copy would hold a
+   `.codex/` entry; records the authentication; guards the working tree around the run;
+   runs `codex exec --ephemeral --ignore-user-config --skip-git-repo-check -C <copy>`
+   with a permission profile passed through `-c` (extends `:read-only`, denies every
+   path that reaches the repository root, every other worktree of the repository and
+   the common git directory, found from `/proc/self/mountinfo`, selected with
+   `default_permissions`) and no `--sandbox`, which would drop the profile;
+   `--output-schema <copy>/.claude-context/context/ai-os/review-output.schema.json
+   -o <output> - < <input>`; removes the copy; and checks the output. The repository
+   path reaches Codex only through `-c`: never put it in an input.
 4. Read the exit codes:
    - `3` (a secret-shaped value in the input; it was not sent), `4` (the working tree
      changed during a review), `6` (the second reviewer is unavailable: non-zero exit
