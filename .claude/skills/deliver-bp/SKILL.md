@@ -127,6 +127,12 @@ small enough (DoR 5), the offline behavior described (DoR 6), every known depend
 (DoR 4). Check each issue against items 1 to 6 yourself, and write the table, one row per
 issue and one column per item, to `<scratch>/breakdown/dor.md`.
 
+An issue that fails an item is revised before the run goes further: a slice too large for
+one `/fix-issue` run is split, a missing link or dependency is added, an unverifiable "Done
+when" is rewritten; then step 5 runs again. When an item cannot be met without a decision
+only the maintainer can take, stop for the maintainer. A run, a dry run included, goes past
+step 5 only when every issue meets every item of the table.
+
 ## 6. Dry run
 
 With `--dry-run`: print the breakdown directory, the `check` output and the DoR table, and
