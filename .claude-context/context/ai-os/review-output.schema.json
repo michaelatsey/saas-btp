@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-output.schema.json",
+  "title": "Review output",
+  "description": "The answer of a reviewer of a plan, an issue breakdown, a design artifact or a diff (ADR-ORG-004, section 1). Independent of the reviewer tool. The verdict is 'block' if and only if blocking_findings is non-empty. A finding is blocking only if it affects correctness, a stated requirement or a recorded decision (ADR-ORG-004, section 2); any other finding is non-blocking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "blocking_findings", "non_blocking_findings"],
+  "properties": {
+    "verdict": {
+      "description": "'block' if and only if blocking_findings is non-empty, 'approve' otherwise.",
+      "type": "string",
+      "enum": ["approve", "block"]
+    },
+    "summary": {
+      "description": "What was reviewed and the overall assessment, in a few sentences.",
+      "type": "string"
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "non_blocking_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "detail", "location", "basis", "recommendation"],
+      "properties": {
+        "title": {
+          "description": "One-line statement of the defect.",
+          "type": "string"
+        },
+        "detail": {
+          "description": "What is wrong and why, with the evidence the reviewer read.",
+          "type": "string"
+        },
+        "location": {
+          "description": "Where the defect is: 'path:line', 'path section', or a plan step. Null when the finding concerns the whole artifact.",
+          "type": ["string", "null"]
+        },
+        "basis": {
+          "description": "The requirement, decision or convention the finding is tied to.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "reference"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["requirement", "decision", "convention"]
+            },
+            "reference": {
+              "description": "Its identifier, for example an issue's 'Done when' item, an ADR and section, or a convention file and section.",
+              "type": "string"
+            }
+          }
+        },
+        "recommendation": {
+          "description": "What would resolve the finding.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
