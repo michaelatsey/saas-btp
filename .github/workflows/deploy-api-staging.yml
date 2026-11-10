@@ -45,7 +45,8 @@ defaults:
 jobs:
   deploy:
     name: deploy-staging
-    runs-on: ubuntu-latest
+    # A versioned label (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     environment: staging
     # One deployment of staging at a time, and a running one is never cancelled: stopping the

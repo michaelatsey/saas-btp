@@ -14,7 +14,8 @@ permissions:
 jobs:
   api-build-test:
     name: api-build-test
-    runs-on: ubuntu-latest
+    # A versioned label (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Check out the repository
