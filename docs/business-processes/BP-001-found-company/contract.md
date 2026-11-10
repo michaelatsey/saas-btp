@@ -220,7 +220,6 @@ Cited, not decided here:
 - Token validation in the API, and where the "confirmed contact" level is read and how fresh it
   is: the identity ADR of BP-002. Every proof of §7 marked "pending the identity ADR" is
   written once it exists.
-- The audit columns of the Access tables other than `created_at`: #184.
 - The format of the API's error bodies: no decision sets it. This contract fixes only what each
   answer reveals.
 - Abuse protection, including any rate limit: open question of `process.md`; no `429` is part of
