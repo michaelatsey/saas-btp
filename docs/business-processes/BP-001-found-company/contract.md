@@ -39,12 +39,19 @@ names no founder (BP001-R2), and properties the operation does not define are ig
 other identifier, and `created_at` (`sql.md` Audit / lifecycle), is set by the API before the
 write, from an injected clock; the database generates none.
 
+Each name is measured as BP001-R7 counts it: `string.Trim()` removes from both ends the white space
+of BP001-R7, which is the set `Char.IsWhiteSpace` (.NET 10) defines, the same 25 code points as
+the `White_Space` property of Unicode's `PropList.txt` (18.0.0); what remains is counted in Unicode
+scalar values (`string.EnumerateRunes()`), never in UTF-16 code units (`string.Length`) or in text
+elements (`StringInfo`). That trimmed value, otherwise unchanged and not normalized, is the one
+checked for a missing name, counted, and written.
+
 | Status | When | Body |
 |---|---|---|
 | 201 | The organization is founded by this request | The organization: `id`, `name`, `status`; `Location` names it |
 | 200 | `organizationId` identifies an organization whose current owner is the caller (§3) | The same representation of that organization; the payload is not compared |
 | 409 | `organizationId` identifies any other organization, including one the caller belongs to without owning it | Only that the reference is in use |
-| 422 | A name is missing (empty or only spaces) or longer than 200 characters, or `organizationId` is a UUID that is not version 7 | The field at fault: `organizationName`, `workspaceName` or `organizationId` |
+| 422 | A name is missing or too long (TSK-1, BP001-R7), or `organizationId` is a UUID that is not version 7 | The field at fault: `organizationName`, `workspaceName` or `organizationId` |
 | 400 | The body cannot be read or bound, `organizationId` not being a UUID included | No detail |
 | 401 | No caller, or a token the API rejects | No detail |
 | 403 | The caller does not meet the identity level of BP001-D1 | Only that the contact must be confirmed |
@@ -140,8 +147,8 @@ technology:
 - The company name is offered as the default first workspace name.
 
 **Not covered by the pilot #138**, which delivers the backend: BP001-AC-02, 07 (the description
-kept), 12, 16, 18, 22, and the device part of BP001-AC-10. BP001-R6 is therefore not verified
-until the client is built.
+kept), 12, 16, 18, 22, 23 (the description kept), and the device part of BP001-AC-10. BP001-R6 is
+therefore not verified until the client is built.
 
 ## 7. Guarantors
 
@@ -191,6 +198,7 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 | BP001-AC-20 | The select policies of §5; the 404 of §2; no operation exposes an owner | Integration |
 | BP001-AC-21 | The primary key and the current-ownership read of §3; no `UPDATE` policy | Integration, including a member who does not own it and a caller holding an ownership row that is not the current one |
 | BP001-AC-22 | The client store; the payload of a replay not compared (§3) | Server part as AC-13; client part not in the pilot |
+| BP001-AC-23 | The measure of §2; the 422 of §2, nothing written; the description kept by the client store | Features, for each of the two names: no write over the limit; the founding at the limit once trimmed; the limit reached with characters that each take two UTF-16 code units; a name over the limit in Unicode scalar values but within it in text elements, made of letters each written with a separate accent, refused; padding with tab, U+00A0 and U+200B, the first two removed and U+200B kept and counted. Integration (each name written trimmed); Host, pending the identity ADR (422 and field); client part not in the pilot |
 
 The tests of ADR-ARCH-032 §6 and ADR-ARCH-033 §5, and `MappingMatchesMigratedSchema`
 (ADR-ARCH-033 §3), apply to the Access tables. `PoliciesCoverEveryCommandTheApiUses`, an
