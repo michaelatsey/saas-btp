@@ -90,8 +90,8 @@ ship. Steering: docs/product/scope-phase-1.md. Decisions: ../decisions/decisions
   endpoint calling its handler, no mediator) and `.Adapters` (port implementations and the
   module's single entry point), with its tests in the module's `tests/` folder; beyond that, a
   module's internal design is its own (ADR-ARCH-034).
-- MicroKit, copied into `libraries/` once a library is sound and a work needs it
-  (ADR-ARCH-035):
+- MicroKit, copied into `libraries/` when a work needs it, from the latest commit of MicroKit's
+  `main` (ADR-ARCH-035, ADR-ARCH-037):
   - Domain, Result — every module.
   - Persistence (EF Core, PostgreSQL) — repositories, unit of work, the interceptors of
     ADR-ARCH-033.
