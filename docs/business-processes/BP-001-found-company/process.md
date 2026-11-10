@@ -3,7 +3,7 @@ id: BP-001
 title: Found a company
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-10-21
+validated_on: 2026-11-11
 issue: 162
 applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, naming.md#aggregate-identifiers]
 ---
@@ -54,14 +54,14 @@ lost to a missing level.
 ```mermaid
 flowchart TD
   start([Founder asks to found their company]) --> describe["TSK-1 Describe the company:<br/>company name, first workspace name"]
-  describe -->|A name is missing| describe
+  describe -->|A name is missing or too long| describe
   describe -->|Founder abandons| abandon([Abandoned, nothing created])
   describe --> online{Connected?}
   online -->|No| keep["Request kept on the device<br/>for this founder"] --> online
   keep -->|Founder abandons| abandon
   online -->|Yes| found["TSK-2 Found the company"]
   found -->|Founded, now or earlier by this founder| done([Company Declared, first workspace,<br/>founder owner, member, and authorized in it])
-  found -->|A name is missing| describe
+  found -->|A name is missing or too long| describe
   found -->|Identity level not met| raise["Founder raises their level<br/>through BP-002, request kept"]
   raise --> online
   raise -->|Founder abandons| abandon
@@ -79,9 +79,9 @@ flowchart TD
 | Performed by | The founder. |
 | Preconditions | The founder is signed in. |
 | Inputs | The company name; the name of its first workspace. |
-| Rules | Both names are required; a name that is empty or made only of spaces counts as missing. The company name is offered as the default first workspace name. Names are taken as declared (INV-ACCESS-08). When the description starts, the company to found receives its **reference**, which stays the same for every submission of this request (rule BP001-R3). From its first submission until the company is founded, the description cannot be changed, except when the answer is that a name is missing; to found with other names, the founder abandons the request and starts a new one. The description survives the founder leaving the screen, closing the application, or losing the connection, until the company is founded or the founder abandons it. It belongs to the founder who started it (rule BP001-R6). |
+| Rules | Both names are required; a name that is empty once its white space is removed (rule BP001-R7) counts as missing. Neither name may be longer than rule BP001-R7 allows; a longer name is too long. The company name is offered as the default first workspace name. Names are taken as declared (INV-ACCESS-08), once the white space around them is removed (rule BP001-R7). When the description starts, the company to found receives its **reference**, which stays the same for every submission of this request (rule BP001-R3). From its first submission until the company is founded, the description cannot be changed, except when the answer is that a name is missing or too long; to found with other names, the founder abandons the request and starts a new one. The description survives the founder leaving the screen, closing the application, or losing the connection, until the company is founded or the founder abandons it. It belongs to the founder who started it (rule BP001-R6). |
 | Outputs | A founding request: the two names and the company's reference. |
-| Errors | A name is missing: the founder is told which, nothing is created, the description is kept. |
+| Errors | A name is missing or too long (BP001-R7): the founder is told which, nothing is created, the description is kept. |
 | Event | Founding requested. |
 
 ### TSK-2 — Found the company
@@ -94,7 +94,7 @@ flowchart TD
 | Inputs | The founding request; the signed-in founder, never a person named in the request (rule BP001-R2). |
 | Rules | In one indivisible step, the platform creates: the founder's profile if they have none (INV-ACCESS-01); the organization, Declared (INV-ACCESS-08), under the request's reference; its first workspace (INV-ACCESS-03, INV-ACCESS-04); the founder's ownership (INV-ACCESS-02); the founder's membership (INV-ACCESS-06); the founder's access to that workspace and to no other (INV-ACCESS-07, rule BP001-R4). Either all of it, profile included, exists afterwards, or none of it does. The three relations are created together but none is derived from another (INV-ACCESS-05). |
 | Outputs | The founded company and its first workspace, which the founder can enter. |
-| Errors | A name is missing: back to TSK-1, nothing created. The identity level is not met: refused, nothing created, the request is kept while the founder raises their level through BP-002. The reference already identifies a company this founder owns: that company is returned and nothing new is created (rule BP001-R3). The reference already identifies any other company, including one the founder belongs to without owning it: refused, the founder learns only that the reference is in use (INV-ACCESS-09); the request receives a new reference and may be submitted again. No answer, or any other failure: nothing created by this submission; the device submits the same request again when connected, and after repeated failures the founder is told and may abandon. |
+| Errors | A name is missing or too long: back to TSK-1, nothing created. The identity level is not met: refused, nothing created, the request is kept while the founder raises their level through BP-002. The reference already identifies a company this founder owns: that company is returned and nothing new is created (rule BP001-R3). The reference already identifies any other company, including one the founder belongs to without owning it: refused, the founder learns only that the reference is in use (INV-ACCESS-09); the request receives a new reference and may be submitted again. No answer, or any other failure: nothing created by this submission; the device submits the same request again when connected, and after repeated failures the founder is told and may abandon. |
 | Event | Company founded. |
 
 ## States of a founding request
@@ -113,7 +113,7 @@ stateDiagram-v2
   W --> S: connected
   D --> S: submitted
   S --> F: founded, now or earlier by this founder
-  S --> D: a name missing
+  S --> D: a name missing or too long
   S --> L: identity level not met
   L --> W: level raised
   S --> W: reference in use, new reference given
@@ -144,6 +144,13 @@ A request can end Founded only once, however many times it is submitted.
 - **BP001-R6** — A kept request belongs to the person who described it. It is submitted only while
   that person is signed in on the device. If someone else signs in, it is neither submitted nor
   shown to them.
+- **BP001-R7** — The company name and the first workspace name each hold at most 200 characters.
+  Before a name is checked, counted or recorded, the white space before and after it is removed: the
+  white space of the Unicode standard (spaces, tabs, line breaks). Zero-width characters, such as
+  U+200B and U+FEFF, are not white space and count as characters. Nothing else in the name is
+  changed. Characters are counted one per code the Unicode standard gives them, not by how they
+  look on screen: a letter with its accent counts as one, the same letter written with a separate
+  accent as two, and some emoji as several.
 
 ## Decisions of this process
 

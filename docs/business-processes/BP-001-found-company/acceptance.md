@@ -2,7 +2,7 @@
 id: BP-001-acceptance
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-10-21
+validated_on: 2026-11-11
 applies: [BP-001, INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09]
 ---
 
@@ -64,6 +64,19 @@ named in `contract.md`, written after #125.
 - When they try to found the company
 - Then they are told the workspace name is missing
 - And no company exists for them
+
+**BP001-AC-23 — A name cannot be too long**
+- Given a person describing their company with a company name, or a first workspace name, one
+  character longer than rule BP001-R7 allows
+- When they try to found it
+- Then they are told which name is too long
+- And no company exists for them
+- And what they had entered is still there
+- Given a person describing their company with a company name and a first workspace name that
+  have white space before and after them and, once it is removed, hold exactly as many characters
+  as rule BP001-R7 allows
+- When they found it
+- Then the company is founded, and both names are recorded without that white space
 
 **BP001-AC-09 — Identity level not met**
 - Given a signed-in person whose contact is not confirmed
