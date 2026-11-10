@@ -27,7 +27,9 @@ condition. BP-001's implementation (#138) is the first work to copy libraries.
    copies it names that commit by its full SHA and the date and time it was read as the head of
    `main`, so that a reviewer can confirm it was the newest commit of `main` at that moment. A
    commit added to MicroKit's `main` while that pull request is open does not call for a new
-   copy.
+   copy. A library already in `libraries/` is not copied again when a piece of work needs it: it
+   evolves here, and a change made in the MicroKit repository reaches it only by the new,
+   deliberate copy ADR-ARCH-035 §1 allows.
 2. **How a copy is accepted.** The maintainer's merge of that pull request is the acceptance of
    the copied code. No declaration of soundness is made or required, before or outside that pull
    request.
