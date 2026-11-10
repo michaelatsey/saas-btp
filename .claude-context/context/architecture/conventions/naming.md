@@ -41,7 +41,9 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
   `created_at`, `created_by`, `updated_at`, `updated_by`). The soft-delete mark is
   MicroKit's shadow property `AggregateDeletedAt` (column `aggregate_deleted_at`),
   never a member of the domain type. Which types carry them, and when, is stated
-  once in `sql.md` (Audit / lifecycle).
+  once in `sql.md` (Audit / lifecycle). The aggregate version is MicroKit's shadow
+  property `AggregateVersion` (column `aggregate_version`), per `sql.md`
+  (Optimistic concurrency).
 - Collections: plural (`photos`, `comments`).
 
 ---

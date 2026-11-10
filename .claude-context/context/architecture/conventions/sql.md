@@ -73,11 +73,12 @@ cites it. The MicroKit behaviour it relies on was read on `main` at
   only, and RLS does not hide marked rows.
 
 ## Optimistic concurrency
-- Mutable aggregates: PostgreSQL `xmin` as the concurrency token via EF
-  (`UseXminAsConcurrencyToken`) — no dedicated DDL column.
-- Insert-only aggregates: no concurrency mechanism.
-- Applied at the EF mapping of the first mutable aggregate; documented here so no `version`
-  column is ever added speculatively. (Exact Npgsql API confirmed at EF wiring.)
+- Every aggregate root carries MicroKit's aggregate version, its concurrency token: the shadow
+  property `AggregateVersion`, column `aggregate_version bigint NOT NULL`. It is written only by
+  the save, with no database default, and bumped on every save that writes any entity of the
+  aggregate (MicroKit `main` at `88ee3e5d2dc12720e0abb7dee64616fccefeec86`,
+  `AggregateVersion.cs`).
+- `xmin` is not used as a concurrency token.
 
 ## RLS
 - RLS enabled on every business table. The workspace is the tenant (ADR-ARCH-031): a table of
