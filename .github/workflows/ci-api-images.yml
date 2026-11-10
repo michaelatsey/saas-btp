@@ -9,12 +9,12 @@ name: CI API images
 # Required by ruleset 18697625 under its job name, alongside api-build-test. No paths filter: a
 # required check that does not run blocks the merge.
 #
-# The builder, the build options and the non-root assertion are copies of those in
-# publish-api-images.yml and change with them. They are copied rather than shared for the reason
-# ADR-ARCH-030 (Alternatives considered) gives against a shared script for its verification
-# policy: the publish job checks out the commit it publishes, which for an older commit would
-# not contain the script. A divergence can let one fail where the other passes, but publication
-# still applies its own copy: nothing it refuses is published.
+# The runner label, the builder, the build options and the non-root assertion are copies of
+# those in publish-api-images.yml and change with them. They are copied rather than shared for
+# the reason ADR-ARCH-030 (Alternatives considered) gives against a shared script for its
+# verification policy: the publish job checks out the commit it publishes, which for an older
+# commit would not contain the script. A divergence can let one fail where the other passes,
+# but publication still applies its own copy: nothing it refuses is published.
 #
 # Not named "CI API": deliver-api-staging.yml starts on workflow runs of that name.
 on:
@@ -35,7 +35,8 @@ jobs:
   # One job for both images, so the required check keeps one name whatever the number of images.
   api-images:
     name: api-images
-    runs-on: ubuntu-latest
+    # The runner label of publish-api-images.yml, a versioned one (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read

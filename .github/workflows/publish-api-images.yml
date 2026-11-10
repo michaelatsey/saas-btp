@@ -30,7 +30,9 @@ defaults:
 jobs:
   publish:
     name: publish-${{ matrix.image }}
-    runs-on: ubuntu-latest
+    # A versioned label (ADR-ARCH-036). ci-api-images.yml runs on the same label: change both
+    # together.
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     # Two runs for the same commit would race between the tag check and the push of an image.
     # Set on the job, so per image: GitHub's documentation does not say whether a called
@@ -153,13 +155,15 @@ jobs:
       # Only an answer that no attestation exists reads as a missing one: the attestations API
       # answers 404 for such a digest, and gh prints "No attestations found" when it returns an
       # empty list. Any other failure, a permission or network error included, is reported with
-      # gh's output as a failed verification.
+      # gh's output as a failed verification. gh's version is logged: it changes with the runner
+      # image.
       - name: Verify the attestation of the published digest
         if: steps.existing.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           DIGEST: ${{ steps.existing.outputs.digest }}
         run: |
+          gh --version
           if output=$(gh attestation verify "oci://$IMAGE@$DIGEST" \
               --repo "$GITHUB_REPOSITORY" \
               --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish-api-images.yml" \
@@ -226,6 +230,12 @@ jobs:
       # metadata of both builds prove the pushed image is the one checked above, since the config
       # names every layer. OCI media types are set explicitly: Docker documents the exporter's
       # default as false.
+      # When the runner's Docker uses the containerd image store, as Docker 29 does by default on
+      # ubuntu-26.04, buildx loads through the OCI exporter and leaves the config digest out of
+      # the load's metadata (docker/buildx v0.38.1, build/opt.go and build/build.go,
+      # prefer-image-digest). Both builds then export OCI manifests, and the manifest digests are
+      # compared instead: the manifest names the config and every layer by digest, so equal
+      # manifests imply equal configs. The digest keys of both metadata files are logged first.
       - name: Push by digest
         id: push
         if: steps.existing.outputs.published == 'false'
@@ -240,7 +250,11 @@ jobs:
             --label "org.opencontainers.image.revision=$SHA" \
             --file "$DOCKERFILE" \
             .
+          for build in load push; do
+            echo "$build metadata: $(jq -c '{"containerimage.digest", "containerimage.config.digest", "containerimage.descriptor"}' "$RUNNER_TEMP/$build-metadata.json")"
+          done
           checked=$(jq -r '."containerimage.config.digest" // empty' "$RUNNER_TEMP/load-metadata.json")
+          checked_manifest=$(jq -r '."containerimage.digest" // empty' "$RUNNER_TEMP/load-metadata.json")
           pushed=$(jq -r '."containerimage.config.digest" // empty' "$RUNNER_TEMP/push-metadata.json")
           digest=$(jq -r '."containerimage.digest" // empty' "$RUNNER_TEMP/push-metadata.json")
           media_type=$(jq -r '."containerimage.descriptor".mediaType // empty' "$RUNNER_TEMP/push-metadata.json")
@@ -248,8 +262,13 @@ jobs:
             echo "::error::Could not read the pushed digest of $IMAGE."
             exit 1
           fi
-          if [[ -z "$checked" || "$pushed" != "$checked" ]]; then
-            echo "::error::$IMAGE@$digest has config '${pushed:-<none>}', not the checked '${checked:-<none>}'; it is neither attested nor tagged."
+          if [[ -n "$checked" ]]; then
+            if [[ "$pushed" != "$checked" ]]; then
+              echo "::error::$IMAGE@$digest has config '${pushed:-<none>}', not the checked '$checked'; it is neither attested nor tagged."
+              exit 1
+            fi
+          elif [[ -z "$checked_manifest" || "$digest" != "$checked_manifest" ]]; then
+            echo "::error::$IMAGE@$digest is not the checked manifest '${checked_manifest:-<none>}' (the load's metadata has no config digest); it is neither attested nor tagged."
             exit 1
           fi
           if [[ "$media_type" != application/vnd.oci.image.manifest.v1+json ]]; then
