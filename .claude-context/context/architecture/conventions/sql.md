@@ -44,10 +44,33 @@ naming.md; this file covers the database schema surface only.
 - `NOT NULL` by default; every nullable column is explicit and justified.
 
 ## Audit / lifecycle
-- `created_at timestamptz NOT NULL` on every table, set by the API before the write from an
-  injected clock; no database default.
-- `updated_at` / `deleted_at` / `version` are NOT added by default. They appear only when a
-  real behavior requires them. Insert-only aggregates carry none.
+This section is the one rule on audit columns and soft delete; `naming.md` names the fields and
+cites it. The MicroKit behaviour it relies on was read on `main` at
+`88ee3e5d2dc12720e0abb7dee64616fccefeec86`; the pull request that copies MicroKit
+(ADR-ARCH-037) checks it against the copied source.
+
+- Audit columns follow the domain type a table maps. Every aggregate root is auditable
+  (`AuditableAggregateRoot`, MicroKit.Domain): its table carries `created_at`, `created_by`,
+  `updated_at` and `updated_by`. A child entity's table carries the same four when its aggregate
+  makes it auditable (`AuditableEntity`), a decision taken per aggregate. Any other table carries
+  no audit column unless its process's `contract.md` says so.
+- The values come from the domain, set by the API before the write from an injected clock and
+  the acting `Actor`; no database default. `created_at timestamptz NOT NULL` and `created_by NOT
+  NULL` are set at creation. `updated_at timestamptz` and `updated_by` are nullable: null until
+  the first modification, set together by each later one.
+- Soft delete is a per-aggregate decision (`HasSoftDelete()` on the root, MicroKit.Persistence
+  EF Core provider), stated in the process's `contract.md` (for the constat, its specification,
+  `constat.md` §3.5); it is never a default. It adds a nullable deletion mark to the table of
+  every entity of the aggregate. Deleting the root through an EF Core save marks every entity of
+  the aggregate instead of deleting it; a child removed from an aggregate that stays alive, a bulk
+  delete (`ExecuteDelete`) and a raw SQL delete still delete the rows. Under forced RLS the mark is
+  an `UPDATE`: a soft-deletable table needs an update policy for `saasbtp_api` that lets the
+  subject set it, or the delete affects zero rows and the save fails.
+- Personal data that must be erased is deleted or anonymized; a deletion mark alone does not
+  erase it.
+- A SQL read of a soft-deletable aggregate, a synchronization query included, filters the
+  deletion mark itself: the query filter (`MicroKit.SoftDelete`) applies to EF Core queries
+  only, and RLS does not hide marked rows.
 
 ## Optimistic concurrency
 - Mutable aggregates: PostgreSQL `xmin` as the concurrency token via EF

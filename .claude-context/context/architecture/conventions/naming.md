@@ -37,11 +37,11 @@ Never hand-rename a field per layer. If a name appears twice by hand, it is a sm
 - Booleans: `is` / `has` prefix (e.g. `isClosed`, `hasPhotos`).
 - Timestamps: ISO 8601, stored UTC; names like `createdAt`, `updatedAt`,
   `observedAt`, `dueAt`, `closedAt`.
-- Audit fields on every persisted entity: `createdAt`, `updatedAt`, `createdBy`,
-  `deletedAt` (soft delete — CLAUDE.md 22). This applies to mutable
-  entities; per the `sql.md` §Audit exception, insert-only aggregates (e.g. the
-  Safety `Constat`) carry `created_at` only — `updated_at`/`deletedAt`/`created_by`
-  are added when the aggregate actually gains mutation/soft-delete behaviour.
+- Audit fields: `createdAt`, `createdBy`, `updatedAt`, `updatedBy` (columns
+  `created_at`, `created_by`, `updated_at`, `updated_by`). The soft-delete mark is
+  MicroKit's shadow property `AggregateDeletedAt` (column `aggregate_deleted_at`),
+  never a member of the domain type. Which types carry them, and when, is stated
+  once in `sql.md` (Audit / lifecycle).
 - Collections: plural (`photos`, `comments`).
 
 ---

@@ -102,7 +102,9 @@ These are stable invariants that feed the domain model directly:
   `resolved`.
 - A constat is `resolved` only when all its corrective actions are closed.
 - A `critical`-severity constat requires at least one photo (evidence).
-- Records are soft-deleted only; never hard-deleted (auditability).
+- A constat is soft-deleted only, never hard-deleted (auditability; constat spec 3.5). Soft
+  delete of any other record is decided per aggregate
+  (`.claude-context/context/architecture/conventions/sql.md`, Audit / lifecycle).
 
 Corrective-action invariants (one owner, evidence before closure, a closed action is
 immutable) live in the corrective-action spec (created JIT) to avoid pre-inventing.

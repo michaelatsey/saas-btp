@@ -32,7 +32,7 @@ Naming: camelCase per conventions/naming.md (UI labels in French).
 | notes | Observations | text | no | extra notes |
 | photos | Photos | media[] | no | references to Media; captured offline, synced later |
 
-Audit fields (all entities, per naming.md): createdAt, updatedAt, createdBy, deletedAt.
+Audit fields: per sql.md (Audit / lifecycle), named in naming.md.
 
 > `severity` is added vs Innov_Boost (which lists it on NC, not constat) because the
 > safety dashboard groups by severity and escalation depends on it. Kept (validated).
@@ -61,7 +61,9 @@ Audit fields (all entities, per naming.md): createdAt, updatedAt, createdBy, del
   constat for priority review (notification to Responsable QHSE).
 - 3.3 status = resolved is only allowed when all linked corrective actions are closed.
 - 3.4 A constat is always scoped to exactly one siteId (no cross-site constat).
-- 3.5 Soft delete only (auditability — CLAUDE.md 22). Never hard delete.
+- 3.5 Soft delete only (auditability), the constat's own per-aggregate decision under sql.md
+  (Audit / lifecycle). Never hard delete; personal data of a constat that must be erased is
+  deleted or anonymized in place, as that rule requires.
 
 ---
 
