@@ -2,9 +2,9 @@
 id: BP-001-contract
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-10-31
+validated_on: 2026-11-10
 issue: 178
-applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
+applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
 ---
 
 # BP-001 — Contract
@@ -12,7 +12,9 @@ applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS
 What founding a company introduces in software, and what guarantees each invariant and scenario
 of `process.md` and `acceptance.md` in production. Rules are referenced by identifier, never
 restated. ADR-ARCH-032 applies except its §2 call path and its §4 creation order, which
-ADR-ARCH-033 replaces; those two parts are history.
+ADR-ARCH-033 replaces; those two parts are history. ADR-ARCH-035 applies except the parts
+ADR-ARCH-037 supersedes: the copy condition of its §2, its Consequence on BP-001 waiting for it
+and its rejection of copying a library as it is; those parts are history.
 
 ## 1. Owner and boundary
 
@@ -219,7 +221,6 @@ Cited, not decided here:
   is: the identity ADR of BP-002. Every proof of §7 marked "pending the identity ADR" is
   written once it exists.
 - The audit columns of the Access tables other than `created_at`: #184.
-- MicroKit.Result and MicroKit.Persistence declared sound before implementation (ADR-ARCH-035 §2).
 - The format of the API's error bodies: no decision sets it. This contract fixes only what each
   answer reveals.
 - Abuse protection, including any rate limit: open question of `process.md`; no `429` is part of
