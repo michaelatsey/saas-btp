@@ -92,7 +92,7 @@ cites it. The MicroKit behaviour it relies on was read on `main` at
   enables RLS also forces it (`alter table ... force row level security`, ADR-ARCH-027). A table
   the API reads or writes therefore needs an explicit policy for `saasbtp_api`, or its reads
   return ZERO ROWS SILENTLY.
-- A row returned by `RETURNING`, which EF uses to read generated values such as `xmin`, must
+- A row returned by `RETURNING`, which EF uses to read generated values, must
   satisfy the select policies or the statement fails. A creation inserts a row only once the
   subject may see it, the foreign key that would order it otherwise deferred to commit: for a
   founding, the ownership before the organization and the access before the workspace
