@@ -25,7 +25,7 @@ COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/ apps/api/src/hosts/SaasBtp.Api.
 RUN dotnet publish apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj \
     -c Release --no-restore -o /app -p:OpenApiGenerateDocumentsOnBuild=false
 
-# The liveness probe of the HEALTHCHECK below, published apart from the API so that its files
+# The readiness probe of the HEALTHCHECK below, published apart from the API so that its files
 # never mix with the host's (ADR-ARCH-039).
 RUN dotnet publish apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj \
     -c Release --no-restore -o /probe
@@ -44,9 +44,11 @@ USER $APP_UID
 EXPOSE 8080
 
 # The health check runs the probe on the .NET runtime the image already holds: GET
-# /health/live on 127.0.0.1 at the first port of ASPNETCORE_HTTP_PORTS, exit 0 on a 2xx and 1
-# otherwise (ADR-ARCH-039). The probe gives up after 3 s, inside the 5 s timeout here.
+# /health/ready, which runs the database readiness check, on 127.0.0.1 at the first port of
+# ASPNETCORE_HTTP_PORTS, exit 0 on a 2xx and 1 otherwise (ADR-ARCH-039). It keeps the endpoint
+# and the timing of the check Coolify ran with curl on staging. The probe gives up after 3 s,
+# inside the 5 s timeout here.
 # SaasBtp.Api.HealthProbe.Tests reads this line: keep it on one line. Coolify does not read it
 # for a Docker Image application; its dashboard check runs the same command (ADR-ARCH-039).
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]
+HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=10 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]
 ENTRYPOINT ["dotnet", "SaasBtp.Api.dll"]

@@ -16,7 +16,7 @@ public sealed partial class ProbeImageContractTests
     public void TheHealthcheckRunsTheProbeAssemblyInExecForm()
     {
         var healthcheck = HealthcheckInstruction();
-        var assembly = typeof(LivenessProbe).Assembly.GetName().Name;
+        var assembly = typeof(ReadinessProbe).Assembly.GetName().Name;
 
         Assert.EndsWith($"CMD [\"dotnet\", \"/probe/{assembly}.dll\"]", healthcheck, StringComparison.Ordinal);
     }
@@ -29,16 +29,16 @@ public sealed partial class ProbeImageContractTests
 
         var healthcheckTimeout = TimeSpan.FromSeconds(int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.True(LivenessProbe.DefaultTimeout > TimeSpan.Zero, "The probe has no timeout.");
+        Assert.True(ReadinessProbe.DefaultTimeout > TimeSpan.Zero, "The probe has no timeout.");
         Assert.True(
-            LivenessProbe.DefaultTimeout < healthcheckTimeout,
-            $"The probe waits {LivenessProbe.DefaultTimeout}, the HEALTHCHECK {healthcheckTimeout}.");
+            ReadinessProbe.DefaultTimeout < healthcheckTimeout,
+            $"The probe waits {ReadinessProbe.DefaultTimeout}, the HEALTHCHECK {healthcheckTimeout}.");
     }
 
     [Fact]
     public void TheProbeAssemblyReferencesNeitherAspNetCoreNorExtensions()
     {
-        var references = typeof(LivenessProbe).Assembly.GetReferencedAssemblies().Select(name => name.Name!);
+        var references = typeof(ReadinessProbe).Assembly.GetReferencedAssemblies().Select(name => name.Name!);
 
         Assert.DoesNotContain(references, name =>
             name.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal)
@@ -62,7 +62,7 @@ public sealed partial class ProbeImageContractTests
     [Fact]
     public void TheProbeAsBuiltRunsOnTheBaseFrameworkAloneWithNoPackage()
     {
-        var name = typeof(LivenessProbe).Assembly.GetName().Name;
+        var name = typeof(ReadinessProbe).Assembly.GetName().Name;
         using var runtimeConfig = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, $"{name}.runtimeconfig.json")));
         using var deps = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, $"{name}.deps.json")));
 

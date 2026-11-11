@@ -94,14 +94,17 @@ docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dock
   container `URLS`, another `HTTP_PORTS` or a `Kestrel__Endpoints__*` setting, bare or prefixed,
   nor a `--urls` argument (ADR-ARCH-039).
 - The image installs no package and carries neither `curl` nor `wget`. Its `HEALTHCHECK` runs
-  `apps/api/src/hosts/SaasBtp.Api.HealthProbe`, which requests `/health/live` on 127.0.0.1 and
-  exits 0 on a 2xx, 1 otherwise; it reports any of the settings above as unhealthy, naming it
-  (an empty `URLS` excepted: the host ignores it).
+  `apps/api/src/hosts/SaasBtp.Api.HealthProbe`, which requests `/health/ready` (the database
+  readiness check) on 127.0.0.1 and exits 0 on a 2xx, 1 otherwise, every 5 s with a 5 s timeout,
+  10 retries and a 5 s start period: the endpoint and the timing of the check Coolify ran with
+  `curl` before ADR-ARCH-039. A container with no reachable database is therefore unhealthy. The
+  probe also reports any of the settings above as unhealthy, naming it (an empty `URLS`
+  excepted: the host ignores it).
   Coolify does not read the image's `HEALTHCHECK` for a Docker Image application: its dashboard
   Healthcheck stays enabled, type CMD, command `dotnet /probe/SaasBtp.Api.HealthProbe.dll`, with
-  the Dockerfile's interval, timeout, retries and start period. Before a manual rollback to an
-  image built before ADR-ARCH-039, which has no probe, switch it to HTTP; switch it back to CMD
-  right after.
+  the Dockerfile's interval, timeout, retries and start period (5 s, 5 s, 10, 5 s). Before a
+  manual rollback to an image built before ADR-ARCH-039, which has no probe, switch it to HTTP;
+  switch it back to CMD right after.
 - The runner image is chiseled: no shell. Without `GSS Encryption Mode=Disable` in its
   connection string, it prints that `libgssapi_krb5.so.2` cannot be loaded, then connects
   normally; Npgsql documents the message as harmless.

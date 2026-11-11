@@ -10,30 +10,30 @@ namespace SaasBtp.Api.HealthProbe.Tests;
 /// The probe against a stub server: the exit code is the one Docker's HEALTHCHECK reads, 0
 /// healthy and 1 unhealthy (ADR-ARCH-039).
 /// </summary>
-public sealed class LivenessProbeTests
+public sealed class ReadinessProbeTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(3);
 
     [Fact]
-    public async Task ReturnsHealthyWhenLiveAnswers200On127001()
+    public async Task ReturnsHealthyWhenReadyAnswers200On127001()
     {
         await using var server = await StubServer.StartAsync(StubServer.Answer(StatusCodes.Status200OK));
 
         var (code, error) = await RunAsync(Ports(server.Port));
 
-        Assert.Equal(LivenessProbe.Healthy, code);
-        Assert.Equal($"127.0.0.1:{server.Port}", server.LastLiveHost);
+        Assert.Equal(ReadinessProbe.Healthy, code);
+        Assert.Equal($"127.0.0.1:{server.Port}", server.LastReadyHost);
         Assert.Equal("", error);
     }
 
     [Fact]
-    public async Task ReturnsUnhealthyWhenLiveAnswers503()
+    public async Task ReturnsUnhealthyWhenReadyAnswers503()
     {
         await using var server = await StubServer.StartAsync(StubServer.Answer(StatusCodes.Status503ServiceUnavailable));
 
         var (code, error) = await RunAsync(Ports(server.Port));
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains("503", error, StringComparison.Ordinal);
     }
 
@@ -49,7 +49,7 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(Ports(server.Port));
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains("302", error, StringComparison.Ordinal);
     }
 
@@ -58,7 +58,7 @@ public sealed class LivenessProbeTests
     {
         var (code, error) = await RunAsync(Ports(ClosedPort()));
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.NotEqual("", error);
     }
 
@@ -80,7 +80,7 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(Ports(server.Port), TimeSpan.FromMilliseconds(200));
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"The probe took {stopwatch.Elapsed}.");
         Assert.NotEqual("", error);
     }
@@ -103,7 +103,7 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(environment);
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains("ASPNETCORE_HTTP_PORTS", error, StringComparison.Ordinal);
     }
 
@@ -114,7 +114,7 @@ public sealed class LivenessProbeTests
 
         var (code, _) = await RunAsync(Ports($"{server.Port};{ClosedPort()}"));
 
-        Assert.Equal(LivenessProbe.Healthy, code);
+        Assert.Equal(ReadinessProbe.Healthy, code);
     }
 
     // The host splits HTTP_PORTS with TrimEntries and RemoveEmptyEntries (ASP.NET Core,
@@ -126,7 +126,7 @@ public sealed class LivenessProbeTests
 
         var (code, _) = await RunAsync(Ports($" ; {server.Port} ;{ClosedPort()}"));
 
-        Assert.Equal(LivenessProbe.Healthy, code);
+        Assert.Equal(ReadinessProbe.Healthy, code);
     }
 
     // Each of these would make the host listen elsewhere than ASPNETCORE_HTTP_PORTS, or
@@ -152,9 +152,9 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(environment);
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains(variable, error, StringComparison.Ordinal);
-        Assert.Null(server.LastLiveHost);
+        Assert.Null(server.LastReadyHost);
     }
 
     // An empty URLS is read as unset: the host falls back to HTTP_PORTS (ASP.NET Core,
@@ -171,7 +171,7 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(environment);
 
-        Assert.Equal(LivenessProbe.Healthy, code);
+        Assert.Equal(ReadinessProbe.Healthy, code);
         Assert.Equal("", error);
     }
 
@@ -188,7 +188,7 @@ public sealed class LivenessProbeTests
 
         var (code, error) = await RunAsync(environment);
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains(variable, error, StringComparison.Ordinal);
     }
 
@@ -203,7 +203,7 @@ public sealed class LivenessProbeTests
 
         var (code, _) = await RunAsync(environment);
 
-        Assert.Equal(LivenessProbe.Healthy, code);
+        Assert.Equal(ReadinessProbe.Healthy, code);
     }
 
     [Fact]
@@ -211,9 +211,9 @@ public sealed class LivenessProbeTests
     {
         using var error = new StringWriter();
 
-        var code = await LivenessProbe.RunGuardedAsync(() => throw new InvalidOperationException("boom"), error);
+        var code = await ReadinessProbe.RunGuardedAsync(() => throw new InvalidOperationException("boom"), error);
 
-        Assert.Equal(LivenessProbe.Unhealthy, code);
+        Assert.Equal(ReadinessProbe.Unhealthy, code);
         Assert.Contains("InvalidOperationException: boom", error.ToString(), StringComparison.Ordinal);
     }
 
@@ -222,15 +222,15 @@ public sealed class LivenessProbeTests
     {
         using var error = new StringWriter();
 
-        Assert.Equal(LivenessProbe.Healthy, await LivenessProbe.RunGuardedAsync(() => Task.FromResult(LivenessProbe.Healthy), error));
-        Assert.Equal(LivenessProbe.Unhealthy, await LivenessProbe.RunGuardedAsync(() => Task.FromResult(LivenessProbe.Unhealthy), error));
+        Assert.Equal(ReadinessProbe.Healthy, await ReadinessProbe.RunGuardedAsync(() => Task.FromResult(ReadinessProbe.Healthy), error));
+        Assert.Equal(ReadinessProbe.Unhealthy, await ReadinessProbe.RunGuardedAsync(() => Task.FromResult(ReadinessProbe.Unhealthy), error));
         Assert.Equal("", error.ToString());
     }
 
     [Fact]
     public void TheHandlerUsesNoProxyAndFollowsNoRedirect()
     {
-        using var handler = LivenessProbe.CreateHandler();
+        using var handler = ReadinessProbe.CreateHandler();
 
         Assert.False(handler.UseProxy);
         Assert.False(handler.AllowAutoRedirect);
@@ -243,7 +243,7 @@ public sealed class LivenessProbeTests
     private static async Task<(int Code, string Error)> RunAsync(IDictionary environment, TimeSpan? timeout = null)
     {
         using var error = new StringWriter();
-        var code = await LivenessProbe.RunAsync(environment, error, timeout ?? Timeout);
+        var code = await ReadinessProbe.RunAsync(environment, error, timeout ?? Timeout);
         return (code, error.ToString());
     }
 

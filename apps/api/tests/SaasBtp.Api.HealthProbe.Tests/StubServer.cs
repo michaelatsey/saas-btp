@@ -11,8 +11,8 @@ namespace SaasBtp.Api.HealthProbe.Tests;
 
 /// <summary>
 /// A Kestrel server on 127.0.0.1 and a free port, standing in for the API. It answers
-/// <c>/health/live</c> with the given handler, <c>/redirected</c> with 200 and any other path
-/// with 404, and records the Host header of the last request to <c>/health/live</c>.
+/// <c>/health/ready</c> with the given handler, <c>/redirected</c> with 200 and any other path
+/// with 404, and records the Host header of the last request to <c>/health/ready</c>.
 /// </summary>
 internal sealed class StubServer : IAsyncDisposable
 {
@@ -26,9 +26,9 @@ internal sealed class StubServer : IAsyncDisposable
 
     public int Port { get; }
 
-    public string? LastLiveHost { get; private set; }
+    public string? LastReadyHost { get; private set; }
 
-    public static async Task<StubServer> StartAsync(RequestDelegate live)
+    public static async Task<StubServer> StartAsync(RequestDelegate ready)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -40,9 +40,9 @@ internal sealed class StubServer : IAsyncDisposable
         {
             switch (context.Request.Path.Value)
             {
-                case "/health/live":
-                    server!.LastLiveHost = context.Request.Host.Value;
-                    await live(context);
+                case "/health/ready":
+                    server!.LastReadyHost = context.Request.Host.Value;
+                    await ready(context);
                     break;
                 case "/redirected":
                     context.Response.StatusCode = StatusCodes.Status200OK;

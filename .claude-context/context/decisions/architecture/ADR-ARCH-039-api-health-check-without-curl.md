@@ -14,8 +14,10 @@ required check on `main`, failed three times on a documentation-only pull reques
 images from `mcr.microsoft.com` were pulled: an outage of a package archive blocked every merge
 and every delivery to staging.
 
-The final image already holds the .NET runtime. The API answers `/health/live` without running
-any check, so it answers 200 for the process alone (`Program.cs`; `apps/api/CLAUDE.md`, Run).
+The final image already holds the .NET runtime. The API maps `/health/live`, which runs no check,
+and `/health/ready`, which runs the database readiness check (`Program.cs`). Coolify's check on
+staging, which gates the rolling update (ADR-ARCH-024 §2.2), is an HTTP GET of `/health/ready` on
+port 8080 expecting 200, with interval 5 s, timeout 5 s, 10 retries and start period 5 s.
 
 Docker's HEALTHCHECK reference defines the exit codes of a health check: "0: success - the
 container is healthy and ready for use", "1: unhealthy - the container isn't working correctly",
@@ -58,7 +60,8 @@ from app configuration, which unprefixed variables and app settings files feed (
 2. **The probe.** `apps/api/src/hosts/SaasBtp.Api.HealthProbe` is a console project that runs on
    the base framework alone: SDK `Microsoft.NET.Sdk`, no `FrameworkReference`,
    `PackageReference` or `ProjectReference`, so it never depends on ASP.NET Core. It sends one
-   `GET` to `http://127.0.0.1:<port>/health/live`, where `<port>` is the first entry of
+   `GET` to `http://127.0.0.1:<port>/health/ready`, the endpoint the staging check requests, which
+   runs the database readiness check, where `<port>` is the first entry of
    `ASPNETCORE_HTTP_PORTS` as the host splits it (entries trimmed, empty ones dropped), with no
    proxy, so that a proxy variable never takes the request off
    the loopback, and without following redirects. It waits 3 seconds at most. It exits 0 on a
@@ -77,14 +80,18 @@ from app configuration, which unprefixed variables and app settings files feed (
    cannot see, is excluded by this point alone.
 4. **The HEALTHCHECK.** The Dockerfile publishes the probe to `/probe`, apart from the API's
    `/app`, and declares, in exec form:
-   `HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]`.
+   `HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=10 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]`.
+   The endpoint and these options are those of the check Coolify ran with `curl` on staging:
+   removing `curl` changes neither what gates the rolling update nor its timing (ADR-ARCH-024).
+   The container is healthy only while the database answers, as it was under that check.
    The probe's 3-second limit leaves 2 seconds of the 5-second timeout for the runtime to start,
    so a slow answer is normally reported by the probe, with its cause; a run that still exceeds
    5 seconds is ended by Docker and counted as a failure all the same.
 5. **The Coolify check.** The dashboard Healthcheck of every API application stays enabled, with
    type `cmd` and the command `dotnet /probe/SaasBtp.Api.HealthProbe.dll`, and with the interval,
-   timeout, retries and start period of point 4. The type `http` would run `curl` or `wget`, which
-   the image no longer carries. The image's HEALTHCHECK is the check for every other runtime
+   timeout, retries and start period of point 4 (5 s, 5 s, 10, 5 s), the values of the existing
+   HTTP check: only the check's type and command change. The type `http` would run `curl` or
+   `wget`, which the image no longer carries. The image's HEALTHCHECK is the check for every other runtime
    (`docker run`, Compose) and the reference that the dashboard command copies: a change to the
    probe's path or options changes both.
 6. **The image checks.** `publish-api-images.yml` refuses to push an API image that declares no

@@ -4,12 +4,13 @@ using System.Globalization;
 namespace SaasBtp.Api.HealthProbe;
 
 /// <summary>
-/// The liveness probe of the API image (ADR-ARCH-039): one GET of <c>/health/live</c> on
-/// 127.0.0.1, at the first port of <c>ASPNETCORE_HTTP_PORTS</c>. Its result is an exit code in
+/// The readiness probe of the API image (ADR-ARCH-039): one GET of <c>/health/ready</c> on
+/// 127.0.0.1, at the first port of <c>ASPNETCORE_HTTP_PORTS</c>, the endpoint Coolify's check on
+/// staging already requested. Its result is an exit code in
 /// the terms of Docker's HEALTHCHECK reference: 0 healthy, 1 unhealthy; 2 is reserved and never
 /// returned.
 /// </summary>
-public static class LivenessProbe
+public static class ReadinessProbe
 {
     /// <summary>Exit code of a healthy container.</summary>
     public const int Healthy = 0;
@@ -36,7 +37,7 @@ public static class LivenessProbe
     private const string KestrelEndpoints = "KESTREL__ENDPOINTS";
     private static readonly string[] Prefixes = ["", "DOTNET_", "ASPNETCORE_"];
 
-    /// <summary>Requests the liveness endpoint and returns the exit code.</summary>
+    /// <summary>Requests the readiness endpoint and returns the exit code.</summary>
     /// <param name="environment">The process environment, as <see cref="Environment.GetEnvironmentVariables()"/> returns it.</param>
     /// <param name="error">Where the cause of an unhealthy result is written, one line.</param>
     /// <param name="timeout">How long to wait for an answer.</param>
@@ -58,7 +59,7 @@ public static class LivenessProbe
             return Unhealthy;
         }
 
-        var uri = new Uri($"http://127.0.0.1:{port.ToString(CultureInfo.InvariantCulture)}/health/live");
+        var uri = new Uri($"http://127.0.0.1:{port.ToString(CultureInfo.InvariantCulture)}/health/ready");
         using var client = new HttpClient(CreateHandler()) { Timeout = timeout };
         try
         {
@@ -111,7 +112,7 @@ public static class LivenessProbe
     /// <summary>
     /// The handler the probe sends its request through: no proxy, so that a proxy variable in the
     /// container's environment never takes the request off 127.0.0.1, and no redirect, so that
-    /// only a 2xx of <c>/health/live</c> itself reads as healthy.
+    /// only a 2xx of <c>/health/ready</c> itself reads as healthy.
     /// </summary>
     public static SocketsHttpHandler CreateHandler() => new()
     {
