@@ -8,6 +8,7 @@
 !Directory.Packages.props
 !.editorconfig
 !apps/api/src/hosts/SaasBtp.Api/
+!apps/api/src/hosts/SaasBtp.Api.HealthProbe/
 !apps/api/database/SaasBtp.Migrations/
 
 # Excluded again inside the projects let back in: local build output, and the files the root

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The readiness probe of the API image's HEALTHCHECK (ADR-ARCH-039). It runs on the base
+    framework alone, Microsoft.NETCore.App: no FrameworkReference, PackageReference or
+    ProjectReference, which SaasBtp.Api.HealthProbe.Tests checks.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

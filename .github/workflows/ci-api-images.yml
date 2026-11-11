@@ -1,17 +1,18 @@
 name: CI API images
 
 # Builds the API and migration runner images on every pull request into main, and fails when
-# either does not build or would run as root. Without it, a project reference missing from a
-# Dockerfile or from the .dockerignore allow-list, or a base-image bump that breaks the build
+# either does not build or would run as root, or when the API image declares no HEALTHCHECK
+# (ADR-ARCH-039). Without it, a project reference missing from a Dockerfile or from the
+# .dockerignore allow-list, or a base-image bump that breaks the build
 # stage, showed only at the next publication (ADR-ARCH-022, Consequences), which since #145 is
 # the delivery to staging right after the merge: the broken commit was already on main.
 #
 # Required by ruleset 18697625 under its job name, alongside api-build-test. No paths filter: a
 # required check that does not run blocks the merge.
 #
-# The runner label, the builder, the build options and the non-root assertion are copies of
-# those in publish-api-images.yml and change with them. They are copied rather than shared for
-# the reason ADR-ARCH-030 (Alternatives considered) gives against a shared script for its
+# The runner label, the builder, the build options, the non-root assertion and the HEALTHCHECK
+# assertion are copies of those in publish-api-images.yml and change with them. They are copied
+# rather than shared for the reason ADR-ARCH-030 (Alternatives considered) gives against a shared script for its
 # verification policy: the publish job checks out the commit it publishes, which for an older
 # commit would not contain the script. A divergence can let one fail where the other passes,
 # but publication still applies its own copy: nothing it refuses is published.
@@ -88,6 +89,23 @@ jobs:
           echo "User: ${user:-<unset>}"
           if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
             echo "::error::$IMAGE runs as root."
+            exit 1
+          fi
+
+      # The script of publish-api-images.yml's "Check the API image declares a HEALTHCHECK",
+      # unchanged. It checks that a health check is declared, not that it passes: the probe's
+      # tests and the staging delivery prove that (ADR-ARCH-039).
+      - name: Check saas-btp-api declares a HEALTHCHECK
+        if: ${{ !cancelled() && steps.build-api.outcome == 'success' }}
+        env:
+          IMAGE: saas-btp-api
+          CANDIDATE: local/saas-btp-api:candidate
+        run: |
+          healthcheck=$(docker image inspect --format '{{json .Config.Healthcheck}}' "$CANDIDATE")
+          echo "Healthcheck: $healthcheck"
+          test=$(jq -c '.Test // []' <<<"$healthcheck")
+          if [[ "$test" == "[]" || "$test" == '["NONE"]' ]]; then
+            echo "::error::$IMAGE declares no HEALTHCHECK."
             exit 1
           fi
 

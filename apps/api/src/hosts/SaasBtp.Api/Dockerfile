@@ -13,28 +13,43 @@ WORKDIR /src
 # that the restore layer is reused while only source code changes.
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj apps/api/src/hosts/SaasBtp.Api/
-RUN dotnet restore apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj
+COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj apps/api/src/hosts/SaasBtp.Api.HealthProbe/
+RUN dotnet restore apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj \
+    && dotnet restore apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj
 
 COPY apps/api/src/hosts/SaasBtp.Api/ apps/api/src/hosts/SaasBtp.Api/
+COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/ apps/api/src/hosts/SaasBtp.Api.HealthProbe/
 
 # The OpenAPI document is checked by CI (ADR-ARCH-018) and not used by the image: generating it
 # would start the application during the image build.
 RUN dotnet publish apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj \
     -c Release --no-restore -o /app -p:OpenApiGenerateDocumentsOnBuild=false
 
+# The readiness probe of the HEALTHCHECK below, published apart from the API so that its files
+# never mix with the host's (ADR-ARCH-039).
+RUN dotnet publish apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj \
+    -c Release --no-restore -o /probe
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac AS final
 
-# Coolify runs its HTTP health check inside the container with curl or wget; the base image
-# ships neither.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
+# Nothing is installed in this stage: the image holds the base image, the API and the probe,
+# and its build downloads nothing beyond the base images and NuGet (ADR-ARCH-039).
 WORKDIR /app
 COPY --from=build /app .
+COPY --from=build /probe /probe
 
 # The base image creates the non-root user "app" and sets APP_UID to its id; it listens on
 # ASPNETCORE_HTTP_PORTS, 8080.
 USER $APP_UID
 EXPOSE 8080
+
+# The health check runs the probe on the .NET runtime the image already holds: GET
+# /health/ready, which runs the database readiness check, on 127.0.0.1 at the first port of
+# ASPNETCORE_HTTP_PORTS, exit 0 on a 2xx and 1 otherwise (ADR-ARCH-039). It keeps the endpoint
+# and the timing of the check Coolify ran with curl on staging. The probe gives up after 4 s:
+# after the API's own 3 s database check, so that its 503 is reported whenever that check ends
+# on time, and inside the 5 s timeout here.
+# SaasBtp.Api.HealthProbe.Tests reads this line: keep it on one line. Coolify does not read it
+# for a Docker Image application; its dashboard check runs the same command (ADR-ARCH-039).
+HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=10 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]
 ENTRYPOINT ["dotnet", "SaasBtp.Api.dll"]

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ASP.NET Core is referenced here only, for the stub server the probe is tested against; the
+    probe itself runs on the base framework (ADR-ARCH-039).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="ApiDockerfilePath" Value="$(MSBuildProjectDirectory)/../../src/hosts/SaasBtp.Api/Dockerfile" />
+    <AssemblyMetadata Include="ProbeProjectPath" Value="$(MSBuildProjectDirectory)/../../src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
