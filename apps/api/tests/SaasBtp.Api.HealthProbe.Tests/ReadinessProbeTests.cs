@@ -12,7 +12,7 @@ namespace SaasBtp.Api.HealthProbe.Tests;
 /// </summary>
 public sealed class ReadinessProbeTests
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(4);
 
     [Fact]
     public async Task ReturnsHealthyWhenReadyAnswers200On127001()

@@ -64,7 +64,7 @@ from app configuration, which unprefixed variables and app settings files feed (
    runs the database readiness check, where `<port>` is the first entry of
    `ASPNETCORE_HTTP_PORTS` as the host splits it (entries trimmed, empty ones dropped), with no
    proxy, so that a proxy variable never takes the request off
-   the loopback, and without following redirects. It waits 3 seconds at most. It exits 0 on a
+   the loopback, and without following redirects. It waits 4 seconds at most. It exits 0 on a
    2xx and 1 on anything else, an unreadable port, a refused connection, a timeout or an
    unexpected exception included, writing the cause on one line of standard error, which Docker
    keeps in the health log. It never exits 2.
@@ -84,9 +84,13 @@ from app configuration, which unprefixed variables and app settings files feed (
    The endpoint and these options are those of the check Coolify ran with `curl` on staging:
    removing `curl` changes neither what gates the rolling update nor its timing (ADR-ARCH-024).
    The container is healthy only while the database answers, as it was under that check.
-   The probe's 3-second limit leaves 2 seconds of the 5-second timeout for the runtime to start,
-   so a slow answer is normally reported by the probe, with its cause; a run that still exceeds
-   5 seconds is ended by Docker and counted as a failure all the same.
+   The probe's 4-second limit outlasts the API's own 3-second database check
+   (`DatabaseHealthCheck.Timeout`), so that the API's 503 is reported whenever that check ends on
+   time, and leaves 1 second of the 5-second timeout for the runtime to start. The check does not
+   always end on time: measured on the API image with a local PostgreSQL, `/health/ready`
+   answered 503 after 0 to 9 seconds as the database stopped resolving or answering, and the
+   probe then reports its own timeout instead. Either way the result is unhealthy; a run that
+   exceeds 5 seconds is ended by Docker and counted as a failure all the same.
 5. **The Coolify check.** The dashboard Healthcheck of every API application stays enabled, with
    type `cmd` and the command `dotnet /probe/SaasBtp.Api.HealthProbe.dll`, and with the interval,
    timeout, retries and start period of point 4 (5 s, 5 s, 10, 5 s), the values of the existing

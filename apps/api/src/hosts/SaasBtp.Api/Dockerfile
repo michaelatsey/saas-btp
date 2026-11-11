@@ -46,8 +46,9 @@ EXPOSE 8080
 # The health check runs the probe on the .NET runtime the image already holds: GET
 # /health/ready, which runs the database readiness check, on 127.0.0.1 at the first port of
 # ASPNETCORE_HTTP_PORTS, exit 0 on a 2xx and 1 otherwise (ADR-ARCH-039). It keeps the endpoint
-# and the timing of the check Coolify ran with curl on staging. The probe gives up after 3 s,
-# inside the 5 s timeout here.
+# and the timing of the check Coolify ran with curl on staging. The probe gives up after 4 s:
+# after the API's own 3 s database check, so that its 503 is reported whenever that check ends
+# on time, and inside the 5 s timeout here.
 # SaasBtp.Api.HealthProbe.Tests reads this line: keep it on one line. Coolify does not read it
 # for a Docker Image application; its dashboard check runs the same command (ADR-ARCH-039).
 HEALTHCHECK --interval=5s --timeout=5s --start-period=5s --retries=10 CMD ["dotnet", "/probe/SaasBtp.Api.HealthProbe.dll"]

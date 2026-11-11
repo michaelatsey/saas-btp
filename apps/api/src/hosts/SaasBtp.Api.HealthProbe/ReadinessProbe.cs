@@ -19,10 +19,12 @@ public static class ReadinessProbe
     public const int Unhealthy = 1;
 
     /// <summary>
-    /// How long the probe waits for an answer: shorter than the HEALTHCHECK timeout in the
-    /// Dockerfile, so that the probe reports a slow answer itself instead of being killed.
+    /// How long the probe waits for an answer: longer than the API's own 3 s database check, so
+    /// that the API's 503 is reported whenever that check ends on time, and shorter than the
+    /// HEALTHCHECK timeout in the Dockerfile, so that the probe reports a slow answer itself
+    /// instead of being killed.
     /// </summary>
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(4);
 
     private const string PortsVariable = "ASPNETCORE_HTTP_PORTS";
 
