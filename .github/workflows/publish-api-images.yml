@@ -195,7 +195,7 @@ jobs:
       # No BuildKit provenance or SBOM (ADR-ARCH-030): the published reference stays a single
       # linux/amd64 image manifest, and its provenance is the GitHub attestation created below.
       # The image is loaded under a local name only: nothing reaches GHCR before the non-root
-      # check.
+      # check and, for the API, the HEALTHCHECK check.
       # ci-api-images.yml builds with the same options, labels and metadata file aside, for pull
       # requests: change both together.
       - name: Build
@@ -221,6 +221,21 @@ jobs:
           echo "User: ${user:-<unset>}"
           if [[ -z "$user" || "$user" == "0" || "$user" == root || "$user" == 0:* || "$user" == root:* ]]; then
             echo "::error::$IMAGE runs as root."
+            exit 1
+          fi
+
+      # The API's health check is declared in its image (ADR-ARCH-039): an API image without one
+      # is not pushed. It checks the declaration, not that the check passes: the probe's tests
+      # and the staging delivery prove that. ci-api-images.yml runs a copy of this check on pull
+      # requests: change both together.
+      - name: Check the API image declares a HEALTHCHECK
+        if: steps.existing.outputs.published == 'false' && matrix.image == 'saas-btp-api'
+        run: |
+          healthcheck=$(docker image inspect --format '{{json .Config.Healthcheck}}' "$CANDIDATE")
+          echo "Healthcheck: $healthcheck"
+          test=$(jq -c '.Test // []' <<<"$healthcheck")
+          if [[ "$test" == "[]" || "$test" == '["NONE"]' ]]; then
+            echo "::error::$IMAGE declares no HEALTHCHECK."
             exit 1
           fi
 
