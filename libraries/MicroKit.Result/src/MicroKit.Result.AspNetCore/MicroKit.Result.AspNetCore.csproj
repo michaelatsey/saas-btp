@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props. -->
+
+  <PropertyGroup>
+    <!-- Kept from MicroKit (ADR-ARCH-035 §6), as in MicroKit.Result: the trim and AOT analyzers on
+         this library's own code. The SDK makes it imply IsTrimmable. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../MicroKit.Result/MicroKit.Result.csproj" />
+  </ItemGroup>
+
+</Project>

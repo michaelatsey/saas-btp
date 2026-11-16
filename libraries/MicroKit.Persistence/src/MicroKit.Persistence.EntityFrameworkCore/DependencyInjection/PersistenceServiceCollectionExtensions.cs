@@ -1,0 +1,140 @@
+namespace MicroKit.Persistence.EntityFrameworkCore;
+
+/// <summary>
+/// Extension methods for registering MicroKit.Persistence services on
+/// <see cref="IServiceCollection"/>.
+/// </summary>
+public static class PersistenceServiceCollectionExtensions
+{
+    /// <summary>
+    /// Adds MicroKit.Persistence services to <paramref name="services"/> and returns a
+    /// <see cref="PersistenceBuilder"/> for further configuration.
+    /// </summary>
+    /// <param name="services">The application service collection.</param>
+    /// <param name="configure">Optional delegate to configure persistence services.</param>
+    /// <returns><paramref name="services"/> for fluent chaining.</returns>
+    public static IServiceCollection AddMicroKitPersistence(
+        this IServiceCollection services,
+        Action<PersistenceBuilder>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        var builder = new PersistenceBuilder(services);
+        configure?.Invoke(builder);
+        return services;
+    }
+
+    /// <summary>
+    /// Adds EF Core persistence services and returns an <see cref="EfCoreBuilder"/> for
+    /// further configuration. Registers <see cref="EfSpecificationEvaluator"/> as a singleton
+    /// <see cref="ISpecificationEvaluator"/> and <see cref="PaginationLimits.Default"/> as the
+    /// singleton <see cref="PaginationLimits"/> (idempotent — safe to call multiple times; use
+    /// <see cref="ConfigurePagination"/> to change the limits).
+    /// </summary>
+    /// <param name="builder">The parent persistence builder.</param>
+    /// <param name="configure">Optional delegate to configure EF Core services.</param>
+    /// <returns>An <see cref="EfCoreBuilder"/> for chaining provider registrations.</returns>
+    public static EfCoreBuilder AddEntityFrameworkCore(
+        this PersistenceBuilder builder,
+        Action<EfCoreBuilder>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.TryAddSingleton<ISpecificationEvaluator, EfSpecificationEvaluator>();
+        builder.Services.TryAddSingleton(PaginationLimits.Default);
+        var efBuilder = new EfCoreBuilder(builder);
+        configure?.Invoke(efBuilder);
+        return efBuilder;
+    }
+
+    /// <summary>
+    /// Replaces the <see cref="PaginationLimits"/> the read repositories enforce
+    /// (<see cref="PaginationLimits.Default"/> unless configured).
+    /// </summary>
+    /// <param name="builder">The EF Core builder.</param>
+    /// <param name="limits">
+    /// The default and maximum page sizes. Its constructor validates them, so an invalid
+    /// configuration fails here, at registration, not on the first query.
+    /// </param>
+    /// <returns><paramref name="builder"/> for fluent chaining.</returns>
+    public static EfCoreBuilder ConfigurePagination(this EfCoreBuilder builder, PaginationLimits limits)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(limits);
+        builder.Services.Replace(ServiceDescriptor.Singleton(limits));
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers a <typeparamref name="TContext"/> <see cref="DbContext"/> in the service
+    /// collection, with <see cref="MicroKitPersistenceDbContextOptionsExtensions.UseMicroKitPersistence(DbContextOptionsBuilder)"/>.
+    /// Delegates to <see cref="EntityFrameworkServiceCollectionExtensions.AddDbContext{TContext}(IServiceCollection, Action{DbContextOptionsBuilder}?, ServiceLifetime, ServiceLifetime)"/>.
+    /// </summary>
+    /// <typeparam name="TContext">The application <see cref="DbContext"/> type.</typeparam>
+    /// <param name="builder">The EF Core builder.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="DbContextOptionsBuilder"/>.</param>
+    /// <returns><paramref name="builder"/> for fluent chaining.</returns>
+    public static EfCoreBuilder AddDbContext<TContext>(
+        this EfCoreBuilder builder,
+        Action<DbContextOptionsBuilder>? configure = null)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddDbContext<TContext>(options =>
+        {
+            configure?.Invoke(options);
+            options.UseMicroKitPersistence();
+        });
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers <see cref="EfUnitOfWork{TContext}"/> as a scoped service and binds it to
+    /// <see cref="IUnitOfWork"/>, <see cref="ITransactionalContext"/>,
+    /// <see cref="ITransactionalUnitOfWork"/>, and <see cref="IResultUnitOfWork"/> — one instance, four
+    /// interface pointers.
+    /// Additionally registers <see cref="EfDomainEventsProvider{TContext}"/> as the scoped
+    /// <see cref="IDomainEventsProvider"/> — a separate instance sharing the same
+    /// <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">The application <see cref="DbContext"/> type.</typeparam>
+    /// <param name="builder">The EF Core builder.</param>
+    /// <returns><paramref name="builder"/> for fluent chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Handlers inject the narrowest interface they need:
+    /// command handlers use <see cref="IUnitOfWork"/>;
+    /// <c>TransactionBehavior</c> uses <see cref="ITransactionalContext"/>.
+    /// </para>
+    /// <para>
+    /// <see cref="IDomainEventsProvider"/> resolves to the unit-of-work-scoped
+    /// <see cref="EfDomainEventsProvider{TContext}"/>, which drains domain events from every
+    /// aggregate tracked by <typeparamref name="TContext"/> — never from a single aggregate.
+    /// Domain-event dispatchers depend on this contract; without this registration they cannot
+    /// be activated.
+    /// </para>
+    /// <para>
+    /// <b>Single-context assumption.</b> <see cref="IDomainEventsProvider"/> is registered
+    /// against <typeparamref name="TContext"/>. Calling <c>AddUnitOfWork</c> for a second
+    /// context overwrites this registration — the last one wins — and domain events raised on
+    /// aggregates tracked by any other context are silently not drained. Applications with
+    /// several DbContexts must dispatch per context explicitly — for example by resolving
+    /// <see cref="EfDomainEventsProvider{TContext}"/> directly per context, or by registering
+    /// it as a keyed service.
+    /// </para>
+    /// </remarks>
+    public static EfCoreBuilder AddUnitOfWork<TContext>(this EfCoreBuilder builder)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddScoped<EfUnitOfWork<TContext>>();
+        builder.Services.AddScoped<IUnitOfWork>(
+            sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
+        builder.Services.AddScoped<ITransactionalContext>(
+            sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
+        builder.Services.AddScoped<ITransactionalUnitOfWork>(
+            sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
+        builder.Services.AddScoped<IResultUnitOfWork>(
+            sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
+        builder.Services.AddScoped<IDomainEventsProvider, EfDomainEventsProvider<TContext>>();
+        return builder;
+    }
+}

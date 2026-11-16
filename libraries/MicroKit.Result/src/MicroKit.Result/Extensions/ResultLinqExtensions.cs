@@ -1,0 +1,114 @@
+namespace MicroKit.Result;
+
+/// <summary>
+/// LINQ query syntax support for <see cref="Result{T}"/>.
+/// Enables <c>from x in result select ...</c> and <c>from x in r1 from y in r2 select ...</c>.
+/// </summary>
+/// <example>
+/// <code>
+/// var result =
+///     from user in GetUser(id)
+///     from cart in GetCart(user.CartId)
+///     from order in CreateOrder(cart)
+///     select order.ToDto();
+/// </code>
+/// </example>
+public static class ResultLinqExtensions
+{
+    /// <summary>
+    /// Enables the LINQ <c>select</c> clause on <see cref="Result{T}"/>.
+    /// Equivalent to <see cref="ResultExtensions.Map{TIn,TOut}"/>.
+    /// </summary>
+    /// <typeparam name="TIn">The source value type.</typeparam>
+    /// <typeparam name="TOut">The projected value type.</typeparam>
+    /// <param name="result">The source result.</param>
+    /// <param name="selector">The projection function.</param>
+    /// <returns>A result with the projected value, or the original failure.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when the delegate returns <see langword="null"/>: a success needs a value (ADR-RESULT-001 D6).</exception>
+    /// <exception cref="ArgumentException">Thrown when the delegate returns a result as the value; use Bind.</exception>
+    public static Result<TOut> Select<TIn, TOut>(
+        this Result<TIn> result, Func<TIn, TOut> selector)
+    {
+        ResultGuard.NotNull(selector); // here, so the exception names this method's parameter
+        return result.Map(selector);
+    }
+
+    /// <summary>
+    /// Enables the LINQ <c>from ... from ... select</c> (monadic bind) on <see cref="Result{T}"/>.
+    /// </summary>
+    /// <typeparam name="TIn">The source value type.</typeparam>
+    /// <typeparam name="TMid">The intermediate result value type.</typeparam>
+    /// <typeparam name="TOut">The final projected value type.</typeparam>
+    /// <param name="result">The source result.</param>
+    /// <param name="collectionSelector">The function producing an intermediate result.</param>
+    /// <param name="resultSelector">The function combining source and intermediate values.</param>
+    /// <returns>A result with the combined value, or the first failure encountered.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when the delegate returns <see langword="null"/>: a success needs a value (ADR-RESULT-001 D6).</exception>
+    /// <exception cref="ArgumentException">Thrown when the delegate returns a result as the value; use Bind.</exception>
+    public static Result<TOut> SelectMany<TIn, TMid, TOut>(
+        this Result<TIn> result,
+        Func<TIn, Result<TMid>> collectionSelector,
+        Func<TIn, TMid, TOut> resultSelector)
+    {
+        ResultGuard.NotNull(collectionSelector);
+        ResultGuard.NotNull(resultSelector);
+
+        if (result.IsFailure)
+            return Result<TOut>.Failure(result.Error);
+
+        var mid = collectionSelector(result.Value);
+        if (mid.IsFailure)
+            return Result<TOut>.Failure(mid.Error);
+
+        return Result<TOut>.Success(resultSelector(result.Value, mid.Value));
+    }
+
+    /// <summary>
+    /// Enables simple <c>from ... from ...</c> chaining without projection.
+    /// Equivalent to <see cref="ResultExtensions.Bind{TIn,TOut}"/>.
+    /// </summary>
+    /// <typeparam name="TIn">The source value type.</typeparam>
+    /// <typeparam name="TOut">The target value type.</typeparam>
+    /// <param name="result">The source result.</param>
+    /// <param name="selector">The function producing a new result.</param>
+    /// <returns>The result from the selector, or the original failure.</returns>
+    public static Result<TOut> SelectMany<TIn, TOut>(
+        this Result<TIn> result, Func<TIn, Result<TOut>> selector)
+    {
+        ResultGuard.NotNull(selector);
+        return result.Bind(selector);
+    }
+
+    /// <summary>
+    /// Enables LINQ <c>where</c> clause on <see cref="Result{T}"/>.
+    /// If the predicate returns <see langword="false"/>, the result becomes a failure with <paramref name="errorOnFalse"/>.
+    /// Equivalent to <see cref="ResultExtensions.Ensure{T}"/>.
+    /// </summary>
+    /// <typeparam name="T">The value type.</typeparam>
+    /// <param name="result">The source result.</param>
+    /// <param name="predicate">The filtering predicate.</param>
+    /// <param name="errorOnFalse">The error to use when the predicate returns <see langword="false"/>.</param>
+    /// <returns>The original result if the predicate passes, or a failure.</returns>
+    public static Result<T> Where<T>(
+        this Result<T> result,
+        Func<T, bool> predicate,
+        IError errorOnFalse)
+    {
+        ResultGuard.NotNull(predicate);
+        ResultGuard.NotNull(errorOnFalse);
+        return result.Ensure(predicate, errorOnFalse);
+    }
+
+    /// <summary>
+    /// Projects the result to an enumerable of zero or one element.
+    /// Yields the success value if the result is successful; yields nothing if it is a failure.
+    /// </summary>
+    /// <typeparam name="T">The value type.</typeparam>
+    /// <param name="result">The source result.</param>
+    /// <returns>An enumerable containing the value on success, or an empty enumerable on failure.</returns>
+    public static IEnumerable<T> AsEnumerable<T>(this Result<T> result)
+    {
+        if (result.IsSuccess)
+            yield return result.Value;
+    }
+}

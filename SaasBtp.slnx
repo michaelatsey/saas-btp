@@ -1,7 +1,7 @@
 <Solution>
   <!--
     .NET solution (slnx format). It references every .NET project of the repository, in the
-    layout of ADR-ARCH-020.
+    layout of ADR-ARCH-020, and the libraries in libraries/ in that of ADR-ARCH-035.
   -->
   <Folder Name="/apps/api/src/hosts/">
     <Project Path="apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
@@ -14,5 +14,35 @@
     <Project Path="apps/api/tests/SaasBtp.Api.HealthProbe.Tests/SaasBtp.Api.HealthProbe.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Api.IntegrationTests/SaasBtp.Api.IntegrationTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Migrations.IntegrationTests/SaasBtp.Migrations.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Domain/src/">
+    <Project Path="libraries/MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Domain/tests/">
+    <Project Path="libraries/MicroKit.Domain/tests/MicroKit.Domain.Architecture.Tests/MicroKit.Domain.Architecture.Tests.csproj" />
+    <Project Path="libraries/MicroKit.Domain/tests/MicroKit.Domain.Tests/MicroKit.Domain.Tests.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Result/src/">
+    <Project Path="libraries/MicroKit.Result/src/MicroKit.Result.AspNetCore/MicroKit.Result.AspNetCore.csproj" />
+    <Project Path="libraries/MicroKit.Result/src/MicroKit.Result/MicroKit.Result.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Result/tests/">
+    <Project Path="libraries/MicroKit.Result/tests/MicroKit.Result.Architecture.Tests/MicroKit.Result.Architecture.Tests.csproj" />
+    <Project Path="libraries/MicroKit.Result/tests/MicroKit.Result.AspNetCore.IntegrationTests/MicroKit.Result.AspNetCore.IntegrationTests.csproj" />
+    <Project Path="libraries/MicroKit.Result/tests/MicroKit.Result.IntegrationTests/MicroKit.Result.IntegrationTests.csproj" />
+    <Project Path="libraries/MicroKit.Result/tests/MicroKit.Result.Tests/MicroKit.Result.Tests.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Persistence/src/">
+    <Project Path="libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/MicroKit.Persistence.Abstractions.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/MicroKit.Persistence.Analyzers.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/MicroKit.Persistence.EntityFrameworkCore.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/src/MicroKit.Persistence/MicroKit.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/libraries/MicroKit.Persistence/tests/">
+    <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Analyzers.Tests/MicroKit.Persistence.Analyzers.Tests.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Architecture.Tests/MicroKit.Persistence.Architecture.Tests.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Tests/MicroKit.Persistence.Tests.csproj" />
   </Folder>
 </Solution>

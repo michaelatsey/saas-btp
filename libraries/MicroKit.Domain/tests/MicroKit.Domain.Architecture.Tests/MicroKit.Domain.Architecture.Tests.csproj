@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Domain.ArchitectureTests (see ../../README.md): its NetArchTest
+       rules rewritten on ArchUnitNET, the test stack of ADR-ARCH-021 (ADR-ARCH-035 §7). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Domain/MicroKit.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- PublishedDocumentationTests read MicroKit.Domain.xml, the XML documentation the copied source
+       generates, next to the test assembly. The SDK default already copies a referenced project's
+       .xml; appending it states the dependency in this file, and the target below fails the build
+       if it is missing anyway. The extension is appended inside a target: set in the project
+       body, the property would pre-empt the SDK default, which is only applied when it is
+       empty. -->
+  <Target Name="CopyReferenceDocumentationFiles" BeforeTargets="ResolveAssemblyReferences">
+    <PropertyGroup>
+      <AllowedReferenceRelatedFileExtensions>$(AllowedReferenceRelatedFileExtensions);.xml</AllowedReferenceRelatedFileExtensions>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="RequireDomainDocumentationFile" AfterTargets="CopyFilesToOutputDirectory">
+    <Error Condition="!Exists('$(OutDir)MicroKit.Domain.xml')"
+           Text="MicroKit.Domain.xml is missing from $(OutDir); PublishedDocumentationTests cannot run without it." />
+  </Target>
+
+</Project>

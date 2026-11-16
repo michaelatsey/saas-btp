@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props. -->
+
+  <ItemGroup>
+    <ProjectReference Include="../MicroKit.Persistence.Abstractions/MicroKit.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="../../../MicroKit.Result/src/MicroKit.Result/MicroKit.Result.csproj" />
+  </ItemGroup>
+
+  <!-- The keyset cursor's codec and rules are shared with the EF Core implementation of
+       IReadRepository, and tested by this project's tests. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="MicroKit.Persistence.EntityFrameworkCore" />
+    <InternalsVisibleTo Include="MicroKit.Persistence.Tests" />
+  </ItemGroup>
+
+</Project>
