@@ -171,7 +171,7 @@ a defect fix.
 
 The analyzer's rules, one section per diagnostic ID. The help link of each diagnostic opens its
 section here (`src/MicroKit.Persistence.Analyzers/HelpLinks.cs`). The text is MicroKit's, from its
-README at `a12097b`, and describes the copied analyzer, whose sources are identical to that commit.
+README at `a12097b`, and describes the copied analyzer, whose rule sources are identical to that commit; only HelpLinks.cs differs (see above).
 
 ### MKP001
 
