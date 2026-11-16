@@ -2,9 +2,9 @@
 id: BP-001-contract
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-11-10
+validated_on: 2026-11-16
 issue: 178
-applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
+applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, ADR-ARCH-038, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
 ---
 
 # BP-001 — Contract
@@ -53,13 +53,14 @@ checked for a missing name, counted, and written.
 | 409 | `organizationId` identifies any other organization, including one the caller belongs to without owning it | Only that the reference is in use |
 | 422 | A name is missing or too long (TSK-1, BP001-R7), or `organizationId` is a UUID that is not version 7 | The field at fault: `organizationName`, `workspaceName` or `organizationId` |
 | 400 | The body cannot be read or bound, `organizationId` not being a UUID included | No detail |
-| 401 | No caller, or a token the API rejects | No detail |
+| 401 | No caller, or a token the API rejects (ADR-ARCH-038 decision 4), a founding token older than the bound of ADR-ARCH-038 decision 6 included | No detail |
 | 403 | The caller does not meet the identity level of BP001-D1 | Only that the contact must be confirmed |
 | 500 | Any other failure, the profile retry of §4 exhausted included | No detail, never naming a constraint or a row (ADR-ARCH-032 §5) |
 
-Checks run in this order: authentication (401), the body (400, 422), the identity level (403),
-then the unit of work (201, 200, 409). 403 is used for this one reason; a row hidden by the
-policies is never answered 403 (ADR-ARCH-032 §5).
+Checks run in this order: authentication (401, ADR-ARCH-038 decisions 4 and 6), the body (400,
+422), the identity level (403, ADR-ARCH-038 decision 7), then the unit of work (201, 200, 409).
+403 is used for this one reason; a row hidden by the policies is never answered 403
+(ADR-ARCH-032 §5).
 
 ### List the workspaces I can enter — `GET /api/v1/workspaces`
 
@@ -95,9 +96,9 @@ The reference is the idempotency key (`naming.md` "Aggregate identifiers", BP001
   profile retry if needed.
 - **Profile.** Two first foundings of the same person at the same moment conflict on the profile's
   unique key; the losing unit of work is retried once, from the start, in a new transaction.
-- **Identity level.** Checked on every submission, from a source whose freshness the identity ADR
-  of BP-002 decides (§9). Whether a level lost while a request waited refuses it (BP001-AC-10)
-  depends on that freshness.
+- **Identity level.** Checked on every submission, from the claim of ADR-ARCH-038 decision 5, as
+  fresh as its decision 6 bounds it. That decision states how the bound reads TSK-2's
+  precondition (BP001-D1) and BP001-AC-10, and what it does not see.
 
 ## 5. Security guarantees
 
@@ -141,9 +142,11 @@ technology:
   while that user is signed in.
 - After its first submission its names cannot change, except after a 422.
 - 403, 401, 500 and the absence of an answer keep it unchanged and resubmit the same request once
-  possible; after repeated failures the founder is told and may abandon. 409 gives it a new
-  reference and keeps its names. 400 is a defect of the client: the request is kept, not
-  resubmitted, and the founder is told.
+  possible; after repeated failures the founder is told and may abandon. Before it submits a
+  request kept while it waited, for a connection or for the identity level, and after a 401, the
+  client refreshes the session (ADR-ARCH-038, Consequences). 409 gives it a new reference and
+  keeps its names. 400 is a defect of the client: the request is kept, not resubmitted, and the
+  founder is told.
 - The company name is offered as the default first workspace name.
 
 **Not covered by the pilot #138**, which delivers the backend: BP001-AC-02, 07 (the description
@@ -181,12 +184,12 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 | BP001-AC-03 | The profile reused (INV-ACCESS-01); the domain (BP001-R4); no `UPDATE` policy | Domain, Integration |
 | BP001-AC-04 | As AC-03 | Domain, Integration |
 | BP001-AC-05 | The domain (BP001-R4); the listing of §2 | Domain, Integration, with `BP001_AC_05_WorkspaceListMatchesMayActIn` (§8) |
-| BP001-AC-06 | No founder read from the body; the subject from the validated token (ADR-ARCH-032 §3); the insert policies of §5 | Integration (relations naming another profile refused); Host, pending the identity ADR (a body carrying a `founderId` ignored) |
-| BP001-AC-07 | The 422 of §2, nothing written; the description kept by the client store | Features (no write); Host, pending the identity ADR (422 and field); client part not in the pilot |
-| BP001-AC-08 | The 422 of §2, nothing written | Features (no write); Host, pending the identity ADR (422 and field) |
-| BP001-AC-09 | The identity-level check before the unit of work (403), on the source of §9 | Host, pending the identity ADR |
-| BP001-AC-10 | The level checked on every submission (§4); the request kept by the client store | Host, pending the identity ADR; client part not in the pilot |
-| BP001-AC-11 | Authentication of the API host (401) | Host, pending the identity ADR |
+| BP001-AC-06 | No founder read from the body; the subject from the validated token (ADR-ARCH-032 §3, ADR-ARCH-038 decision 3); the insert policies of §5 | Integration (relations naming another profile refused); Host, under ADR-ARCH-038 decision 9 (a body carrying a `founderId` ignored) |
+| BP001-AC-07 | The 422 of §2, nothing written; the description kept by the client store | Features (no write); Host, as ADR-ARCH-038 decision 9 states; client part not in the pilot |
+| BP001-AC-08 | The 422 of §2, nothing written | Features (no write); Host, as ADR-ARCH-038 decision 9 states |
+| BP001-AC-09 | The identity-level check before the unit of work (403, ADR-ARCH-038 decision 7), on the claim of ADR-ARCH-038 decision 5 | Host, as ADR-ARCH-038 decision 9 states |
+| BP001-AC-10 | The level checked on every submission (§4); the request kept by the client store | Host, as ADR-ARCH-038 decision 9 states; client part not in the pilot |
+| BP001-AC-11 | Authentication of the API host (401, ADR-ARCH-038 decisions 1 and 4) | Host, as ADR-ARCH-038 decision 9 states |
 | BP001-AC-12 | The client store | Not in the pilot |
 | BP001-AC-13 | The organization's primary key and the replay of §3 | Integration |
 | BP001-AC-14 | As AC-13, two submissions in parallel; the profile retry of §4 | Integration |
@@ -198,7 +201,7 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 | BP001-AC-20 | The select policies of §5; the 404 of §2; no operation exposes an owner | Integration |
 | BP001-AC-21 | The primary key and the current-ownership read of §3; no `UPDATE` policy | Integration, including a member who does not own it and a caller holding an ownership row that is not the current one |
 | BP001-AC-22 | The client store; the payload of a replay not compared (§3) | Server part as AC-13; client part not in the pilot |
-| BP001-AC-23 | The measure of §2; the 422 of §2, nothing written; the description kept by the client store | Features, for each of the two names: no write over the limit; the founding at the limit once trimmed; the limit reached with characters that each take two UTF-16 code units; a name over the limit in Unicode scalar values but within it in text elements, made of letters each written with a separate accent, refused; padding with tab, U+00A0 and U+200B, the first two removed and U+200B kept and counted. Integration (each name written trimmed); Host, pending the identity ADR (422 and field); client part not in the pilot |
+| BP001-AC-23 | The measure of §2; the 422 of §2, nothing written; the description kept by the client store | Features, for each of the two names: no write over the limit; the founding at the limit once trimmed; the limit reached with characters that each take two UTF-16 code units; a name over the limit in Unicode scalar values but within it in text elements, made of letters each written with a separate accent, refused; padding with tab, U+00A0 and U+200B, the first two removed and U+200B kept and counted. Integration (each name written trimmed); Host, under ADR-ARCH-038 decision 9 (422 and field); client part not in the pilot |
 
 The tests of ADR-ARCH-032 §6 and ADR-ARCH-033 §5, and `MappingMatchesMigratedSchema`
 (ADR-ARCH-033 §3), apply to the Access tables. `PoliciesCoverEveryCommandTheApiUses`, an
@@ -225,9 +228,6 @@ for `ALL` counts for every command.
 
 Cited, not decided here:
 
-- Token validation in the API, and where the "confirmed contact" level is read and how fresh it
-  is: the identity ADR of BP-002. Every proof of §7 marked "pending the identity ADR" is
-  written once it exists.
 - The format of the API's error bodies: no decision sets it. This contract fixes only what each
   answer reveals.
 - Abuse protection, including any rate limit: open question of `process.md`; no `429` is part of
@@ -255,5 +255,13 @@ scripts/ci/test-api.sh \
   --filter-method "*BP001_AC_13*"
 ```
 
-Every identifier of §7 names at least one test, except proofs marked "Not in the pilot" or
-"pending the identity ADR".
+The host proofs, on the API host's test project:
+
+```bash
+scripts/ci/test-api.sh \
+  --project apps/api/tests/SaasBtp.Api.IntegrationTests \
+  -c Release \
+  --no-build
+```
+
+Every identifier of §7 names at least one test, except proofs marked "Not in the pilot".
