@@ -150,8 +150,8 @@ technology:
 - The company name is offered as the default first workspace name.
 
 **Not covered by the pilot #138**, which delivers the backend: BP001-AC-02, 07 (the description
-kept), 12, 16, 18, 22, 23 (the description kept), and the device part of BP001-AC-10. BP001-R6 is
-therefore not verified until the client is built.
+kept), 09 (the description kept), 12, 16, 18, 22, 23 (the description kept), and the device part
+of BP001-AC-10. BP001-R6 is therefore not verified until the client is built.
 
 ## 7. Guarantors
 
@@ -187,7 +187,7 @@ ADR-ARCH-034 §6: "Domain", "Features" and "Integration" are the Access module's
 | BP001-AC-06 | No founder read from the body; the subject from the validated token (ADR-ARCH-032 §3, ADR-ARCH-038 decision 3); the insert policies of §5 | Integration (relations naming another profile refused); Host, under ADR-ARCH-038 decision 9 (a body carrying a `founderId` ignored) |
 | BP001-AC-07 | The 422 of §2, nothing written; the description kept by the client store | Features (no write); Host, as ADR-ARCH-038 decision 9 states; client part not in the pilot |
 | BP001-AC-08 | The 422 of §2, nothing written | Features (no write); Host, as ADR-ARCH-038 decision 9 states |
-| BP001-AC-09 | The identity-level check before the unit of work (403, ADR-ARCH-038 decision 7), on the claim of ADR-ARCH-038 decision 5 | Host, as ADR-ARCH-038 decision 9 states |
+| BP001-AC-09 | The identity-level check before the unit of work (403, ADR-ARCH-038 decision 7), on the claim of ADR-ARCH-038 decision 5; the description kept by the client store | Host, as ADR-ARCH-038 decision 9 states; client part not in the pilot |
 | BP001-AC-10 | The level checked on every submission (§4); the request kept by the client store | Host, as ADR-ARCH-038 decision 9 states; client part not in the pilot |
 | BP001-AC-11 | Authentication of the API host (401, ADR-ARCH-038 decisions 1 and 4) | Host, as ADR-ARCH-038 decision 9 states |
 | BP001-AC-12 | The client store | Not in the pilot |
