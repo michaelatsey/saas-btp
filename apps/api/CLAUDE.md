@@ -59,6 +59,13 @@ dotnet run --project apps/api/src/hosts/SaasBtp.Api -- --urls http://127.0.0.1:5
 - The API starts with no database configured: `/health/live` answers 200 and
   `/health/ready` answers 503 until `ConnectionStrings__SaasBtp` points to a reachable
   database.
+- The API validates the provider's access tokens (ADR-ARCH-038) and needs three settings, which
+  are not secrets: `AccessToken__Issuer` (`https://<project-ref>.supabase.co/auth/v1`),
+  `AccessToken__Audience` (`authenticated`) and `AccessToken__JwksUri`
+  (`https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`). With one missing, or an
+  issuer or a JWKS address that is not an absolute https URI, every request is answered 500,
+  health endpoints included, and the log names the setting. A local run points them at the
+  staging project: a local http identity stack is not accepted.
 
 ## Migrate
 

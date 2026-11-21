@@ -16,12 +16,18 @@ COPY apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj apps/api/src/hosts/SaasBt
 COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj apps/api/src/hosts/SaasBtp.Api.HealthProbe/
 # Every project in the API's project-reference closure, each by its own folder, never a module's
 # or a library's tests/ folder (ADR-ARCH-035 §5): the Access module, the domain building blocks
-# its Domain project references, and the persistence analyzer its Adapters project references as
-# an analyzer.
+# its Domain project references, the copied PostgreSQL provider with the other libraries it
+# references, for the subject port the host implements (ADR-ARCH-035 §8), and the persistence
+# analyzer its Adapters project references as an analyzer.
 COPY apps/api/src/modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj apps/api/src/modules/Access/SaasBtp.Access.Domain/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj apps/api/src/modules/Access/SaasBtp.Access.Features/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj apps/api/src/modules/Access/SaasBtp.Access.Adapters/
 COPY libraries/MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj libraries/MicroKit.Domain/src/MicroKit.Domain/
+COPY libraries/MicroKit.Result/src/MicroKit.Result/MicroKit.Result.csproj libraries/MicroKit.Result/src/MicroKit.Result/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/MicroKit.Persistence.Abstractions.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence/MicroKit.Persistence.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/MicroKit.Persistence.EntityFrameworkCore.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/
 COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/MicroKit.Persistence.Analyzers.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 RUN dotnet restore apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj \
     && dotnet restore apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj
@@ -32,6 +38,11 @@ COPY apps/api/src/modules/Access/SaasBtp.Access.Domain/ apps/api/src/modules/Acc
 COPY apps/api/src/modules/Access/SaasBtp.Access.Features/ apps/api/src/modules/Access/SaasBtp.Access.Features/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Adapters/ apps/api/src/modules/Access/SaasBtp.Access.Adapters/
 COPY libraries/MicroKit.Domain/src/MicroKit.Domain/ libraries/MicroKit.Domain/src/MicroKit.Domain/
+COPY libraries/MicroKit.Result/src/MicroKit.Result/ libraries/MicroKit.Result/src/MicroKit.Result/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/ libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence/ libraries/MicroKit.Persistence/src/MicroKit.Persistence/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/ libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/
+COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/ libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/
 COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/ libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 
 # The OpenAPI document is checked by CI (ADR-ARCH-018) and not used by the image: generating it

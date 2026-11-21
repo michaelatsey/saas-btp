@@ -6,12 +6,18 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- The tests build and sign tokens (JsonWebTokenHandler), read the host's JwtBearerOptions and
+         move the clock of its key manager (ADR-ARCH-038 decision 9). -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
+    <!-- The subject port the host implements (ADR-ARCH-035 §8), which the tests resolve. -->
+    <ProjectReference Include="../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
   </ItemGroup>
 
   <ItemGroup>

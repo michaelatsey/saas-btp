@@ -53,6 +53,12 @@ public sealed class RequestLoggingTests
         // on a machine that is itself in UTC as much as on any other.
         startInfo.Environment["TZ"] = "Asia/Tokyo";
 
+        // Without its access token settings the host answers every request 500 (AccessTokenOptions,
+        // ADR-ARCH-038 decision 8). The request below carries no token, so the JWKS is never fetched.
+        startInfo.Environment["AccessToken__Issuer"] = TestTokens.Issuer;
+        startInfo.Environment["AccessToken__Audience"] = TestTokens.Audience;
+        startInfo.Environment["AccessToken__JwksUri"] = TestJwks.Address;
+
         return Process.Start(startInfo) ?? throw new InvalidOperationException("The API process did not start.");
     }
 

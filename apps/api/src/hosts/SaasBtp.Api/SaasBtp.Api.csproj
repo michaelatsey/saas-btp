@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
     <PackageReference Include="Npgsql" />
@@ -21,6 +22,14 @@
        (ADR-ARCH-034 §2). -->
   <ItemGroup>
     <ProjectReference Include="../../modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj" />
+  </ItemGroup>
+
+  <!-- The copied PostgreSQL provider, for its subject port, which the host implements from the
+       validated token (ADR-ARCH-035 §8). It brings MicroKit.Persistence.EntityFrameworkCore,
+       MicroKit.Persistence, MicroKit.Persistence.Abstractions, MicroKit.Result and MicroKit.Domain
+       into the closure the Dockerfile copies (ADR-ARCH-035 §5). -->
+  <ItemGroup>
+    <ProjectReference Include="../../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
   </ItemGroup>
 
 </Project>

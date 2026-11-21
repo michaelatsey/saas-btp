@@ -10,6 +10,9 @@ internal sealed class CapturedLogs : ILoggerProvider
 
     public IReadOnlyCollection<string> Entries => _entries;
 
+    /// <summary>Forgets the entries written so far, such as those of a warm-up request.</summary>
+    public void Clear() => _entries.Clear();
+
     public ILogger CreateLogger(string categoryName) => new Logger(_entries);
 
     public void Dispose()
