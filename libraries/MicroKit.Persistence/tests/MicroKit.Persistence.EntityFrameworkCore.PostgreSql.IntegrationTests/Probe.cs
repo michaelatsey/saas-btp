@@ -98,6 +98,41 @@ public sealed class Probe
         }
     }
 
+    /// <summary>Gets the number of times EF Core opened the context's connection since <see cref="Start"/>.</summary>
+    /// <remarks>
+    /// An open EF Core performs, which Npgsql may serve from its pool: the physical connection a
+    /// command ran on is <see cref="SentCommand.ConnectorId"/>. An open of a connection already open
+    /// is not counted, since EF Core does not open it again.
+    /// </remarks>
+    public int ConnectionsOpened { get; private set; }
+
+    /// <summary>Counts the opens of the context's connection; added by <see cref="CountedSubjectDbContext"/>.</summary>
+    public sealed class ConnectionCounter : DbConnectionInterceptor
+    {
+        public static ConnectionCounter Instance { get; } = new();
+
+        public override InterceptionResult ConnectionOpening(
+            DbConnection connection, ConnectionEventData eventData, InterceptionResult result)
+        {
+            Count();
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult> ConnectionOpeningAsync(
+            DbConnection connection, ConnectionEventData eventData, InterceptionResult result,
+            CancellationToken cancellationToken = default)
+        {
+            Count();
+            return ValueTask.FromResult(result);
+        }
+
+        private static void Count()
+        {
+            if (CurrentProbe.Value is { } probe)
+                probe.ConnectionsOpened++;
+        }
+    }
+
     private sealed class LoggerFactory : ILoggerFactory
     {
         public static LoggerFactory Instance { get; } = new();

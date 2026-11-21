@@ -89,8 +89,9 @@ public static class PersistenceServiceCollectionExtensions
     /// <summary>
     /// Registers <see cref="EfUnitOfWork{TContext}"/> as a scoped service and binds it to
     /// <see cref="IUnitOfWork"/>, <see cref="ITransactionalContext"/>,
-    /// <see cref="ITransactionalUnitOfWork"/>, and <see cref="IResultUnitOfWork"/> — one instance, four
-    /// interface pointers.
+    /// <see cref="ITransactionalUnitOfWork"/>, <see cref="IResultUnitOfWork"/>, and
+    /// <see cref="IUnitOfWorkSqlQuery{TContext}"/> — one instance, five interface pointers (the last added in this
+    /// repository, issue #213).
     /// Additionally registers <see cref="EfDomainEventsProvider{TContext}"/> as the scoped
     /// <see cref="IDomainEventsProvider"/> — a separate instance sharing the same
     /// <typeparamref name="TContext"/>.
@@ -120,6 +121,11 @@ public static class PersistenceServiceCollectionExtensions
     /// <see cref="EfDomainEventsProvider{TContext}"/> directly per context, or by registering
     /// it as a keyed service.
     /// </para>
+    /// <para>
+    /// <see cref="IUnitOfWorkSqlQuery{TContext}"/> is registered per context, never replaced by a call
+    /// for another context: each module resolves the SQL read of its own unit of work (added in this
+    /// repository, issue #213, ADR-ARCH-034 §3).
+    /// </para>
     /// </remarks>
     public static EfCoreBuilder AddUnitOfWork<TContext>(this EfCoreBuilder builder)
         where TContext : DbContext
@@ -133,6 +139,8 @@ public static class PersistenceServiceCollectionExtensions
         builder.Services.AddScoped<ITransactionalUnitOfWork>(
             sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
         builder.Services.AddScoped<IResultUnitOfWork>(
+            sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
+        builder.Services.AddScoped<IUnitOfWorkSqlQuery<TContext>>(
             sp => sp.GetRequiredService<EfUnitOfWork<TContext>>());
         builder.Services.AddScoped<IDomainEventsProvider, EfDomainEventsProvider<TContext>>();
         return builder;
