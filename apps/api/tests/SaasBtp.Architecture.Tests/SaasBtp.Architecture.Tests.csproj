@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The architecture tests of the solution (ADR-ARCH-034 §7): ArchUnitNET for type dependencies,
+    Mono.Cecil for the calls and attributes compiled into the assemblies, and the project files and
+    the source tree where neither can tell. Named after the solution it tests rather than one
+    project; its name still ends in Tests.
+
+    It references every host and the three projects of every module, so that their assemblies are
+    in its output: a module folder under apps/api/src/modules/ that is not referenced here fails
+    every test.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hosts">
+    <ProjectReference Include="../../src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
+    <ProjectReference Include="../../src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Modules">
+    <ProjectReference Include="../../src/modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+    <ProjectReference Include="../../src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
+    <ProjectReference Include="../../src/modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryRoot" Value="$(MSBuildProjectDirectory)/../../../.." />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

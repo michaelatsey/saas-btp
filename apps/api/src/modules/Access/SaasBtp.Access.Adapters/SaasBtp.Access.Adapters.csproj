@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The implementation of every port of the Access module, one folder per adapter, and the module's
+    single public entry point, AccessModule (ADR-ARCH-034 §1, §2). A host references this project
+    only.
+  -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+    <ProjectReference Include="../SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
+  </ItemGroup>
+
+  <!-- The persistence analyzer, referenced as an analyzer: it runs in the compiler and reaches
+       neither the host's output nor an image (ADR-ARCH-035 §3, §5). -->
+  <ItemGroup>
+    <ProjectReference Include="../../../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/MicroKit.Persistence.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
