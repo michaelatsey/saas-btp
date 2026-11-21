@@ -6,4 +6,9 @@
     data access, web or hosting package; SaasBtp.Architecture.Tests checks it.
   -->
 
+  <ItemGroup>
+    <!-- The domain building blocks: aggregate roots, identifiers, domain events (ADR-ARCH-035). -->
+    <ProjectReference Include="../../../../../../libraries/MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

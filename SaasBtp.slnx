@@ -12,6 +12,9 @@
     <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
     <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
   </Folder>
+  <Folder Name="/apps/api/src/modules/Access/tests/">
+    <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Domain.Tests/SaasBtp.Access.Domain.Tests.csproj" />
+  </Folder>
   <Folder Name="/apps/api/database/">
     <Project Path="apps/api/database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
   </Folder>
