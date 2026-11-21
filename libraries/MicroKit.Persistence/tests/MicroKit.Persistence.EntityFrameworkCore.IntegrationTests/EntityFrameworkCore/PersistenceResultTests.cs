@@ -758,8 +758,12 @@ public sealed class PersistenceResultPostgreSqlTests(PostgreSqlSuiteFixture fixt
                 npgsql.ExecutionStrategy(d => new MarkerRetryingExecutionStrategy(d, retries));
         });
 
-    protected override void Register(EfCoreBuilder builder, string database) =>
+    // Changed here: the provider's transactions set a subject first (ADR-ARCH-033 §4).
+    protected override void Register(EfCoreBuilder builder, string database)
+    {
+        builder.Services.AddSingleton<IUnitOfWorkSubject>(FixedSubject.Instance);
         builder.UsePostgreSQL<ResultsDbContext>(ConnectionString(database));
+    }
 
     private string ConnectionString(string database) =>
         fixture.GetConnectionString(database);

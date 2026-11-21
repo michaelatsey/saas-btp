@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Written here, not copied from MicroKit (see ../../README.md): the tests of the changes this
+       repository makes to the PostgreSQL provider (ADR-ARCH-035 §8), against the PostgreSQL every
+       test of the repository starts, on the test stack of ADR-ARCH-021. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- A direct reference wherever PostgreSQL is reached (root Directory.Packages.props). -->
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+  </ItemGroup>
+
+  <!-- The PostgreSQL every integration test of the repository starts (apps/api/CLAUDE.md, Tests). -->
+  <ItemGroup>
+    <Compile Include="../../../../apps/api/tests/PostgresImage.cs" Link="PostgresImage.cs" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

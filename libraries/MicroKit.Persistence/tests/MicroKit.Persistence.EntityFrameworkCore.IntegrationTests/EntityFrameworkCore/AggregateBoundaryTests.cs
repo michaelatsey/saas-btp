@@ -283,12 +283,15 @@ public abstract class AggregateBoundaryScenarios
         using (var first = root.CreateScope())
         {
             firstLease = first.ServiceProvider.GetRequiredService<LibraryDbContext>();
+            // Changed here: the provider refuses a command outside a transaction (ADR-ARCH-033 §4).
+            await using var transaction = await firstLease.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
             Assert.NotNull((await new EfRepository<Shelf, ShelfId, LibraryDbContext>(firstLease).FindAsync(shelfId, TestContext.Current.CancellationToken)));
         }
 
         using var next = root.CreateScope();
         var context = next.ServiceProvider.GetRequiredService<LibraryDbContext>();
         Assert.Same(firstLease, context);
+        await using var read = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
         var sut = new EfRepository<Shelf, ShelfId, LibraryDbContext>(context);
 
         // Returning to the pool dropped every change-tracker handler: the load must subscribe again.
@@ -311,6 +314,8 @@ public abstract class AggregateBoundaryScenarios
         using (var first = root.CreateScope())
         {
             firstLease = first.ServiceProvider.GetRequiredService<LibraryDbContext>();
+            // Changed here: the provider refuses a command outside a transaction (ADR-ARCH-033 §4).
+            await using var transaction = await firstLease.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
             loaded = Present.NotNull((await new EfRepository<Shelf, ShelfId, LibraryDbContext>(firstLease).FindAsync(shelfId, TestContext.Current.CancellationToken)));
         }
 
@@ -320,6 +325,7 @@ public abstract class AggregateBoundaryScenarios
 
         // No handler observes this attach (the pool dropped them): only the record's reset protects it.
         context.Attach(loaded);
+        await using var read = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         await ShouldRefuseAsync(new EfRepository<Shelf, ShelfId, LibraryDbContext>(context), shelfId);
     }
@@ -652,8 +658,13 @@ public sealed class AggregateBoundaryPostgreSqlTests(PostgreSqlSuiteFixture fixt
     protected override void UseProvider(DbContextOptionsBuilder builder, string database) =>
         builder.UseNpgsql(ConnectionString(database));
 
-    protected override void RegisterPooled(EfCoreBuilder builder, string database) =>
+    // Changed here: the provider's transactions set a subject first (ADR-ARCH-033 §4), and a pooled
+    // context takes a singleton subject port.
+    protected override void RegisterPooled(EfCoreBuilder builder, string database)
+    {
+        builder.Services.AddSingleton<IUnitOfWorkSubject>(FixedSubject.Instance);
         builder.UsePostgreSQL<LibraryDbContext>(ConnectionString(database), options: new ProviderOptions { PoolSize = 4 });
+    }
 
     private string ConnectionString(string database) =>
         fixture.GetConnectionString(database);

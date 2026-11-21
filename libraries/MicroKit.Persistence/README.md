@@ -27,6 +27,7 @@ synchronized with MicroKit in either direction (ADR-ARCH-035 §1).
 | `tests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests/` | `tests/MicroKit.Persistence.IntegrationTests/` |
 | `tests/MicroKit.Persistence.Analyzers.Tests/` | `tests/MicroKit.Persistence.Analyzers.Tests/` |
 | `tests/MicroKit.Persistence.Architecture.Tests/` | `tests/MicroKit.Persistence.ArchitectureTests/` |
+| `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/` | nothing: written here (Library changes, below) |
 
 Not copied:
 - `MicroKit.Persistence.Specifications`, `MicroKit.Persistence.Testing`,
@@ -163,9 +164,94 @@ off):
 - `EntityFrameworkCore.IntegrationTests/EntityFrameworkCore/EfRepositoryAggregateLoadTests.cs`:
   an ambiguous `cref` to `EfRepository.FindAsync` (CS0419).
 
-No defect of the library code was found by the copied tests or the review. The one change to the
-library's code, the help links of `HelpLinks.cs`, is a change made here for this copy (above), not
-a defect fix.
+No defect of the library code was found by the copied tests or the review. The help links of
+`HelpLinks.cs` are a change made here for this copy (above), not a defect fix. The changes this
+repository makes to the library itself are listed under Library changes, below.
+
+## Library changes
+
+Changes made here to the library's behaviour, each by its own pull request with the tests that
+prove it (ADR-ARCH-035 §8).
+
+### The subject and transaction interceptors (issue #211)
+
+Every context registered by `UsePostgreSQL` refuses any command outside a transaction, and every
+transaction it begins sets the subject as its first statement (ADR-ARCH-032 §3,
+ADR-ARCH-033 §4). In `src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/`:
+
+- `Transactions/IUnitOfWorkSubject.cs`, public: the port through which the interceptors obtain the
+  subject of the current unit of work, a UUID or none (ADR-ARCH-038 decisions 1 and 3). The host
+  implements it from the validated token.
+- `Transactions/SubjectTransactionInterceptor.cs`: once a transaction has started, in the
+  synchronous and asynchronous callbacks, it sends `select set_config('app.user_id', @subject,
+  true)` through ADO.NET on the transaction's own connection, the subject as a text parameter,
+  before EF Core returns the transaction and so before any other command or savepoint. Without a
+  subject (the port returns none, or no port is registered), or when the statement fails, it rolls
+  the transaction back and disposes it, and the start fails with `InvalidOperationException`. EF
+  Core leaves open the connection it opened to begin the transaction, until the context closes it
+  or is disposed.
+- `Transactions/TransactionRequiredCommandInterceptor.cs`: every reader, non-query and scalar
+  command, synchronous or asynchronous, that EF Core sends without a transaction is refused with
+  `InvalidOperationException` before it reaches the database. Inside `SaveChanges`, EF Core wraps
+  the refusal in a `DbUpdateException`.
+- `Transactions/NoAutomaticTransactionInterceptor.cs`: before each save, sets
+  `Database.AutoTransactionBehavior` to `Never`. The setting exists only on the context's
+  `DatabaseFacade`, not in its options; without it, a `SaveChanges` of several statements outside
+  a unit of work would begin a transaction of its own, which would receive a subject.
+- `DependencyInjection/PostgreSqlEfCoreBuilderExtensions.cs`: `UsePostgreSQL` adds the three
+  interceptors to every context it registers. The port is resolved from the scope that resolves
+  the context or, with `PoolSize` set, once from the root provider; a pooled registration then
+  refuses, with `InvalidOperationException` when the first context is resolved, a port registered
+  with a lifetime other than singleton, which would give every lease the same captured subject.
+  The method's signature is unchanged.
+
+Not in this change: the refusal of a transaction the unit of work did not open, and the unit of
+work's one transaction (issue #212); the host's implementation of the port (issue #217).
+
+Behaviour that changes as a consequence, until issue #212:
+
+- A transaction passed with `Database.UseTransaction` receives no subject: the interceptor acts
+  when a transaction starts, and EF Core reports a transaction it is given as used, not started.
+  Its commands run with no subject, so row level security admits no row (ADR-ARCH-032 §3).
+- `EfUnitOfWork.CommitAsync` and `TryCommitAsync` called outside `ExecuteAsync` flush outside a
+  transaction, so the save is refused: they throw a `PersistenceException` ("Database error during
+  commit") whose inner `DbUpdateException` holds the refusal. `TryCommitAsync` refuses to run
+  inside a transaction, so it has no successful use on this provider. A unit of work commits
+  through `ExecuteAsync` or `TryExecuteAsync`.
+
+Tests:
+
+- `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/`, a project of
+  this repository named after the provider it tests (ADR-ARCH-020, ADR-ARCH-035 §7), on the
+  PostgreSQL of `apps/api/tests/PostgresImage.cs`. Its contexts are registered through
+  `UsePostgreSQL`, with the Npgsql driver logging each command it sends, with its parameters, so
+  that a test reads what reached the database. `SubjectInterceptionTests`:
+  - `ACommandWithoutATransactionIsRefusedAndReachesNoDatabase`: a query, a `SaveChanges` of two
+    rows, a raw insert and a scalar command (`IRelationalDatabaseCreator.HasTables`), each
+    synchronous and asynchronous, with a subject available: refused, no transaction begun, no
+    command sent, no row written.
+  - `TheFirstCommandOfATransactionSetsTheSubjectAsAParameter`: through `BeginTransaction`,
+    `BeginTransactionAsync` and the unit of work's `ExecuteAsync`, the first command sent is the
+    `set_config` (as Npgsql sends it, `$1` in place of `@subject`), with the subject as its only
+    parameter and not in its text; the transaction then reads the subject.
+  - `ARollbackToASavepointKeepsTheSubject`, synchronous and asynchronous.
+  - `ATransactionStartedWithoutASubjectFailsWithAnError`: a port returning none, and no port,
+    each synchronous and asynchronous: the start fails, no command is sent, and once there is a
+    subject the same context begins a transaction.
+  - `OnOnePooledConnectionTheSubjectDoesNotOutliveItsTransaction`: after a committed and after a
+    rolled-back transaction, on one physical connection (`Maximum Pool Size=1`) that Npgsql does
+    not reset (`No Reset On Close=true`), the next transaction, begun on the connection itself,
+    reads `nullif(current_setting('app.user_id', true), '')` as NULL.
+  - `OnAPooledContextEachTransactionReadsTheSubjectAgain`, `EachScopeSetsItsOwnSubject` and
+    `WithAPoolSizeASubjectPortThatIsNotASingletonIsRefused`.
+  - `AUnitOfWorkCommitOutsideATransactionIsRefusedAndWritesNothing` and
+    `ATransactionTheContextDidNotBeginReceivesNoSubject`: the two consequences above, as they stand
+    until issue #212.
+- Copied tests adapted, since they register their context through `UsePostgreSQL`: the
+  PostgreSQL registrations of `AggregateBoundaryTests` and `PersistenceResultTests` register a
+  fixed subject (`PostgreSql/FixedSubject.cs`, added here), and the two pooled tests of
+  `AggregateBoundaryTests` (`OnAPooledContext_...`) run each lease's reads inside a transaction.
+  What they assert is unchanged.
 
 ## Diagnostics
 

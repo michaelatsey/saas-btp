@@ -43,6 +43,7 @@
     <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Analyzers.Tests/MicroKit.Persistence.Analyzers.Tests.csproj" />
     <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Architecture.Tests/MicroKit.Persistence.Architecture.Tests.csproj" />
     <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests.csproj" />
+    <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests.csproj" />
     <Project Path="libraries/MicroKit.Persistence/tests/MicroKit.Persistence.Tests/MicroKit.Persistence.Tests.csproj" />
   </Folder>
 </Solution>
