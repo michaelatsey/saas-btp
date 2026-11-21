@@ -12,6 +12,7 @@
 !apps/api/src/modules/Access/SaasBtp.Access.Domain/
 !apps/api/src/modules/Access/SaasBtp.Access.Features/
 !apps/api/src/modules/Access/SaasBtp.Access.Adapters/
+!libraries/MicroKit.Domain/src/MicroKit.Domain/
 !libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 !apps/api/database/SaasBtp.Migrations/
 

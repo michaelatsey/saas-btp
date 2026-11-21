@@ -15,11 +15,13 @@ COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj apps/api/src/hosts/SaasBtp.Api/
 COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj apps/api/src/hosts/SaasBtp.Api.HealthProbe/
 # Every project in the API's project-reference closure, each by its own folder, never a module's
-# or a library's tests/ folder (ADR-ARCH-035 §5): the Access module, and the persistence analyzer
-# its Adapters project references as an analyzer.
+# or a library's tests/ folder (ADR-ARCH-035 §5): the Access module, the domain building blocks
+# its Domain project references, and the persistence analyzer its Adapters project references as
+# an analyzer.
 COPY apps/api/src/modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj apps/api/src/modules/Access/SaasBtp.Access.Domain/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj apps/api/src/modules/Access/SaasBtp.Access.Features/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj apps/api/src/modules/Access/SaasBtp.Access.Adapters/
+COPY libraries/MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj libraries/MicroKit.Domain/src/MicroKit.Domain/
 COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/MicroKit.Persistence.Analyzers.csproj libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 RUN dotnet restore apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj \
     && dotnet restore apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj
@@ -29,6 +31,7 @@ COPY apps/api/src/hosts/SaasBtp.Api.HealthProbe/ apps/api/src/hosts/SaasBtp.Api.
 COPY apps/api/src/modules/Access/SaasBtp.Access.Domain/ apps/api/src/modules/Access/SaasBtp.Access.Domain/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Features/ apps/api/src/modules/Access/SaasBtp.Access.Features/
 COPY apps/api/src/modules/Access/SaasBtp.Access.Adapters/ apps/api/src/modules/Access/SaasBtp.Access.Adapters/
+COPY libraries/MicroKit.Domain/src/MicroKit.Domain/ libraries/MicroKit.Domain/src/MicroKit.Domain/
 COPY libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/ libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 
 # The OpenAPI document is checked by CI (ADR-ARCH-018) and not used by the image: generating it

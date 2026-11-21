@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Unit tests of the Access module's domain (ADR-ARCH-034 §6), on the test stack of ADR-ARCH-021:
+    no data access, web or test container package (UnitTestsUseNoInfrastructure). The Domain
+    grants no InternalsVisibleTo (ADR-ARCH-034 §2), so these tests use its public surface only.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- CA1707: test names carry the identifier they prove, with underscores
+         (INV_ACCESS_08_..., BP001_AC_05_...), as issues-convention.md §12 states. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
