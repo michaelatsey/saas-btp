@@ -206,13 +206,13 @@ ADR-ARCH-033 §4). In `src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/`
   The method's signature is unchanged.
 
 Not in this change: the refusal of a transaction the unit of work did not open, and the unit of
-work's one transaction (issue #212); the host's implementation of the port (issue #217).
+work's one transaction (issue #212, below); the host's implementation of the port (issue #217).
 
-Behaviour that changes as a consequence, until issue #212:
+Behaviour that changes as a consequence:
 
-- A transaction passed with `Database.UseTransaction` receives no subject: the interceptor acts
+- A transaction passed with `Database.UseTransaction` received no subject: the interceptor acts
   when a transaction starts, and EF Core reports a transaction it is given as used, not started.
-  Its commands run with no subject, so row level security admits no row (ADR-ARCH-032 §3).
+  Issue #212 refuses such a transaction as soon as it is used (below).
 - `EfUnitOfWork.CommitAsync` and `TryCommitAsync` called outside `ExecuteAsync` flush outside a
   transaction, so the save is refused: they throw a `PersistenceException` ("Database error during
   commit") whose inner `DbUpdateException` holds the refusal. `TryCommitAsync` refuses to run
@@ -244,14 +244,84 @@ Tests:
     reads `nullif(current_setting('app.user_id', true), '')` as NULL.
   - `OnAPooledContextEachTransactionReadsTheSubjectAgain`, `EachScopeSetsItsOwnSubject` and
     `WithAPoolSizeASubjectPortThatIsNotASingletonIsRefused`.
-  - `AUnitOfWorkCommitOutsideATransactionIsRefusedAndWritesNothing` and
-    `ATransactionTheContextDidNotBeginReceivesNoSubject`: the two consequences above, as they stand
-    until issue #212.
+  - `AUnitOfWorkCommitOutsideATransactionIsRefusedAndWritesNothing`: the second consequence
+    above. The first was shown by `ATransactionTheContextDidNotBeginReceivesNoSubject`, which
+    issue #212 replaces with a test of the refusal.
 - Copied tests adapted, since they register their context through `UsePostgreSQL`: the
   PostgreSQL registrations of `AggregateBoundaryTests` and `PersistenceResultTests` register a
   fixed subject (`PostgreSql/FixedSubject.cs`, added here), and the two pooled tests of
   `AggregateBoundaryTests` (`OnAPooledContext_...`) run each lease's reads inside a transaction.
   What they assert is unchanged.
+
+### The unit of work's one transaction (issue #212)
+
+The unit of work runs every command in the one explicit transaction it opened, and refuses a
+transaction it did not open (ADR-ARCH-033 §4, ADR-ARCH-035 §8), so that a founding saved in
+several `SaveChanges` commits whole or not at all (ADR-ARCH-033 §5).
+
+- `src/MicroKit.Persistence.EntityFrameworkCore/Transactions/EfUnitOfWork.cs`: the unit of work
+  records the transaction it begins in `ExecuteAsync` and `TryExecuteAsync` while it is open. A
+  nested call of the same unit of work joins that transaction, as before. Any other open
+  transaction, begun on the context or passed in with `Database.UseTransaction`, is refused with
+  `InvalidOperationException` by `ExecuteAsync`, `TryExecuteAsync` and `CommitAsync` before
+  anything runs, and is left to its owner, neither committed nor rolled back. MicroKit joined any
+  open transaction. `TryCommitAsync` keeps its refusal of any open transaction.
+- `src/MicroKit.Persistence.Abstractions/Transactions/ITransactionalContext.cs`,
+  `src/MicroKit.Persistence.Abstractions/Transactions/IUnitOfWork.cs` and
+  `src/MicroKit.Persistence/Results/IResultUnitOfWork.cs`: their documentation now describes the
+  join of the unit of work's own transaction and the refusal of any other. Their signatures are
+  unchanged.
+- `src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/Transactions/UsedTransactionInterceptor.cs`:
+  `Database.UseTransaction` and `UseTransactionAsync` are refused with
+  `InvalidOperationException` as soon as the transaction is used. The context did not begin it, so
+  its subject was never set. The refusal comes before the context takes the transaction:
+  `Database.CurrentTransaction` stays null, and a later command is refused as outside a
+  transaction. The connection and the transaction stay as the caller had them, open. EF Core
+  counts an open of the connection before it reports the transaction as used; the interceptor
+  closes once before refusing, so that the caller's own `CloseConnection` still closes it.
+- `src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/DependencyInjection/PostgreSqlEfCoreBuilderExtensions.cs`:
+  `UsePostgreSQL` adds that interceptor to the three of issue #211.
+
+A transaction begun directly on the context, outside any unit of work, still sets its subject
+first (issue #211); the unit of work refuses it only when it is called inside it.
+
+Tests, against the PostgreSQL of `apps/api/tests/PostgresImage.cs`:
+
+- `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/UnitOfWorkTransactionTests.cs`,
+  through `UsePostgreSQL` and `AddUnitOfWork`, with a subject:
+  - `TwoSaveChangesAndAQueryRunInOneTransactionAndCommitTogether`, through `ExecuteAsync` and
+    `TryExecuteAsync`: one transaction begun, the same `txid_current()` after each save, the query
+    sees the first row, one connection, both rows committed.
+  - `TwoSaveChangesRollBackTogether`: the operation throws after both saves, or `TryExecuteAsync`
+    returns a failed result after them: no row.
+  - `AFailureAfterTheFirstSaveChangesLeavesNoRowOfEither`: the second save fails at the database
+    (a duplicate key): `PersistenceException`, no row.
+  - `AFailureAtCommitLeavesNoRowOfEitherAndTheNextUnitOfWorkBeginsAgain`: a unique constraint
+    deferred to commit, as the founding's keys are, fails at COMMIT: `PersistenceException`, no
+    row, and the same unit of work then begins and commits a transaction of its own.
+  - `ANestedCallJoinsTheUnitOfWorksOwnTransaction`: `ExecuteAsync` and `TryExecuteAsync` inside
+    `ExecuteAsync`: one transaction, three rows.
+  - `AUnitOfWorkRefusesATransactionBegunOnTheContext` and
+    `AUnitOfWorkRefusesATransactionPassedInThroughUseTransaction`, each through `ExecuteAsync`,
+    `ExecuteAsync` with a result, both `TryExecuteAsync` and `CommitAsync`: refused, the operation
+    not run, the transaction still the context's current one and its owner's to end, no row
+    written once it commits. The second uses a context built with `UseNpgsql` alone, since
+    `UsePostgreSQL` refuses `UseTransaction` itself.
+- `SubjectInterceptionTests.ATransactionPassedInThroughUseTransactionIsRefused`, synchronous and
+  asynchronous, replaces `ATransactionTheContextDidNotBeginReceivesNoSubject` (issue #211):
+  refused, no current transaction, no command sent, the connection still open, a query
+  afterwards refused as outside a transaction, and the caller's `CloseConnection` closing the
+  connection.
+- Copied tests changed: in
+  `tests/MicroKit.Persistence.EntityFrameworkCore.IntegrationTests/PostgreSql/EfUnitOfWorkJoinTests.cs`,
+  `ExecuteAsync_InsideACallerTransaction_JoinsIt_AndLeavesItToTheCaller` and
+  `ExecuteAsync_InsideACallerTransaction_WhenTheOperationThrows_LeavesItOpenAndNotRolledBack`
+  asserted that the unit of work joins a transaction its caller opened, which this change removes.
+  A refused operation never runs, so a throwing operation adds nothing: the two become one test,
+  `ExecuteAsync_InsideACallerTransaction_IsRefused_AndLeavesItToTheCaller`, with the default and a
+  retrying strategy. The nested-call tests of that class are unchanged.
+- `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/PostgreSqlServer.cs`:
+  `TestDatabase.ExecuteAsync` runs a statement of a test's set-up on a connection no context owns.
 
 ## Diagnostics
 

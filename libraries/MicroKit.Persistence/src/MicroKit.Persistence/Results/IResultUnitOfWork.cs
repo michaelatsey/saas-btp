@@ -85,15 +85,21 @@ public interface IResultUnitOfWork
     /// (at-least-once, as <see cref="ITransactionalContext"/>).
     /// </para>
     /// <para>
-    /// <b>Joined.</b> When a transaction is already open, the operation runs inside it and nothing is
-    /// converted: an exception propagates unchanged and a failed <see cref="Result"/> is returned
-    /// unchanged; the transaction's owner decides its fate.
+    /// <b>Joined.</b> When the unit of work's own transaction is already open (an enclosing call's),
+    /// the operation runs inside it and nothing is converted: an exception propagates unchanged and a
+    /// failed <see cref="Result"/> is returned unchanged; the enclosing call decides its fate. A
+    /// transaction the unit of work did not open is refused with an
+    /// <see cref="InvalidOperationException"/> before the operation runs (changed in this repository,
+    /// issue #212, ADR-ARCH-033 §4).
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
     /// <exception cref="PersistenceException">
-    /// Any persistence failure that is not a recognised conflict; joined to an open transaction, every
-    /// persistence failure, conflicts included, unconverted.
+    /// Any persistence failure that is not a recognised conflict; joined to the unit of work's own
+    /// transaction, every persistence failure, conflicts included, unconverted.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// A transaction the unit of work did not open is open; the operation did not run.
     /// </exception>
     ValueTask<Result> TryExecuteAsync<TState>(
         Func<TState, CancellationToken, Task<Result>> operation,
