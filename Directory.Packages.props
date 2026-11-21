@@ -11,6 +11,9 @@
     <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
   </PropertyGroup>
   <ItemGroup Label="ASP.NET Core">
+    <!-- The JWT bearer handler of ADR-ARCH-038 decision 1, at the version of the other ASP.NET Core
+         packages. It brings Microsoft.IdentityModel 8.19.2. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12" />
   </ItemGroup>

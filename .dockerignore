@@ -13,6 +13,11 @@
 !apps/api/src/modules/Access/SaasBtp.Access.Features/
 !apps/api/src/modules/Access/SaasBtp.Access.Adapters/
 !libraries/MicroKit.Domain/src/MicroKit.Domain/
+!libraries/MicroKit.Result/src/MicroKit.Result/
+!libraries/MicroKit.Persistence/src/MicroKit.Persistence.Abstractions/
+!libraries/MicroKit.Persistence/src/MicroKit.Persistence/
+!libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore/
+!libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/
 !libraries/MicroKit.Persistence/src/MicroKit.Persistence.Analyzers/
 !apps/api/database/SaasBtp.Migrations/
 
