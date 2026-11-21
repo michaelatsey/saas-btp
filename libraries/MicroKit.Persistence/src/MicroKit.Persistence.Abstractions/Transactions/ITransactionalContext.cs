@@ -15,10 +15,12 @@ public interface ITransactionalContext
     /// Executes <paramref name="operation"/> inside a database transaction.
     /// With no transaction open, the implementation begins one, invokes the operation, commits on
     /// success, and rolls back on failure; transient-failure retry is handled transparently when
-    /// supported by the provider (e.g., Npgsql, SQL Server execution strategies). With a
-    /// transaction already open — an enclosing call's, or one the caller opened itself — it joins
-    /// it: the operation runs inside it, and whoever owns that transaction commits, rolls back and
-    /// retries.
+    /// supported by the provider (e.g., Npgsql, SQL Server execution strategies). With its own
+    /// transaction already open — an enclosing call's — it joins it: the operation runs inside it,
+    /// and the enclosing call commits, rolls back and retries. A transaction it did not open — one
+    /// the caller began or passed to the context — is refused with an
+    /// <see cref="InvalidOperationException"/> before the operation runs (changed in this
+    /// repository, issue #212, ADR-ARCH-033 §4).
     /// </summary>
     /// <typeparam name="TState">
     /// The type of caller-owned state threaded through to <paramref name="operation"/>.
@@ -37,9 +39,11 @@ public interface ITransactionalContext
     /// its result. With no transaction open, the implementation begins one, invokes the operation,
     /// commits on success, and rolls back on failure; transient-failure retry is handled
     /// transparently when supported by the provider (e.g., Npgsql, SQL Server execution
-    /// strategies). With a transaction already open — an enclosing call's, or one the caller opened
-    /// itself — it joins it: the operation runs inside it, and whoever owns that transaction
-    /// commits, rolls back and retries.
+    /// strategies). With its own transaction already open — an enclosing call's — it joins it: the
+    /// operation runs inside it, and the enclosing call commits, rolls back and retries. A
+    /// transaction it did not open — one the caller began or passed to the context — is refused with
+    /// an <see cref="InvalidOperationException"/> before the operation runs (changed in this
+    /// repository, issue #212, ADR-ARCH-033 §4).
     /// </summary>
     /// <typeparam name="TState">
     /// The type of caller-owned state threaded through to <paramref name="operation"/>.

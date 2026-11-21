@@ -28,6 +28,10 @@ public interface IUnitOfWork
     /// Thrown when the underlying provider fails to commit (connection failure,
     /// constraint violation, or concurrency conflict).
     /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// A transaction the unit of work did not open is open, begun by its caller or passed in; nothing
+    /// is committed (added in this repository, issue #212, ADR-ARCH-033 §4).
+    /// </exception>
     ValueTask CommitAsync(CancellationToken ct = default);
 
     /// <summary>

@@ -103,24 +103,41 @@ public sealed class SubjectInterceptionTests(PostgreSqlServer server)
         Assert.Equal(0, await database.CountRowsAsync());
     }
 
-    [Fact]
-    public async Task ATransactionTheContextDidNotBeginReceivesNoSubject()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ATransactionPassedInThroughUseTransactionIsRefused(bool async)
     {
-        // Refusing it belongs to the unit of work (issue #212); until then its commands run with no
-        // subject, which row level security reads as NULL.
+        // The context did not begin it, so it has no subject (ADR-ARCH-033 §4, issue #212).
         await using var database = await server.CreateDatabaseAsync();
         await using var services = Build(database, s => s.AddSingleton<IUnitOfWorkSubject>(new FixedSubject(Subject)));
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<SubjectDbContext>();
         await context.Database.OpenConnectionAsync(Ct);
-        await using var external = await context.Database.GetDbConnection().BeginTransactionAsync(Ct);
-        await context.Database.UseTransactionAsync(external, Ct);
+        var connection = context.Database.GetDbConnection();
+        await using var external = await connection.BeginTransactionAsync(Ct);
+        var probe = Probe.Start();
 
-        var seen = (await context.Database
-            .SqlQueryRaw<string?>("select nullif(current_setting('app.user_id', true), '') as \"Value\"")
-            .ToListAsync(Ct)).Single();
+        var thrown = async
+            ? await Record.ExceptionAsync(async () => await context.Database.UseTransactionAsync(external, Ct))
+            : Record.Exception(() => context.Database.UseTransaction(external));
 
-        Assert.Null(seen);
+        Assert.Contains("UseTransaction", Assert.IsType<InvalidOperationException>(thrown).Message);
+        Assert.Null(context.Database.CurrentTransaction);
+        Assert.Empty(probe.Commands);
+        // The connection the caller opened stays open, and its transaction is left to the caller.
+        Assert.Equal(System.Data.ConnectionState.Open, connection.State);
+        Assert.Same(connection, external.Connection);
+
+        // Nothing runs in it through the context: a command is refused as outside a transaction.
+        var command = await Record.ExceptionAsync(() => context.Rows.ToListAsync(Ct));
+        Assert.Contains("outside a transaction", Assert.IsType<InvalidOperationException>(command).Message);
+        Assert.Empty(probe.Commands);
+
+        // The refusal left the context's count of opens as the caller had it: the caller's own
+        // close still closes the connection (it ends the caller's transaction with it).
+        await context.Database.CloseConnectionAsync();
+        Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
     }
 
     [Theory]

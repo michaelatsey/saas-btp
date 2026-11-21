@@ -39,6 +39,10 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     // of work is scoped and a DbContext is never used concurrently, so one slot suffices.
     private PersistenceException? _unwrapped;
 
+    // The transaction RunInTransactionAsync began, while it is open: the only one a call joins.
+    // Added in this repository (issue #212, ADR-ARCH-033 §4, ADR-ARCH-035 §8).
+    private IDbContextTransaction? _owned;
+
     /// <summary>
     /// Flushes all pending EF Core change-tracker entries to the database via
     /// <c>SaveChangesAsync</c>. Translates provider failures into
@@ -58,10 +62,13 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     /// <exception cref="InvalidOperationException">
     /// A save-time refusal of <c>UseMicroKitPersistence()</c>, before anything is written: a changed child
     /// whose aggregate root is not tracked, a move between aggregates not both loaded whole (ADR-010), a
-    /// soft delete of a root not loaded whole (ADR-012).
+    /// soft delete of a root not loaded whole (ADR-012). Or a transaction is open on the context that this
+    /// unit of work did not open, begun on the context or passed in with <c>Database.UseTransaction</c>:
+    /// nothing is flushed (added in this repository, issue #212).
     /// </exception>
     public async ValueTask CommitAsync(CancellationToken ct = default)
     {
+        EnsureNoForeignTransaction();
         try
         {
             await context.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -102,7 +109,8 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     /// Executes <paramref name="operation"/> inside a database transaction. When no transaction
     /// is open, begins one inside the provider's execution strategy, commits on success and rolls
     /// back on failure; transient failures are retried when the provider's strategy retries. When
-    /// a transaction is already open on the context, joins it.
+    /// the transaction this unit of work opened is open, joins it; any other open transaction is
+    /// refused.
     /// </summary>
     /// <typeparam name="TState">
     /// Caller-owned state threaded through to <paramref name="operation"/>.
@@ -113,10 +121,19 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     /// <param name="ct">Propagates notification that operations should be cancelled.</param>
     /// <remarks>
     /// <para>
-    /// <b>Join.</b> While <c>Database.CurrentTransaction</c> is not <see langword="null"/> — an
-    /// enclosing <see cref="ExecuteAsync{TState}"/> or a transaction the caller opened — the
-    /// operation runs directly inside it: no execution strategy, no begin, commit or rollback.
-    /// Retry and translation belong to the outermost call; the transaction's owner decides its fate.
+    /// <b>Join.</b> While <c>Database.CurrentTransaction</c> is the transaction this unit of work
+    /// opened — a nested call inside an enclosing <see cref="ExecuteAsync{TState}"/> or
+    /// <c>TryExecuteAsync</c> — the operation runs directly inside it: no execution strategy, no
+    /// begin, commit or rollback. Retry and translation belong to the outermost call, which owns the
+    /// transaction and decides its fate.
+    /// </para>
+    /// <para>
+    /// <b>Refusal.</b> A transaction this unit of work did not open — begun on the context, or passed
+    /// in with <c>Database.UseTransaction</c> — is refused with an <see cref="InvalidOperationException"/>
+    /// before the operation runs, and left to its owner: neither committed nor rolled back. Every
+    /// command of a unit of work runs in the one transaction it opened, whose subject it set first
+    /// (ADR-ARCH-033 §4). Changed in this repository (issue #212): MicroKit joined any open
+    /// transaction.
     /// </para>
     /// <para>
     /// <b>Retry.</b> A <see cref="PersistenceException"/> that <see cref="CommitAsync"/> raised from a
@@ -151,10 +168,14 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     /// An ambient <c>System.Transactions</c> transaction is rejected, as EF Core rejects it: with a
     /// retrying strategy, the strategy refuses to start (<c>ExecutionStrategyExistingTransaction</c>);
     /// without one, beginning the transaction fails (<c>ConflictingAmbientTransaction</c>). Both surface as
-    /// an <see cref="InvalidOperationException"/>. Only <c>Database.CurrentTransaction</c> is joined.
+    /// an <see cref="InvalidOperationException"/>. Only the transaction this unit of work opened is joined;
+    /// any other <c>Database.CurrentTransaction</c> is refused.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A transaction this unit of work did not open is open on the context; the operation did not run.
+    /// </exception>
     /// <exception cref="PersistenceException">
     /// The commit, or the transaction itself (begin, commit, a deferred constraint), failed and was
     /// not, or could no longer be, retried. A write the operation flushed through the
@@ -223,7 +244,9 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
     /// transient failures retried, the tracker cleared after a failed attempt — and converts a conflict
     /// once the strategy has given up. A failed <see cref="Result"/> the operation returns rolls the
     /// transaction back, and the tracker is cleared, as after any failed attempt; it is not retried. Joined
-    /// to an open transaction, it runs the operation inside it and converts nothing.
+    /// to the transaction this unit of work opened, it runs the operation inside it and converts nothing.
+    /// A transaction it did not open is refused with an <see cref="InvalidOperationException"/> before the
+    /// operation runs, as by <see cref="ExecuteAsync{TState}"/> (added in this repository, issue #212).
     /// </para>
     /// <para>
     /// A strategy that retries every exception, rather than the provider's transient ones, would also
@@ -236,6 +259,7 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        EnsureNoForeignTransaction();
         if (context.Database.CurrentTransaction is not null)
             return await operation(state, ct).ConfigureAwait(false);
 
@@ -271,6 +295,7 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        EnsureNoForeignTransaction();
         if (context.Database.CurrentTransaction is not null)
             return await operation(state, ct).ConfigureAwait(false);
 
@@ -306,15 +331,33 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
         }
     }
 
+    // Added in this repository (issue #212, ADR-ARCH-033 §4, ADR-ARCH-035 §8): every command of the
+    // unit of work runs in the one transaction it opened. A transaction open on the context that is
+    // not that one was begun on the context or passed in with Database.UseTransaction; it is refused
+    // before anything runs, and left to its owner.
+    private void EnsureNoForeignTransaction()
+    {
+        if (context.Database.CurrentTransaction is { } current && !ReferenceEquals(current, _owned))
+        {
+            throw new InvalidOperationException(
+                "A transaction the unit of work did not open is open on the context, begun on it or passed in with "
+                + "Database.UseTransaction, and was refused: every command of a unit of work runs in the one "
+                + "transaction it opens, which sets its subject first (ADR-ARCH-033 §4). End that transaction, and "
+                + "run the work through ExecuteAsync or TryExecuteAsync.");
+        }
+    }
+
     private async Task<TResult> ExecuteCoreAsync<TState, TResult>(
         Func<TState, CancellationToken, Task<TResult>> operation,
         TState state,
         CancellationToken ct)
     {
-        // Join: a transaction is already open on this context — ours (a nested call) or the
-        // caller's. Run the operation inside it as is: no execution strategy (a retrying one
-        // rejects an existing transaction, and retrying belongs to whoever owns the transaction),
-        // no begin, commit or rollback. The owner of the transaction decides its fate.
+        // A transaction this unit of work did not open is refused (issue #212, ADR-ARCH-033 §4).
+        EnsureNoForeignTransaction();
+
+        // Join: our own transaction is open (a nested call). Run the operation inside it as is: no
+        // execution strategy (a retrying one rejects an existing transaction, and retrying belongs
+        // to the outermost call), no begin, commit or rollback. The outermost call decides its fate.
         if (context.Database.CurrentTransaction is not null)
             return await operation(state, ct).ConfigureAwait(false);
 
@@ -372,26 +415,36 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
         CancellationToken ct)
     {
         var transaction = await context.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        _owned = transaction;
         TResult result;
         try
         {
-            result = await operation(state, ct).ConfigureAwait(false);
-            await transaction.CommitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                result = await operation(state, ct).ConfigureAwait(false);
+                await transaction.CommitAsync(ct).ConfigureAwait(false);
+            }
+            catch (PersistenceException ex) when (ex.InnerException is DbUpdateException dbUpdate)
+            {
+                await AbandonAttemptAsync(transaction).ConfigureAwait(false);
+                _unwrapped = ex;
+                ExceptionDispatchInfo.Throw(dbUpdate); // let the strategy classify the EF Core exception
+                throw; // unreachable
+            }
+            catch
+            {
+                await AbandonAttemptAsync(transaction).ConfigureAwait(false);
+                throw;
+            }
+
+            await transaction.DisposeAsync().ConfigureAwait(false);
         }
-        catch (PersistenceException ex) when (ex.InnerException is DbUpdateException dbUpdate)
+        finally
         {
-            await AbandonAttemptAsync(transaction).ConfigureAwait(false);
-            _unwrapped = ex;
-            ExceptionDispatchInfo.Throw(dbUpdate); // let the strategy classify the EF Core exception
-            throw; // unreachable
-        }
-        catch
-        {
-            await AbandonAttemptAsync(transaction).ConfigureAwait(false);
-            throw;
+            // Committed and disposed, or abandoned: the transaction is no longer ours to join.
+            _owned = null;
         }
 
-        await transaction.DisposeAsync().ConfigureAwait(false);
         return result;
     }
 

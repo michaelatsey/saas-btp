@@ -70,5 +70,17 @@ public sealed class TestDatabase(PostgreSqlServer server, string name, string co
         return (long)(await command.ExecuteScalarAsync())!;
     }
 
+    /// <summary>Runs a statement of the test's set-up, on a connection no context owns.</summary>
+    public async Task ExecuteAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+#pragma warning disable CA2100 // a constant statement of the test's own set-up
+        command.CommandText = sql;
+#pragma warning restore CA2100
+        await command.ExecuteNonQueryAsync();
+    }
+
     public async ValueTask DisposeAsync() => await server.DropAsync(name);
 }

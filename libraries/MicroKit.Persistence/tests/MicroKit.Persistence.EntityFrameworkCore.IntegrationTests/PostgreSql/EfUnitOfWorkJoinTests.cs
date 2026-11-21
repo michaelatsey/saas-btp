@@ -7,9 +7,10 @@ using Xunit;
 namespace MicroKit.Persistence.EntityFrameworkCore.IntegrationTests.PostgreSql;
 
 /// <summary>
-/// #196 D4: called while <c>Database.CurrentTransaction</c> is open, <c>ExecuteAsync</c> joins it.
+/// #196 D4: called while the unit of work's own transaction is open, <c>ExecuteAsync</c> joins it.
 /// It runs the operation directly — no execution strategy, no begin, commit or rollback — and
-/// leaves the caller's transaction exactly as it found it, whether the operation succeeds or throws.
+/// leaves the transaction exactly as it found it, whether the operation succeeds or throws. A
+/// transaction the caller opened is refused instead (changed here, issue #212, ADR-ARCH-033 §4).
 /// Every case runs with the default (non-retrying) strategy and with a retrying one.
 /// </summary>
 [Collection(PostgreSqlSuite.Name)]
@@ -79,15 +80,21 @@ public sealed class EfUnitOfWorkJoinTests(PostgreSqlSuiteFixture fixture)
         Assert.Equal(["inner-before-failure", "outer"], (await database.ReadRowsAsync()).Select(r => r.Name));
     }
 
+    // Changed here (issue #212, ADR-ARCH-033 §4): MicroKit joined a transaction the caller opened
+    // (ExecuteAsync_InsideACallerTransaction_JoinsIt_AndLeavesItToTheCaller and
+    // ExecuteAsync_InsideACallerTransaction_WhenTheOperationThrows_LeavesItOpenAndNotRolledBack, at
+    // michaelatsey/microkit@a12097b). The unit of work now refuses a transaction it did not open, so
+    // the operation never runs: the two cases become this refusal.
     [Theory]
     [InlineData(null)]
     [InlineData(3)]
-    public async Task ExecuteAsync_InsideACallerTransaction_JoinsIt_AndLeavesItToTheCaller(int? maxRetryCount)
+    public async Task ExecuteAsync_InsideACallerTransaction_IsRefused_AndLeavesItToTheCaller(int? maxRetryCount)
     {
         await using var database = await ExecutionDatabase.CreateAsync(fixture);
         var transactions = new TransactionCountingInterceptor();
         await using var context = database.CreateContext(maxRetryCount, transactions);
         var sut = new EfUnitOfWork<ExecutionDbContext>(context);
+        var ran = false;
 
         // The documented way to open a transaction under any strategy: inside the strategy's own
         // ExecuteAsync (a retrying strategy rejects a user transaction opened outside it).
@@ -95,58 +102,26 @@ public sealed class EfUnitOfWorkJoinTests(PostgreSqlSuiteFixture fixture)
         {
             await using var callerTransaction = await context.Database.BeginTransactionAsync();
 
-            await sut.ExecuteAsync(static async (s, ct) =>
-            {
-                Assert.Same(s.Outer, s.Context.Database.CurrentTransaction);
-                await s.Insert("joined", ct);
-            }, new JoinState(sut, context, callerTransaction), CancellationToken.None);
+            var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                sut.ExecuteAsync(async (s, ct) =>
+                {
+                    ran = true;
+                    await s.Insert("never", ct);
+                }, new JoinState(sut, context, callerTransaction), CancellationToken.None));
 
+            Assert.Contains("did not open", thrown.Message);
+            Assert.False(ran, "a refused unit of work must not run its operation");
             Assert.Same(callerTransaction, context.Database.CurrentTransaction);
-            Assert.True(IsOpen(callerTransaction));
+            Assert.True(IsOpen(callerTransaction), "the caller decides the fate of its own transaction");
             Assert.Equal(0, transactions.Committed);
+            Assert.Equal(0, transactions.RolledBack);
 
             await callerTransaction.CommitAsync();
         });
 
         Assert.Equal(1, transactions.Begun);
         Assert.Equal(1, transactions.Committed);
-        Assert.Equal(0, transactions.RolledBack);
-        Assert.Equal("joined", Assert.Single((await database.ReadRowsAsync())).Name);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData(3)]
-    public async Task ExecuteAsync_InsideACallerTransaction_WhenTheOperationThrows_LeavesItOpenAndNotRolledBack(int? maxRetryCount)
-    {
-        await using var database = await ExecutionDatabase.CreateAsync(fixture);
-        var transactions = new TransactionCountingInterceptor();
-        await using var context = database.CreateContext(maxRetryCount, transactions);
-        var sut = new EfUnitOfWork<ExecutionDbContext>(context);
-        var failure = new InvalidOperationException("joined operation failed");
-
-        await context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
-        {
-            await using var callerTransaction = await context.Database.BeginTransactionAsync();
-
-            var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                sut.ExecuteAsync(static async (s, ct) =>
-                {
-                    await s.Insert("flushed-before-failure", ct);
-                    throw s.Failure!;
-                }, new JoinState(sut, context, callerTransaction) { Failure = failure }, CancellationToken.None));
-
-            Assert.Same(failure, thrown);
-            Assert.Same(callerTransaction, context.Database.CurrentTransaction);
-            Assert.True(IsOpen(callerTransaction), "the caller decides the fate of its own transaction");
-            Assert.Equal(0, transactions.RolledBack);
-
-            await callerTransaction.CommitAsync();
-        });
-
-        Assert.Equal(1, transactions.Committed);
-        Assert.Equal(0, transactions.RolledBack);
-        Assert.Equal("flushed-before-failure", Assert.Single((await database.ReadRowsAsync())).Name);
+        Assert.Empty(await database.ReadRowsAsync());
     }
 
     [Theory]

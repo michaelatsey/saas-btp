@@ -23,14 +23,15 @@ public static class PostgreSqlEfCoreBuilderExtensions
     ///   <item>each transaction, once started, first sends
     ///   <c>select set_config('app.user_id', @subject, true)</c> with the subject of
     ///   <see cref="IUnitOfWorkSubject"/>; a transaction started without one fails with an error;</item>
-    ///   <item>a command sent outside a transaction is refused with an error, before it reaches the database.</item>
+    ///   <item>a command sent outside a transaction is refused with an error, before it reaches the database;</item>
+    ///   <item>a transaction passed with <c>Database.UseTransaction</c>, which the context did not begin and
+    ///   which has no subject, is refused with an error as soon as it is used.</item>
     /// </list>
     /// <para>
-    /// A transaction the context did not begin, passed with <c>Database.UseTransaction</c>, receives no
-    /// subject: its commands run with none, and row level security admits no row. Refusing such a
-    /// transaction belongs to the unit of work (issue #212). So does flushing outside a transaction:
-    /// <c>CommitAsync</c> and <c>TryCommitAsync</c> called outside <c>ExecuteAsync</c> fail, with a
-    /// <c>PersistenceException</c> whose inner exceptions hold the refusal.
+    /// The unit of work runs every command in the one transaction it opened, and refuses a transaction
+    /// it did not open (<c>EfUnitOfWork</c>, issue #212). <c>CommitAsync</c> and <c>TryCommitAsync</c>
+    /// called outside <c>ExecuteAsync</c> flush outside a transaction, so the save is refused: they fail
+    /// with a <c>PersistenceException</c> whose inner exceptions hold the refusal.
     /// </para>
     /// <para>
     /// <see cref="IUnitOfWorkSubject"/> is resolved from the scope that resolves the context, or, with
@@ -79,6 +80,7 @@ public static class PostgreSqlEfCoreBuilderExtensions
                 .AddInterceptors(
                     NoAutomaticTransactionInterceptor.Instance,
                     new SubjectTransactionInterceptor(services.GetService<IUnitOfWorkSubject>()),
+                    UsedTransactionInterceptor.Instance,
                     TransactionRequiredCommandInterceptor.Instance);
 
         if (options?.PoolSize is { } poolSize)
