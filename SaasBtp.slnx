@@ -13,6 +13,7 @@
     <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
   </Folder>
   <Folder Name="/apps/api/src/modules/Access/tests/">
+    <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Adapters.IntegrationTests/SaasBtp.Access.Adapters.IntegrationTests.csproj" />
     <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Domain.Tests/SaasBtp.Access.Domain.Tests.csproj" />
   </Folder>
   <Folder Name="/apps/api/database/">
@@ -23,6 +24,7 @@
     <Project Path="apps/api/tests/SaasBtp.Api.IntegrationTests/SaasBtp.Api.IntegrationTests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Architecture.Tests/SaasBtp.Architecture.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Migrations.IntegrationTests/SaasBtp.Migrations.IntegrationTests.csproj" />
+    <Project Path="apps/api/tests/SaasBtp.Testing/SaasBtp.Testing.csproj" />
   </Folder>
   <Folder Name="/libraries/MicroKit.Domain/src/">
     <Project Path="libraries/MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj" />

@@ -5,11 +5,21 @@
 # apps/api/tests/PostgresImage.cs, which the integration tests start; a test fails when the
 # two differ.
 #
-# POSTGRES_INITDB_ARGS and POSTGRES_PASSWORD apply only when the data volume is created: to
-# change either, remove the volume (docker compose ... down --volumes).
+# When the data volume is created, the image's entrypoint runs, in name order, the files mounted
+# into /docker-entrypoint-initdb.d: infra/supabase/roles.sql, unchanged, which creates the roles
+# saasbtp_migrator and saasbtp_api (ADR-ARCH-027, ADR-ARCH-028), then
+# infra/docker/initdb/20-role-passwords.sh, which gives each role its local password. The runner
+# connects as saasbtp_migrator and the API as saasbtp_api, as on a Supabase project
+# (apps/api/CLAUDE.md, Migrate and Run).
 #
-# The password is read from infra/docker/.env, which is never committed:
+# POSTGRES_INITDB_ARGS, the init files and the three passwords apply only when the data volume is
+# created: to change any of them, or to add the roles to a volume created before them, remove the
+# volume (docker compose ... down --volumes).
+#
+# The passwords are read from infra/docker/.env, which is never committed:
 #   POSTGRES_PASSWORD=<a local password>
+#   SAASBTP_MIGRATOR_PASSWORD=<a local password>
+#   SAASBTP_API_PASSWORD=<a local password>
 #
 # Usage, from the repository root:
 #   docker compose -f infra/docker/compose.dev.yml up -d
@@ -21,11 +31,16 @@ services:
     image: postgres:17.6-bookworm
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      # Read by 20-role-passwords.sh through psql's \getenv, when the volume is created.
+      SAASBTP_MIGRATOR_PASSWORD: ${SAASBTP_MIGRATOR_PASSWORD:?}
+      SAASBTP_API_PASSWORD: ${SAASBTP_API_PASSWORD:?}
       POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US"
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ../supabase/roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+      - ./initdb/20-role-passwords.sh:/docker-entrypoint-initdb.d/20-role-passwords.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready --username postgres"]
       interval: 5s

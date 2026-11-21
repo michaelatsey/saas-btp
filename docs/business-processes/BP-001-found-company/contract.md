@@ -117,8 +117,9 @@ The reference is the idempotency key (`naming.md` "Aggregate identifiers", BP001
   | workspace_accesses | a row naming the subject's profile, under an organization the subject currently owns (ADR-ARCH-032 §4, ADR-ARCH-033 §5) | the subject's own accesses |
   | workspaces | as ADR-ARCH-033 §5 | as ADR-ARCH-033 §5 |
 
-  The select policy of ownerships reads no other table, so that the organization's select
-  policy can read it without recursion.
+  The select policy of ownerships reads the subject's profile through
+  `access.current_profile_id()`, and no organization, so that the organizations' select policy
+  can read it without recursion.
 
   BP-001 creates no `UPDATE` or `DELETE` policy on any Access table: no founded record can be
   changed or removed through the API until a process adds one.

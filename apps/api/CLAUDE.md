@@ -46,16 +46,26 @@ The build writes `apps/api/openapi/v1.json`; ADR-ARCH-018 sets the rules of the 
 
 ```bash
 docker compose -f infra/docker/compose.dev.yml up -d
-export ConnectionStrings__SaasBtp="Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=$POSTGRES_PASSWORD"
+export ConnectionStrings__SaasBtp="Host=127.0.0.1;Port=5432;Database=postgres;Username=saasbtp_api;Password=$SAASBTP_API_PASSWORD"
 dotnet run --project apps/api/src/hosts/SaasBtp.Api -- --urls http://127.0.0.1:5080
 ```
 
-- Compose reads `POSTGRES_PASSWORD` from `infra/docker/.env`: it resolves `.env` next to
-  the first file given with `-f`. The file is ignored by Git; create it with one line,
-  `POSTGRES_PASSWORD=<a local password>`, and export the same value in the shell that runs
-  the API.
-- The password and the `initdb` arguments apply only when the data volume is created. To
-  change either, remove the volume: `docker compose -f infra/docker/compose.dev.yml down --volumes`.
+- The API connects as `saasbtp_api`, as on a Supabase project: it owns nothing and is subject
+  to row level security (ADR-ARCH-028). Never connect it as `postgres`, which bypasses the
+  policies.
+- Compose reads `POSTGRES_PASSWORD`, `SAASBTP_MIGRATOR_PASSWORD` and `SAASBTP_API_PASSWORD`
+  from `infra/docker/.env`: it resolves `.env` next to the first file given with `-f`, and
+  refuses to start without any of them. The file is ignored by Git; it holds three lines,
+  `POSTGRES_PASSWORD=<a local password>`, `SAASBTP_MIGRATOR_PASSWORD=<a local password>` and
+  `SAASBTP_API_PASSWORD=<a local password>`. Export the API's in the shell that runs the API,
+  and the runner's in the shell that runs the runner.
+- When the data volume is created, the container runs `infra/supabase/roles.sql`, unchanged,
+  then gives `saasbtp_migrator` and `saasbtp_api` the two passwords
+  (`infra/docker/initdb/20-role-passwords.sh`). The passwords, the roles and the `initdb`
+  arguments apply only then. A volume created before the roles has neither role: recreate it
+  once, after adding the two lines to `.env`. The same applies to changing any of them:
+  `docker compose -f infra/docker/compose.dev.yml down --volumes`, then `up -d` and the Migrate
+  step.
 - The API starts with no database configured: `/health/live` answers 200 and
   `/health/ready` answers 503 until `ConnectionStrings__SaasBtp` points to a reachable
   database.
@@ -70,10 +80,12 @@ dotnet run --project apps/api/src/hosts/SaasBtp.Api -- --urls http://127.0.0.1:5
 ## Migrate
 
 ```bash
-export ConnectionStrings__Migrations="Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=$POSTGRES_PASSWORD"
+export ConnectionStrings__Migrations="Host=127.0.0.1;Port=5432;Database=postgres;Username=saasbtp_migrator;Password=$SAASBTP_MIGRATOR_PASSWORD"
 dotnet run --project apps/api/database/SaasBtp.Migrations
 ```
 
+- The runner connects as `saasbtp_migrator`, which owns the schema (ADR-ARCH-027). The scripts
+  grant to `saasbtp_api`, so they fail on a database without the roles of `roles.sql`.
 - The runner exits with a non-zero code on any failure, a missing connection string
   included. It never creates the database and never prints its connection string.
 - Scripts go in `apps/api/database/SaasBtp.Migrations/Scripts/`. Their naming, their order
@@ -133,5 +145,6 @@ docker build --platform linux/amd64 -f apps/api/database/SaasBtp.Migrations/Dock
   ADR-ARCH-021.
 - `apps/api/tests/PostgresImage.cs` is the one definition of the PostgreSQL the tests
   start: image, locale provider and locale, matching the Supabase project. It is linked
-  into each test project. `infra/docker/compose.dev.yml` repeats its values, and a test
-  fails when the two differ.
+  into each test project that starts PostgreSQL itself, and into `SaasBtp.Testing`. A module's integration tests get it only through `SaasBtp.Testing`,
+  which also applies `roles.sql` and runs the runner as `saasbtp_migrator` (ADR-ARCH-034 §6).
+  `infra/docker/compose.dev.yml` repeats its values, and a test fails when the two differ.

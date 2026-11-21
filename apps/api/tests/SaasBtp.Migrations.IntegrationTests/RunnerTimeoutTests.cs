@@ -1,6 +1,5 @@
 using Npgsql;
 using SaasBtp.Testing;
-using Testcontainers.PostgreSql;
 
 namespace SaasBtp.Migrations.IntegrationTests;
 
@@ -15,14 +14,13 @@ public sealed class RunnerTimeoutTests
     public async Task TheRunnerWaitsLongerThanTheCommandTimeoutOfItsConnectionString()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using PostgreSqlContainer postgres = PostgresImage.CreateBuilder().Build();
-        await postgres.StartAsync(cancellationToken);
-        var firstRun = await Runner.RunAsync(postgres.GetConnectionString(), cancellationToken);
-        Assert.Equal(0, firstRun.ExitCode);
+        await using var database = await RolesDatabase.StartAsync(cancellationToken);
+        var firstRun = await database.MigrateAsync(cancellationToken);
+        Assert.True(firstRun.ExitCode == 0, firstRun.Output);
 
         // The second run reads the journal while another session holds it locked for longer than
         // the connection string allows a command to wait.
-        await using var locker = new NpgsqlConnection(postgres.GetConnectionString());
+        await using var locker = new NpgsqlConnection(database.SuperuserConnectionString);
         await locker.OpenAsync(cancellationToken);
         await using var transaction = await locker.BeginTransactionAsync(cancellationToken);
         await using (var command = new NpgsqlCommand("lock table dbup.schemaversions in access exclusive mode", locker, transaction))
@@ -30,13 +28,13 @@ public sealed class RunnerTimeoutTests
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        var connectionString = new NpgsqlConnectionStringBuilder(postgres.GetConnectionString())
+        var connectionString = new NpgsqlConnectionStringBuilder(database.MigratorConnectionString)
             {
                 CommandTimeout = ConnectionStringCommandTimeoutSeconds,
             }
             .ConnectionString;
         var secondRun = Runner.RunAsync(connectionString, cancellationToken);
-        await WaitUntilTheJournalLockIsAwaitedAsync(postgres.GetConnectionString(), secondRun, cancellationToken);
+        await WaitUntilTheJournalLockIsAwaitedAsync(database.SuperuserConnectionString, secondRun, cancellationToken);
         await Task.Delay(LockHeldWhileWaiting, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         var result = await secondRun;

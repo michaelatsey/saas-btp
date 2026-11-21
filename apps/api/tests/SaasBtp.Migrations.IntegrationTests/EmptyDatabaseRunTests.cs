@@ -15,6 +15,24 @@ public sealed class EmptyDatabaseRunTests(EmptyDatabaseRun run) : IClassFixture<
     }
 
     [Fact]
+    public void TheFirstRunJournalsEveryScriptTheRunnerCarries()
+    {
+        Assert.True(EmptyDatabaseRun.EmbeddedScripts > 0, "The runner carries no script.");
+        Assert.Equal(EmptyDatabaseRun.EmbeddedScripts, run.JournalEntriesAfterFirstRun);
+    }
+
+    [Fact]
+    public void TheFirstRunCreatesTheAccessTablesAndFunctions()
+    {
+        string[] tables = ["memberships", "organizations", "ownerships", "profiles", "workspace_accesses", "workspaces"];
+
+        Assert.All(tables, table => Assert.Contains($"relation:{table}", run.AccessSchemaAfterFirstRun));
+        Assert.Equal(
+            ["function:current_profile_id", "function:may_act_in"],
+            run.AccessSchemaAfterFirstRun.Where(name => name.StartsWith("function:", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void TheRunsCreateNothingInThePublicSchema()
     {
         Assert.Equal(run.PublicBefore, run.PublicAfter);

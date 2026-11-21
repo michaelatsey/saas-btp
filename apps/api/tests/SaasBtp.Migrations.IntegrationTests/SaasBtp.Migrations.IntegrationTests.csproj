@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
+    <!-- The roles of infra/supabase/roles.sql on the container, and the runner (ADR-ARCH-032, Consequences). -->
+    <ProjectReference Include="../SaasBtp.Testing/SaasBtp.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

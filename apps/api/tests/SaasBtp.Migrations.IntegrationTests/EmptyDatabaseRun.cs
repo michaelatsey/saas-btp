@@ -1,18 +1,19 @@
+using System.Reflection;
 using Npgsql;
 using SaasBtp.Testing;
-using Testcontainers.PostgreSql;
 
 namespace SaasBtp.Migrations.IntegrationTests;
 
 /// <summary>
-/// Two consecutive executions of the runner against a PostgreSQL that starts empty, with what
-/// each schema held before and after them.
+/// Two consecutive executions of the runner, as <c>saasbtp_migrator</c>, against a PostgreSQL that
+/// holds only the roles of <c>roles.sql</c> (ADR-ARCH-032, Consequences), with what each schema held
+/// before and after them. Observations are made as the container's superuser.
 /// </summary>
 public sealed class EmptyDatabaseRun : IAsyncLifetime
 {
     internal const string JournalTable = "relation:schemaversions";
 
-    private readonly PostgreSqlContainer _postgres = PostgresImage.CreateBuilder().Build();
+    private RolesDatabase? _database;
 
     internal RunnerResult FirstRun { get; private set; } = null!;
 
@@ -30,16 +31,24 @@ public sealed class EmptyDatabaseRun : IAsyncLifetime
 
     internal long JournalEntriesAfterSecondRun { get; private set; } = -2;
 
+    internal IReadOnlyList<string> AccessSchemaAfterFirstRun { get; private set; } = [];
+
+    /// <summary>The scripts the runner carries, embedded in its assembly (ADR-ARCH-019).</summary>
+    internal static int EmbeddedScripts { get; } = Assembly.Load(new AssemblyName("SaasBtp.Migrations"))
+        .GetManifestResourceNames()
+        .Count(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase));
+
     public async ValueTask InitializeAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        await _postgres.StartAsync(cancellationToken);
-        var connectionString = _postgres.GetConnectionString();
+        _database = await RolesDatabase.StartAsync(cancellationToken);
+        var connectionString = _database.SuperuserConnectionString;
 
         PublicBefore = await ObjectsInSchemaAsync(connectionString, "public", cancellationToken);
 
-        FirstRun = await Runner.RunAsync(connectionString, cancellationToken);
+        FirstRun = await _database.MigrateAsync(cancellationToken);
         JournalSchemaAfterFirstRun = await ObjectsInSchemaAsync(connectionString, "dbup", cancellationToken);
+        AccessSchemaAfterFirstRun = await ObjectsInSchemaAsync(connectionString, "access", cancellationToken);
         if (!JournalSchemaAfterFirstRun.Contains(JournalTable))
         {
             // No journal to count: the tests fail on the properties left at their initial values.
@@ -48,13 +57,13 @@ public sealed class EmptyDatabaseRun : IAsyncLifetime
 
         JournalEntriesAfterFirstRun = await CountJournalEntriesAsync(connectionString, cancellationToken);
 
-        SecondRun = await Runner.RunAsync(connectionString, cancellationToken);
+        SecondRun = await _database.MigrateAsync(cancellationToken);
         JournalSchemaAfterSecondRun = await ObjectsInSchemaAsync(connectionString, "dbup", cancellationToken);
         JournalEntriesAfterSecondRun = await CountJournalEntriesAsync(connectionString, cancellationToken);
         PublicAfter = await ObjectsInSchemaAsync(connectionString, "public", cancellationToken);
     }
 
-    public ValueTask DisposeAsync() => _postgres.DisposeAsync();
+    public ValueTask DisposeAsync() => _database?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     /// <summary>Every relation, function and type of a schema, as <c>kind:name</c>.</summary>
     private static async Task<IReadOnlyList<string>> ObjectsInSchemaAsync(
