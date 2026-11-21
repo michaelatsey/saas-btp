@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props. -->
+
+  <ItemGroup>
+    <ProjectReference Include="../MicroKit.Persistence.EntityFrameworkCore/MicroKit.Persistence.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- Added here (not in MicroKit): a direct reference wherever PostgreSQL is reached, so that
+         the version pinned in the root Directory.Packages.props wins over the one the provider
+         pulls. -->
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

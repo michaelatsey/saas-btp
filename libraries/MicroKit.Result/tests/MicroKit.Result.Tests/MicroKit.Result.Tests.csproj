@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Result.UnitTests (see ../../README.md), on the test stack of
+       ADR-ARCH-021 (ADR-ARCH-035 §7). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. MicroKit's IL2026/IL3050
+         are not kept: this project does not run the trim analyzer, and the build reports
+         neither. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="FsCheck.Xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Result/MicroKit.Result.csproj" />
+  </ItemGroup>
+
+</Project>

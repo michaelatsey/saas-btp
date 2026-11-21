@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Persistence.ArchitectureTests (see ../../README.md), on the test
+       stack of ADR-ARCH-021 (ADR-ARCH-035 §7): its NetArchTest rules rewritten on ArchUnitNET, its
+       rules on the projects not copied removed. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Persistence.Abstractions/MicroKit.Persistence.Abstractions.csproj" />
+    <ProjectReference Include="../../src/MicroKit.Persistence/MicroKit.Persistence.csproj" />
+    <ProjectReference Include="../../src/MicroKit.Persistence.EntityFrameworkCore/MicroKit.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+  </ItemGroup>
+
+</Project>

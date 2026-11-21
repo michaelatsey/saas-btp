@@ -1,0 +1,143 @@
+using System.Globalization;
+
+namespace MicroKit.Result;
+
+/// <summary>
+/// A validation error for a specific property.
+/// </summary>
+/// <param name="PropertyName">The name of the property that failed validation.</param>
+/// <param name="Message">The validation error message.</param>
+/// <example>
+/// <code>
+/// var error = new ValidationError("Email", "Email address is invalid");
+/// // error.Code == "VALIDATION.EMAIL"
+/// // error.Category == ErrorCategory.Validation
+/// </code>
+/// </example>
+public sealed record ValidationError(string PropertyName, string Message)
+    : Error(CodeFor(PropertyName), Message),
+      IValidationError
+{
+    /// <summary>Gets the name of the property that failed validation.</summary>
+    /// <remarks>
+    /// Setting it, in a <see langword="with"/> expression, also sets <see cref="Error.Code"/> to
+    /// <c>VALIDATION.&lt;PROPERTYNAME&gt;</c>, as the constructor does.
+    /// </remarks>
+    /// <exception cref="ArgumentException">Thrown when the value is <see langword="null"/>, empty or whitespace.</exception>
+    public string PropertyName
+    {
+        get;
+        init
+        {
+            var code = CodeFor(value); // validates; the code always follows the name
+            field = value;
+            Code = code;
+        }
+    } = PropertyName; // the base constructor already computed the code from this parameter
+
+    /// <summary>Gets the error category. Always <see cref="ErrorCategory.Validation"/>.</summary>
+    public override ErrorCategory Category => ErrorCategory.Validation;
+
+    /// <summary>Gets the error severity. Always <see cref="ErrorSeverity.Warning"/>.</summary>
+    public override ErrorSeverity Severity => ErrorSeverity.Warning;
+
+    // ── Static factories ──────────────────────────────────────────────────
+
+    /// <summary>Creates a required-field validation error.</summary>
+    /// <param name="propertyName">The name of the required property.</param>
+    public static ValidationError Required(string propertyName)
+        => new(propertyName, $"{propertyName} is required.");
+
+    /// <summary>Creates a string-length validation error.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="min">The minimum allowed length.</param>
+    /// <param name="max">The maximum allowed length.</param>
+    public static ValidationError StringLength(string propertyName, int min, int max)
+        => new(propertyName, $"{propertyName} must be between {min} and {max} characters.");
+
+    /// <summary>Creates a minimum-length validation error.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="min">The minimum required length.</param>
+    public static ValidationError MinLength(string propertyName, int min)
+        => new(propertyName, $"{propertyName} must be at least {min} characters.");
+
+    /// <summary>Creates a maximum-length validation error.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="max">The maximum allowed length.</param>
+    public static ValidationError MaxLength(string propertyName, int max)
+        => new(propertyName, $"{propertyName} must not exceed {max} characters.");
+
+    /// <summary>Creates an out-of-range validation error. The bounds are formatted with the invariant culture.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="min">The minimum allowed value, or <see langword="null"/> if unbounded below.</param>
+    /// <param name="max">The maximum allowed value, or <see langword="null"/> if unbounded above.</param>
+    public static ValidationError OutOfRange(string propertyName, object? min = null, object? max = null)
+        => new(propertyName, BuildRangeMessage(propertyName, min, max));
+
+    /// <summary>Creates an invalid-format validation error.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="hint">Optional hint describing the expected format.</param>
+    public static ValidationError InvalidFormat(string propertyName, string? hint = null)
+        => new(propertyName, hint is null
+            ? $"{propertyName} has an invalid format."
+            : $"{propertyName} has an invalid format. Expected: {hint}");
+
+    /// <summary>Creates an invalid email address validation error.</summary>
+    /// <param name="propertyName">The property name (defaults to "Email").</param>
+    public static ValidationError InvalidEmail(string propertyName = "Email")
+        => new(propertyName, $"{propertyName} is not a valid email address.");
+
+    /// <summary>Creates an invalid URL validation error.</summary>
+    /// <param name="propertyName">The property name (defaults to "Url").</param>
+    public static ValidationError InvalidUrl(string propertyName = "Url")
+        => new(propertyName, $"{propertyName} is not a valid URL.");
+
+    /// <summary>Creates a custom validation error with the specified message.</summary>
+    /// <param name="propertyName">The property name.</param>
+    /// <param name="message">The validation error message.</param>
+    public static ValidationError Custom(string propertyName, string message)
+        => new(propertyName, message);
+
+    // ── Formatting ────────────────────────────────────────────────────────
+
+    /// <summary>Returns a string representation of this validation error.</summary>
+    public override string ToString() => $"ValidationError[{PropertyName}]: {Message}";
+
+    // ── Protected methods ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rejects a code other than <c>VALIDATION.&lt;PROPERTYNAME&gt;</c>: a <see langword="with"/> expression that sets
+    /// <see cref="Error.Code"/>, through this type or through <see cref="Error"/>, accepts only the code of
+    /// <see cref="PropertyName"/>. Set <see cref="PropertyName"/> alone to change both; members of a
+    /// <see langword="with"/> expression are set in the order they are written.
+    /// </summary>
+    /// <param name="code">The code being set.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="code"/> is not the code of <see cref="PropertyName"/>.</exception>
+    protected override void ValidateCode(ErrorCode code)
+    {
+        if (code != CodeFor(PropertyName))
+        {
+            throw new ArgumentException(
+                $"The code of a ValidationError is {CodeFor(PropertyName)}, computed from its PropertyName; set PropertyName instead.",
+                nameof(code));
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────
+
+    private static ErrorCode CodeFor(string propertyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        return ErrorCode.From($"VALIDATION.{propertyName.ToUpperInvariant()}");
+    }
+
+    // The invariant culture: the message reads the same whatever the server's culture (CA1305).
+    private static string BuildRangeMessage(string propertyName, object? min, object? max) =>
+        (min, max) switch
+        {
+            (not null, not null) => string.Create(CultureInfo.InvariantCulture, $"{propertyName} must be between {min} and {max}."),
+            (not null, null) => string.Create(CultureInfo.InvariantCulture, $"{propertyName} must be greater than or equal to {min}."),
+            (null, not null) => string.Create(CultureInfo.InvariantCulture, $"{propertyName} must be less than or equal to {max}."),
+            _ => $"{propertyName} is out of range.",
+        };
+}

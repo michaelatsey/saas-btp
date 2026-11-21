@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props. -->
+
+  <ItemGroup>
+    <ProjectReference Include="../../../MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

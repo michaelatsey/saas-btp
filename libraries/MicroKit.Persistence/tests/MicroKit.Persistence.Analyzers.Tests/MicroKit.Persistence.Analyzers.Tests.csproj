@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Persistence.Analyzers.Tests (see ../../README.md), on the test
+       stack of ADR-ARCH-021 (ADR-ARCH-035 §7). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <!-- The analyzer as the assembly under test, by a plain project reference, so that it does not
+       run on this project's compilation. ADR-ARCH-035 §9 forbids a test project to reference it as
+       an analyzer (OutputItemType="Analyzer"). -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Persistence.Analyzers/MicroKit.Persistence.Analyzers.csproj" />
+  </ItemGroup>
+
+  <!-- HelpLinkTests checks that every diagnostic's help link has one heading behind it in this
+       copy's README: the README is copied to the output, and the build fails if it is missing. -->
+  <ItemGroup>
+    <None Include="../../README.md" Link="README.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="RequireReadme" AfterTargets="CopyFilesToOutputDirectory">
+    <Error Condition="!Exists('$(OutDir)README.md')" Text="README.md is missing from $(OutDir); HelpLinkTests cannot run without it." />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" />
+    <!-- Transitive pinning is off: without it, the testing package above would compile these tests
+         against the Roslyn 1.0.1 it declares, while the analyzer is built on 5.0.0. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+  </ItemGroup>
+
+</Project>

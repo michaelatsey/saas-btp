@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Persistence.UnitTests (see ../../README.md), on the test stack
+       of ADR-ARCH-021 (ADR-ARCH-035 §7): its Query/ and Results/ tests. MicroKit reached the
+       library through MicroKit.Persistence.Specifications and .Testing, not copied; this project
+       references it directly. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Persistence/MicroKit.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

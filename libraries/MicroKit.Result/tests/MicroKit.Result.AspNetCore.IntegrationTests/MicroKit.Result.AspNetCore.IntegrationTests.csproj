@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Result.IntegrationTests (see ../../README.md), on the test stack of
+       ADR-ARCH-021 (ADR-ARCH-035 §7).
+       It tests MicroKit.Result.AspNetCore, through a real ASP.NET Core host on Kestrel, hence its
+       name (ADR-ARCH-020). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. MicroKit's IL2026/IL3050
+         are not kept: this project does not run the trim analyzer, and the build reports
+         neither. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Result/MicroKit.Result.csproj" />
+    <ProjectReference Include="../../src/MicroKit.Result.AspNetCore/MicroKit.Result.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

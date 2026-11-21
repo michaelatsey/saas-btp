@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props.
+       A Roslyn analyzer: a module's Adapters project references it as an analyzer
+       (OutputItemType="Analyzer", ReferenceOutputAssembly="false"), never a test project
+       (ADR-ARCH-035 §3, §5, §9). -->
+
+  <PropertyGroup>
+    <!-- An analyzer loads in any host compiler, so it keeps the target Roslyn requires. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- Kept from MicroKit: RS2008 (release tracking) asks for AnalyzerReleases.*.md files, which
+         MicroKit does not ship for this analyzer. -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Private: the compiler loading the analyzer provides Roslyn (ADR-ARCH-035 §5). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

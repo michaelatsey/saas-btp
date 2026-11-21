@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Result.AotTests (see ../../README.md), on the test stack of
+       ADR-ARCH-021 (ADR-ARCH-035 §7).
+       It runs MicroKit.Result's serialization in a process configured as a trimmed or Native AOT
+       application would be, which cannot be merged into MicroKit.Result.Tests: the switch below
+       applies to the whole process, and the unit tests need reflection-based serialization. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. IL2026/IL3050 are never
+         suppressed here: this project runs the trim and AOT analyzers (below), and Result<T>
+         serialization must build without their warnings, which are errors in Release. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <!-- Kept from MicroKit: reflection-based System.Text.Json is turned off, as in a trimmed or
+         Native AOT app (Microsoft Learn, "How to use source generation in System.Text.Json"): every
+         type goes through a JsonSerializerContext. The trim and AOT analyzers run at build time, so
+         a reflection path reached from this project fails the Release build. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Result/MicroKit.Result.csproj" />
+  </ItemGroup>
+
+</Project>

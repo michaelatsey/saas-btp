@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit (see ../../README.md). Governed by the root Directory.Build.props. -->
+
+  <PropertyGroup>
+    <!-- Kept from MicroKit (ADR-ARCH-035 §6): turns on the trim, single-file and AOT analyzers on
+         this library's own code, which MicroKit.Result.IntegrationTests (reflection-free
+         serialization) relies on. The SDK makes it imply IsTrimmable. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Kept from MicroKit: CA1716 (the public type Error has the name of a Visual Basic keyword)
+         and CA1000 (static factory members on generic types such as Result<T>): both are its
+         public API. -->
+    <NoWarn>$(NoWarn);CA1716;CA1000</NoWarn>
+  </PropertyGroup>
+
+</Project>

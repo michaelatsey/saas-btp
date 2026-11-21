@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Copied from MicroKit's MicroKit.Persistence.IntegrationTests (see ../../README.md), on the test
+       stack of ADR-ARCH-021 (ADR-ARCH-035 §7): the EF Core implementation against SQLite and a real
+       PostgreSQL. The SQL Server suites are not copied, nor is the fixture package the PostgreSQL
+       suites ran on. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Kept from MicroKit: CA1707, the copied test names use underscores. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- A direct reference wherever PostgreSQL is reached (root Directory.Packages.props). -->
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Added here (not in MicroKit): Microsoft.EntityFrameworkCore.Sqlite 10.0.9 brings the
+         SQLitePCLRaw family at 2.1.11, whose native library GHSA-2m69-gcr7-jv3q covers (<= 2.1.11).
+         MicroKit suppressed the advisory; every package of the family the restore resolves is
+         referenced here at one later 2.1 release instead (root Directory.Packages.props). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.core" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MicroKit.Persistence.EntityFrameworkCore/MicroKit.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+    <ProjectReference Include="../../../MicroKit.Domain/src/MicroKit.Domain/MicroKit.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- The PostgreSQL every integration test of the repository starts (apps/api/CLAUDE.md, Tests). -->
+  <ItemGroup>
+    <Compile Include="../../../../apps/api/tests/PostgresImage.cs" Link="PostgresImage.cs" />
+  </ItemGroup>
+
+</Project>
