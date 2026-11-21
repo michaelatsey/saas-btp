@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration tests of the Access module against PostgreSQL migrated by the runner
+    (ADR-ARCH-034 §6): the tests of ADR-ARCH-032 §6 and ADR-ARCH-033 §5 and the invariants
+    contract.md §7 proves in the database, in SQL, as saasbtp_api. The mapping test of
+    ADR-ARCH-033 §3 joins them with the persistence adapter.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- CA1707: test names carry the identifier they prove, with underscores
+         (INV_ACCESS_01_..., BP001_AC_06_...), as issues-convention.md §12 states. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../../../tests/SaasBtp.Testing/SaasBtp.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

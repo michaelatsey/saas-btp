@@ -1,20 +1,29 @@
 using System.Diagnostics;
 
-namespace SaasBtp.Migrations.IntegrationTests;
+namespace SaasBtp.Testing;
 
 /// <summary>What one execution of the migration runner returned and wrote.</summary>
-internal sealed record RunnerResult(int ExitCode, string Output);
+/// <param name="ExitCode">The runner's process exit code.</param>
+/// <param name="Output">What it wrote to its standard output, then to its standard error.</param>
+public sealed record RunnerResult(int ExitCode, string Output);
 
 /// <summary>
 /// Runs the migration runner the way a deployment does: as its own process, with its connection
 /// string in the environment.
 /// </summary>
-internal static class Runner
+public static class Runner
 {
+    /// <summary>The environment variable the runner reads its connection string from.</summary>
     public const string ConnectionStringVariable = "ConnectionStrings__Migrations";
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// Runs <c>SaasBtp.Migrations.dll</c> from the test's output folder, and waits for it to exit.
+    /// </summary>
+    /// <param name="connectionString">The runner's connection string; null leaves the variable unset.</param>
+    /// <param name="cancellationToken">Stops the wait; the runner is killed if it is still running.</param>
+    /// <returns>The runner's exit code and output.</returns>
     public static async Task<RunnerResult> RunAsync(string? connectionString, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

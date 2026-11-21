@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The shared support of the integration tests (ADR-ARCH-034 §6): the PostgreSQL the tests start,
+    the roles of infra/supabase/roles.sql applied to it, and the migration runner run on it as
+    saasbtp_migrator (ADR-ARCH-032, Consequences). Its name does not end in Tests, so its public
+    types carry XML comments (ADR-ARCH-021). It references no test framework: each test project
+    wraps it in a fixture of its own.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <!-- The runner is started as its own process from the test's output folder (Runner.cs). -->
+  <ItemGroup>
+    <ProjectReference Include="../../database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../PostgresImage.cs" Link="PostgresImage.cs" />
+    <!-- The file the maintainer runs on each project, applied as it is to every test database. -->
+    <EmbeddedResource Include="../../../../infra/supabase/roles.sql" LogicalName="roles.sql" />
+  </ItemGroup>
+
+</Project>
