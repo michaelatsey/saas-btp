@@ -24,12 +24,12 @@ public class SubjectDbContext(DbContextOptions options) : DbContext(options)
 }
 
 /// <summary>
-/// The same context, counting the transactions EF Core begins: it adds the probe's counter
-/// itself, since <c>UsePostgreSQL</c> exposes only the Npgsql options. Never pooled: a pooled
-/// context cannot change its options in <c>OnConfiguring</c>.
+/// The same context, counting the transactions EF Core begins and the opens of its connection: it
+/// adds the probe's counters itself, since <c>UsePostgreSQL</c> exposes only the Npgsql options.
+/// Never pooled: a pooled context cannot change its options in <c>OnConfiguring</c>.
 /// </summary>
 public sealed class CountedSubjectDbContext(DbContextOptions<CountedSubjectDbContext> options) : SubjectDbContext(options)
 {
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-        optionsBuilder.AddInterceptors(Probe.TransactionCounter.Instance);
+        optionsBuilder.AddInterceptors(Probe.TransactionCounter.Instance, Probe.ConnectionCounter.Instance);
 }

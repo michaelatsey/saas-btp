@@ -323,6 +323,61 @@ Tests, against the PostgreSQL of `apps/api/tests/PostgresImage.cs`:
 - `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/PostgreSqlServer.cs`:
   `TestDatabase.ExecuteAsync` runs a statement of a test's set-up on a connection no context owns.
 
+### The SQL read of the unit of work (issue #213)
+
+A read in SQL obtains the connection and transaction of the unit of work through the library, so
+that it sees the unit of work's subject and never opens a connection of its own (ADR-ARCH-034 §3,
+ADR-ARCH-035 §8). It takes its values only as parameters (ADR-ARCH-032 §3).
+
+- `src/MicroKit.Persistence.EntityFrameworkCore/Transactions/IUnitOfWorkSqlQuery.cs`, public:
+  `IUnitOfWorkSqlQuery<TContext>.SqlQueryAsync<TElement>(FormattableString sql, CancellationToken ct)`
+  returns the rows of a read, materialized and not tracked. It names its context, so that each
+  module resolves the read of its own unit of work. No overload takes a `string`: written as an interpolated string, each
+  value is sent as a parameter. A format built at run time (`FormattableStringFactory.Create` over
+  concatenated text) is not parameterized and must not be used. The read cannot refuse it: at run
+  time it cannot be told apart from a string the compiler builds from `$"..."`, as with EF Core's
+  own `Database.SqlQuery(FormattableString)`, and no rule of the copied analyzer (MKP001 to MKP009)
+  detects it, so review enforces it (ADR-ARCH-032 §3). The name keeps every call within
+  the `SqlQuery*` calls `ModuleSqlNamesOnlyItsSchema` reads (ADR-ARCH-034 §7).
+- `src/MicroKit.Persistence.EntityFrameworkCore/Transactions/EfUnitOfWork.cs` implements it. Once
+  `Database.CurrentTransaction` is checked to be the transaction the unit of work opened, it runs
+  EF Core's `Database.SqlQuery` on the unit of work's context: on its connection, already open, and
+  in that transaction, without `Database.UseTransaction`. With no transaction open, a transaction
+  begun on the context, or after the unit of work ended, the read is refused with
+  `InvalidOperationException`: it opens no connection and sends no command. A nested
+  `ExecuteAsync` or `TryExecuteAsync` joins the unit of work's transaction, and a read there runs.
+- `src/MicroKit.Persistence.EntityFrameworkCore/DependencyInjection/PersistenceServiceCollectionExtensions.cs`:
+  `AddUnitOfWork<TContext>` binds `IUnitOfWorkSqlQuery<TContext>` to the scope's unit of work of
+  that context. A call for another context registers another service and replaces none: the
+  non-generic interfaces of the unit of work are still rebound by such a call, as in MicroKit.
+- The documentation of `ITransactionalUnitOfWork` lists the five interfaces the unit of work is
+  bound to.
+
+Tests, against the PostgreSQL of `apps/api/tests/PostgresImage.cs`:
+
+- `tests/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.IntegrationTests/UnitOfWorkSqlQueryTests.cs`,
+  through `UsePostgreSQL` and `AddUnitOfWork`, with a subject:
+  - `ASqlReadInAUnitOfWorkRunsOnItsConnectionAndTransaction`, through `ExecuteAsync`,
+    `TryExecuteAsync`, a nested `ExecuteAsync`, a nested `TryExecuteAsync`, and `ExecuteAsync`
+    with retries on failure whose
+    first attempt fails with a transient `40001` and is retried:
+    `current_setting('app.user_id', true)` read through the port equals the subject; the read's
+    `txid_current()` equals the context's; it sees the row the unit of work saved before it; one
+    transaction begun and one open of the connection per attempt, none for a read; one committed
+    row; without retries, every command on one physical connection.
+  - `ASqlReadOutsideAUnitOfWorkFailsAndOpensNoConnection`, with no transaction, a transaction
+    begun on the context, after the unit of work ended, and after the ended unit of work's
+    transaction was handed back through `Database.UseTransaction` (refused by the provider, so the
+    context holds no transaction): `InvalidOperationException`, no open of
+    the connection, no command sent, a transaction begun on the context left as it was.
+  - `ASqlReadSendsItsValuesAsParameters`: an injection-shaped value comes back unchanged, and the
+    command sent holds `$1` and its parameter, never the value.
+  - `TheSqlReadTakesNoString`: every method of the port takes a `FormattableString` and no `string`.
+  - `EachContextResolvesTheSqlReadOfItsOwnUnitOfWork`: with two contexts registered, each resolves
+    the read of its own unit of work, and the first one's read runs in its unit of work.
+- `Probe.ConnectionsOpened`, counted by `Probe.ConnectionCounter`, which `CountedSubjectDbContext`
+  adds: the opens of the context's connection EF Core performs.
+
 ## Diagnostics
 
 The analyzer's rules, one section per diagnostic ID. The help link of each diagnostic opens its

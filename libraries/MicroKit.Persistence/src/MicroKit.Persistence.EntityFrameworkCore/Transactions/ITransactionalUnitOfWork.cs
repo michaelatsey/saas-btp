@@ -10,11 +10,12 @@ namespace MicroKit.Persistence.EntityFrameworkCore;
 /// <see cref="EfUnitOfWork{TContext}"/> implements this interface.
 /// </para>
 /// <para>
-/// Registered as a single scoped instance exposed through three interface pointers:
-/// <see cref="IUnitOfWork"/>, <see cref="ITransactionalContext"/>, and
-/// <see cref="ITransactionalUnitOfWork"/>. Use
+/// Registered as a single scoped instance exposed through five interface pointers:
+/// <see cref="IUnitOfWork"/>, <see cref="ITransactionalContext"/>,
+/// <see cref="ITransactionalUnitOfWork"/>, <see cref="IResultUnitOfWork"/>, and
+/// <see cref="IUnitOfWorkSqlQuery{TContext}"/> (added in this repository, issue #213). Use
 /// <see cref="PersistenceServiceCollectionExtensions.AddUnitOfWork{TContext}"/> to register all
-/// three in one call.
+/// five in one call.
 /// </para>
 /// <para>
 /// Handlers inject the narrowest interface they need:

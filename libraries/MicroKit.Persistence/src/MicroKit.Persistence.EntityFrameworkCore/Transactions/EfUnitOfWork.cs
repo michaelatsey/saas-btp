@@ -18,8 +18,9 @@ using MicroKit.Result;
 /// Register via
 /// <see cref="PersistenceServiceCollectionExtensions.AddUnitOfWork{TContext}"/>, which creates
 /// a single scoped instance and binds it to <see cref="IUnitOfWork"/>,
-/// <see cref="ITransactionalContext"/>, <see cref="ITransactionalUnitOfWork"/>, and
-/// <see cref="IResultUnitOfWork"/>.
+/// <see cref="ITransactionalContext"/>, <see cref="ITransactionalUnitOfWork"/>,
+/// <see cref="IResultUnitOfWork"/>, and <see cref="IUnitOfWorkSqlQuery{TContext}"/> (the last added in this
+/// repository, issue #213).
 /// </para>
 /// <para>
 /// The <see cref="IResultUnitOfWork"/> path converts a concurrency conflict always, and a unique or
@@ -31,7 +32,7 @@ using MicroKit.Result;
 /// </para>
 /// </remarks>
 public sealed class EfUnitOfWork<TContext>(TContext context)
-    : ITransactionalUnitOfWork, IResultUnitOfWork
+    : ITransactionalUnitOfWork, IResultUnitOfWork, IUnitOfWorkSqlQuery<TContext>
     where TContext : DbContext
 {
     // The PersistenceException CommitAsync raised and ExecuteAsync unwrapped so the execution
@@ -320,6 +321,22 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
         }
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// It runs <c>Database.SqlQuery</c> on this unit of work's context, once
+    /// <c>Database.CurrentTransaction</c> is checked to be the transaction this unit of work opened: the
+    /// context's connection is then open, so EF Core opens none, and the command runs in that
+    /// transaction. A failure of the read propagates unchanged; the owning
+    /// <see cref="ExecuteAsync{TState}"/> or <c>TryExecuteAsync</c> translates it, as for a LINQ query.
+    /// Added in this repository (issue #213).
+    /// </remarks>
+    public async Task<IReadOnlyList<TElement>> SqlQueryAsync<TElement>(FormattableString sql, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        EnsureInsideOwnTransaction();
+        return await context.Database.SqlQuery<TElement>(sql).ToListAsync(ct).ConfigureAwait(false);
+    }
+
     private void EnsureNoTransactionForFlush()
     {
         if (context.Database.CurrentTransaction is not null)
@@ -344,6 +361,21 @@ public sealed class EfUnitOfWork<TContext>(TContext context)
                 + "Database.UseTransaction, and was refused: every command of a unit of work runs in the one "
                 + "transaction it opens, which sets its subject first (ADR-ARCH-033 §4). End that transaction, and "
                 + "run the work through ExecuteAsync or TryExecuteAsync.");
+        }
+    }
+
+    // Added in this repository (issue #213, ADR-ARCH-034 §3): a SQL read runs only in the transaction
+    // this unit of work opened. Checked before EF Core touches the connection, so a read outside it,
+    // with no transaction or another one, opens no connection and sends nothing. _owned is null
+    // outside the unit of work, and so is CurrentTransaction when nothing is open: both are checked.
+    private void EnsureInsideOwnTransaction()
+    {
+        if (_owned is null || !ReferenceEquals(context.Database.CurrentTransaction, _owned))
+        {
+            throw new InvalidOperationException(
+                "A SQL read was called outside the transaction of the unit of work, and was refused: it opened no "
+                + "connection and sent no command. A read runs on the unit of work's connection and transaction, which "
+                + "carry its subject (ADR-ARCH-034 §3). Call it from inside ExecuteAsync or TryExecuteAsync.");
         }
     }
 
