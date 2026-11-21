@@ -17,4 +17,10 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
+  <!-- Each module through its Adapters project only, whose entry point Program.cs calls by type
+       (ADR-ARCH-034 §2). -->
+  <ItemGroup>
+    <ProjectReference Include="../../modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj" />
+  </ItemGroup>
+
 </Project>

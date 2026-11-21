@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Access module's use cases, one vertical slice per use case, <Feature>/<UseCase>/: an
+    endpoint and its handler; ports other than repositories in Ports/ (ADR-ARCH-034 §1). ASP.NET
+    Core is referenced for the endpoints only. Every type is internal (ADR-ARCH-034 §2).
+  -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- ADR-ARCH-034 §2: the module's Adapters and its test projects only. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="SaasBtp.Access.Adapters" />
+  </ItemGroup>
+
+</Project>

@@ -7,12 +7,18 @@
     <Project Path="apps/api/src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
     <Project Path="apps/api/src/hosts/SaasBtp.Api.HealthProbe/SaasBtp.Api.HealthProbe.csproj" />
   </Folder>
+  <Folder Name="/apps/api/src/modules/Access/">
+    <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Adapters/SaasBtp.Access.Adapters.csproj" />
+    <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Domain/SaasBtp.Access.Domain.csproj" />
+    <Project Path="apps/api/src/modules/Access/SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
+  </Folder>
   <Folder Name="/apps/api/database/">
     <Project Path="apps/api/database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
   </Folder>
   <Folder Name="/apps/api/tests/">
     <Project Path="apps/api/tests/SaasBtp.Api.HealthProbe.Tests/SaasBtp.Api.HealthProbe.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Api.IntegrationTests/SaasBtp.Api.IntegrationTests.csproj" />
+    <Project Path="apps/api/tests/SaasBtp.Architecture.Tests/SaasBtp.Architecture.Tests.csproj" />
     <Project Path="apps/api/tests/SaasBtp.Migrations.IntegrationTests/SaasBtp.Migrations.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/libraries/MicroKit.Domain/src/">

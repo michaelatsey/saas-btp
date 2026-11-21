@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Access module's domain (ADR-ARCH-031, ADR-ARCH-034 §1): aggregates, value objects, business
+    rules, domain events and repository ports. It references domain building blocks only, never a
+    data access, web or hosting package; SaasBtp.Architecture.Tests checks it.
+  -->
+
+</Project>
