@@ -16,10 +16,17 @@ public static class Runner
     /// <summary>The environment variable the runner reads its connection string from.</summary>
     public const string ConnectionStringVariable = "ConnectionStrings__Migrations";
 
+    /// <summary>
+    /// The folder, under the test's output folder, that holds the runner's own build output: its
+    /// assembly, its <c>deps.json</c> and its dependencies (<c>SaasBtp.Testing.csproj</c>).
+    /// </summary>
+    public const string Folder = "migration-runner";
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Runs <c>SaasBtp.Migrations.dll</c> from the test's output folder, and waits for it to exit.
+    /// Runs <c>SaasBtp.Migrations.dll</c> from <see cref="Folder"/>, with the runner's own
+    /// dependencies rather than the test project's, and waits for it to exit.
     /// </summary>
     /// <param name="connectionString">The runner's connection string; null leaves the variable unset.</param>
     /// <param name="cancellationToken">Stops the wait; the runner is killed if it is still running.</param>
@@ -30,7 +37,7 @@ public static class Runner
         timeout.CancelAfter(Timeout);
 
         var startInfo = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
-        startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "SaasBtp.Migrations.dll"));
+        startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, Folder, "SaasBtp.Migrations.dll"));
         startInfo.Environment.Remove(ConnectionStringVariable);
         if (connectionString is not null)
         {
