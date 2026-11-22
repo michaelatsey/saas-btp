@@ -24,20 +24,42 @@ public static class Runner
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
 
+    /// <summary>The runner's argument that excludes one script, by its file name.</summary>
+    public const string ExcludeArgument = "--exclude";
+
     /// <summary>
-    /// Runs <c>SaasBtp.Migrations.dll</c> from <see cref="Folder"/>, with the runner's own
-    /// dependencies rather than the test project's, and waits for it to exit.
+    /// Runs the runner as every Testcontainers migration does: excluding each script of
+    /// <see cref="AuthCoupledScripts.FileNames"/>, which a bare PostgreSQL cannot apply.
     /// </summary>
     /// <param name="connectionString">The runner's connection string; null leaves the variable unset.</param>
     /// <param name="cancellationToken">Stops the wait; the runner is killed if it is still running.</param>
     /// <returns>The runner's exit code and output.</returns>
-    public static async Task<RunnerResult> RunAsync(string? connectionString, CancellationToken cancellationToken)
+    public static Task<RunnerResult> RunAsync(string? connectionString, CancellationToken cancellationToken) =>
+        RunAsync(connectionString, AuthCoupledScripts.FileNames.SelectMany(name => new[] { ExcludeArgument, name }).ToArray(), cancellationToken);
+
+    /// <summary>
+    /// Runs <c>SaasBtp.Migrations.dll</c> from <see cref="Folder"/>, with the runner's own
+    /// dependencies rather than the test project's, with exactly the arguments given, and waits for
+    /// it to exit. Only the tests of the runner's arguments, and of a script that is not excluded,
+    /// call it directly.
+    /// </summary>
+    /// <param name="connectionString">The runner's connection string; null leaves the variable unset.</param>
+    /// <param name="arguments">The runner's command-line arguments, passed as they are.</param>
+    /// <param name="cancellationToken">Stops the wait; the runner is killed if it is still running.</param>
+    /// <returns>The runner's exit code and output.</returns>
+    public static async Task<RunnerResult> RunAsync(
+        string? connectionString, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(Timeout);
 
         var startInfo = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
         startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, Folder, "SaasBtp.Migrations.dll"));
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
         startInfo.Environment.Remove(ConnectionStringVariable);
         if (connectionString is not null)
         {

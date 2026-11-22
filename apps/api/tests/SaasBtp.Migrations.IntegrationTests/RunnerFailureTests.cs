@@ -80,7 +80,7 @@ public sealed class RunnerFailureTests
         Assert.Equal(0L, await command.ExecuteScalarAsync(cancellationToken));
     }
 
-    private static int ClosedPort()
+    internal static int ClosedPort()
     {
         using var listener = new TcpListener(IPAddress.Loopback, port: 0);
         listener.Start();

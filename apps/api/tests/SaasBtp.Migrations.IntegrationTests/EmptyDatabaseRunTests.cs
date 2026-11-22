@@ -1,3 +1,5 @@
+using SaasBtp.Testing;
+
 namespace SaasBtp.Migrations.IntegrationTests;
 
 public sealed class EmptyDatabaseRunTests(EmptyDatabaseRun run) : IClassFixture<EmptyDatabaseRun>
@@ -15,10 +17,25 @@ public sealed class EmptyDatabaseRunTests(EmptyDatabaseRun run) : IClassFixture<
     }
 
     [Fact]
-    public void TheFirstRunJournalsEveryScriptTheRunnerCarries()
+    public void TheFirstRunJournalsEveryScriptTheRunnerCarriesExceptTheAuthCoupledOnes()
     {
-        Assert.True(EmptyDatabaseRun.EmbeddedScripts > 0, "The runner carries no script.");
-        Assert.Equal(EmptyDatabaseRun.EmbeddedScripts, run.JournalEntriesAfterFirstRun);
+        var expected = EmptyDatabaseRun.EmbeddedScripts
+            .Where(script => !AuthCoupledScripts.FileNames.Any(name => script.EndsWith("." + name, StringComparison.Ordinal)))
+            .ToList();
+
+        Assert.NotEmpty(expected);
+        Assert.Equal(EmptyDatabaseRun.EmbeddedScripts.Count - AuthCoupledScripts.FileNames.Count, expected.Count);
+        Assert.Equal(expected, run.JournaledScriptsAfterFirstRun);
+        Assert.Equal(expected.Count, run.JournalEntriesAfterFirstRun);
+    }
+
+    [Fact]
+    public void TheFirstRunNamesEachScriptItExcludes()
+    {
+        Assert.NotEmpty(AuthCoupledScripts.FileNames);
+        Assert.All(
+            AuthCoupledScripts.FileNames,
+            name => Assert.Contains($"Excluded, not applied: {name}", run.FirstRun.Output, StringComparison.Ordinal));
     }
 
     [Fact]

@@ -111,8 +111,7 @@ cites it. The MicroKit behaviour it relies on was read on `main` at
   policy would match zero rows on every call, silently — do NOT add one.
 
 ## Auth-coupled scripts
-- Within the auth-boundary exception (identity provisioning) of the removed ADR-ARCH-005 (tag
-  `archive/pre-reset`), a DbUp script MAY create
+- Under ADR-ARCH-038 (Consequences), which makes this rule its own, a DbUp script MAY create
   objects ON GoTrue tables (a trigger on `auth.users`) and objects that name GoTrue roles
   (`supabase_auth_admin` grants, policies, or `SECURITY INVOKER` functions it executes). This is the
   ONLY place app DDL touches the `auth` schema or GoTrue roles; ordinary business DDL never does.
@@ -122,5 +121,6 @@ cites it. The MicroKit behaviour it relies on was read on `main` at
   auth-coupled script that is not listed will run on bare Postgres and fail loudly rather than be
   skipped silently. Auth-coupled scripts are validated only against a real Supabase project, via a
   manual checklist — never by faking `auth.users` / `supabase_auth_admin`, which would prove nothing.
-- No auth-coupled script exists since the reset; any that BP-001 needs is decided when BP-001 is
-  implemented.
+- The one auth-coupled script is `0004__access__create_access_token_hook.sql`, the custom access token
+  hook of ADR-ARCH-038 decision 5, validated on staging by the checklist of its decision 9. The named
+  list is `apps/api/tests/SaasBtp.Testing/AuthCoupledScripts.cs`.

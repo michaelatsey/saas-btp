@@ -33,10 +33,15 @@ public sealed class EmptyDatabaseRun : IAsyncLifetime
 
     internal IReadOnlyList<string> AccessSchemaAfterFirstRun { get; private set; } = [];
 
+    /// <summary>The names the journal holds after the first run, as DbUp records them.</summary>
+    internal IReadOnlyList<string> JournaledScriptsAfterFirstRun { get; private set; } = [];
+
     /// <summary>The scripts the runner carries, embedded in its assembly (ADR-ARCH-019).</summary>
-    internal static int EmbeddedScripts { get; } = Assembly.Load(new AssemblyName("SaasBtp.Migrations"))
+    internal static IReadOnlyList<string> EmbeddedScripts { get; } = Assembly.Load(new AssemblyName("SaasBtp.Migrations"))
         .GetManifestResourceNames()
-        .Count(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase));
+        .Where(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+        .Order(StringComparer.Ordinal)
+        .ToList();
 
     public async ValueTask InitializeAsync()
     {
@@ -56,6 +61,7 @@ public sealed class EmptyDatabaseRun : IAsyncLifetime
         }
 
         JournalEntriesAfterFirstRun = await CountJournalEntriesAsync(connectionString, cancellationToken);
+        JournaledScriptsAfterFirstRun = await JournaledScriptsAsync(connectionString, cancellationToken);
 
         SecondRun = await _database.MigrateAsync(cancellationToken);
         JournalSchemaAfterSecondRun = await ObjectsInSchemaAsync(connectionString, "dbup", cancellationToken);
@@ -94,6 +100,22 @@ public sealed class EmptyDatabaseRun : IAsyncLifetime
         }
 
         return objects;
+    }
+
+    private static async Task<IReadOnlyList<string>> JournaledScriptsAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand("select scriptname from dbup.schemaversions order by scriptname", connection);
+
+        var scripts = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            scripts.Add(reader.GetString(0));
+        }
+
+        return scripts;
     }
 
     private static async Task<long> CountJournalEntriesAsync(string connectionString, CancellationToken cancellationToken)
