@@ -15,6 +15,7 @@
   <Folder Name="/apps/api/src/modules/Access/tests/">
     <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Adapters.IntegrationTests/SaasBtp.Access.Adapters.IntegrationTests.csproj" />
     <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Domain.Tests/SaasBtp.Access.Domain.Tests.csproj" />
+    <Project Path="apps/api/src/modules/Access/tests/SaasBtp.Access.Features.Tests/SaasBtp.Access.Features.Tests.csproj" />
   </Folder>
   <Folder Name="/apps/api/database/">
     <Project Path="apps/api/database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />

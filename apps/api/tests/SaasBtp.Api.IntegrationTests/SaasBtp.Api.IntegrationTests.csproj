@@ -18,6 +18,8 @@
     <ProjectReference Include="../../src/hosts/SaasBtp.Api/SaasBtp.Api.csproj" />
     <!-- The subject port the host implements (ADR-ARCH-035 §8), which the tests resolve. -->
     <ProjectReference Include="../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+    <!-- A database migrated by the runner, for the founding's host tests (ADR-ARCH-034 §6). -->
+    <ProjectReference Include="../SaasBtp.Testing/SaasBtp.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

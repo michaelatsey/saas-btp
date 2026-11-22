@@ -17,6 +17,23 @@ automatically. A field is named ONCE (in C#) and flows everywhere.
 | Enum values on the wire | camelCase string tokens | `dangerousSituation` |
 | UI labels | localized (FR first), i18n layer | "Nom de l'observateur" |
 
+A module's persistence adapter (`SaasBtp.<Context>.Adapters/Persistence/`) is laid out by
+aggregate by default: one folder per aggregate, named after it in the plural (`Profiles/`,
+`Organizations/`), holding its `IEntityTypeConfiguration<T>` (`<Aggregate>Configuration`), its
+repository (`<Aggregate>Repository`) and the converters of its identifiers and values
+(`<Aggregate>Converters.cs`). The mapping every table shares (schema, lengths, key and audit
+columns) is one internal class beside the context. The context applies each configuration by one
+explicit `ApplyConfiguration`, never `ApplyConfigurationsFromAssembly` (ADR-ARCH-034 decisions 2
+and 7), and keeps `ConfigureConventions`, since a conversion applies to the whole model. A unit of
+work that spans aggregates has a folder of its own, named after its process (`Founding/`).
+
+A module's Features project registers and maps its own slices in two internal static classes at its
+root: `FeatureRegistration.AddFeatures`, the handlers, and `FeatureEndpoint.MapFeatures`, the
+endpoints, so that only an `*Endpoint` type depends on ASP.NET Core (`OnlyEndpointsDependOnAspNetCore`,
+ADR-ARCH-034 decision 7). The module's entry point calls both explicitly, with no scanning
+(ADR-ARCH-034 decision 2). A slice is a folder `<Feature>/<UseCase>/` holding its `*Endpoint` and its `*Handler`
+(ADR-ARCH-034 decision 1); adding one changes its folder and these two classes only.
+
 ---
 
 ## How translation happens (named once)

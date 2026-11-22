@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Unit tests of the Access module's handlers against fake ports (ADR-ARCH-034 §6), on the test
+    stack of ADR-ARCH-021: no database, and no data access, web or test container package
+    (UnitTestsUseNoInfrastructure). Features grants these tests InternalsVisibleTo (ADR-ARCH-034 §2).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- CA1707: test names carry the identifier they prove, with underscores
+         (BP001_AC_07_..., BP001_AC_23_...), as issues-convention.md §12 states. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
+  </ItemGroup>
+
+</Project>

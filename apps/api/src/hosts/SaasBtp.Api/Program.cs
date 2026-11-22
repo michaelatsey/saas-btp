@@ -14,7 +14,8 @@ builder.Logging.AddJsonConsole(options =>
     options.TimestampFormat = "O";
 });
 
-builder.Services.AddOpenApi("v1");
+// Every 201 describes its Location header (CreatedLocationHeader).
+builder.Services.AddOpenApi("v1", options => options.AddOperationTransformer(CreatedLocationHeader.TransformAsync));
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>(

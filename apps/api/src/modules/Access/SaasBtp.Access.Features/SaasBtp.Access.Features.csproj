@@ -17,6 +17,8 @@
   <!-- ADR-ARCH-034 §2: the module's Adapters and its test projects only. -->
   <ItemGroup>
     <InternalsVisibleTo Include="SaasBtp.Access.Adapters" />
+    <InternalsVisibleTo Include="SaasBtp.Access.Features.Tests" />
+    <InternalsVisibleTo Include="SaasBtp.Access.Adapters.IntegrationTests" />
   </ItemGroup>
 
 </Project>

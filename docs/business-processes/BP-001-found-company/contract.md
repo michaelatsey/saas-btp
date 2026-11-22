@@ -4,7 +4,7 @@ status: validated
 validated_by: michaelatsey
 validated_on: 2026-11-16
 issue: 178
-applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, ADR-ARCH-038, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
+applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, ADR-ARCH-038, ADR-ARCH-040, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
 ---
 
 # BP-001 — Contract
@@ -229,8 +229,8 @@ for `ALL` counts for every command.
 
 Cited, not decided here:
 
-- The format of the API's error bodies: no decision sets it. This contract fixes only what each
-  answer reveals.
+- The format of the API's error bodies: ADR-ARCH-040. This contract fixes what each answer
+  reveals; ADR-ARCH-040 fixes how an answer that carries a detail writes it.
 - Abuse protection, including any rate limit: open question of `process.md`; no `429` is part of
   this contract.
 
