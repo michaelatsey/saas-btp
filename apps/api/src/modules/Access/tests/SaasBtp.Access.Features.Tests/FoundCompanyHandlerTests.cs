@@ -166,6 +166,57 @@ public sealed class FoundCompanyHandlerTests
         Assert.Equal(OrganizationStatus.Declared, founded.Organization.Status);
     }
 
+    [Fact]
+    public async Task AReferenceInUseByAnOrganizationTheCallerOwnsIsAReplayOfThatOrganization()
+    {
+        var caller = FakeCaller.Confirmed();
+        var reference = Reference();
+        var owned = OrganizationUnder(reference, caller);
+        var founding = new FakeFoundingUnitOfWork { ReferenceInUse = true, Owned = owned };
+
+        var outcome = await Handler(caller, founding).HandleAsync(reference, "Another name", "Another site", Token);
+
+        Assert.Same(owned, Assert.IsType<FoundCompanyOutcome.Replayed>(outcome).Organization);
+        var read = Assert.Single(founding.OwnedReads);
+        Assert.Equal(reference, read.Reference.Value);
+        Assert.Equal(caller.Current!.Subject, read.Owner);
+    }
+
+    [Fact]
+    public async Task AReferenceInUseByAnOrganizationTheCallerDoesNotOwnIsInUse()
+    {
+        var caller = FakeCaller.Confirmed();
+        var founding = new FakeFoundingUnitOfWork { ReferenceInUse = true, Owned = null };
+
+        var outcome = await Handler(caller, founding).HandleAsync(Reference(), Valid, Valid, Token);
+
+        Assert.IsType<FoundCompanyOutcome.ReferenceInUse>(outcome);
+        Assert.Equal(caller.Current!.Subject, Assert.Single(founding.OwnedReads).Owner);
+    }
+
+    [Fact]
+    public async Task AFailureOfTheFoundingOrOfTheOwnershipReadPropagates()
+    {
+        var failure = new InvalidOperationException("forced by the test");
+        var failingFounding = new FakeFoundingUnitOfWork { FoundingFailure = failure };
+        var failingRead = new FakeFoundingUnitOfWork { ReferenceInUse = true, ReadFailure = failure };
+
+        Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Handler(FakeCaller.Confirmed(), failingFounding).HandleAsync(Reference(), Valid, Valid, Token)));
+        Assert.Empty(failingFounding.OwnedReads);
+        Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Handler(FakeCaller.Confirmed(), failingRead).HandleAsync(Reference(), Valid, Valid, Token)));
+    }
+
+    private static Organization OrganizationUnder(Guid reference, FakeCaller caller) =>
+        SaasBtp.Access.Domain.Founding.CompanyFounding.Found(
+            OrganizationId.TryCreate(reference, out var id) ? id : throw new InvalidOperationException("not a UUIDv7"),
+            OrganizationName.TryCreate(Valid, out var name, out _) ? name : throw new InvalidOperationException(Valid),
+            SaasBtp.Access.Domain.Workspaces.WorkspaceName.TryCreate(Valid, out var workspace, out _) ? workspace : throw new InvalidOperationException(Valid),
+            caller.Current!.Subject,
+            founderProfile: null,
+            TimeProvider.System).Organization;
+
     private static FoundCompanyHandler Handler(FakeCaller caller, FakeFoundingUnitOfWork founding) => new(caller, founding);
 
     private static Guid Reference() => Guid.CreateVersion7();

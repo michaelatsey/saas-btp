@@ -11,8 +11,11 @@ namespace SaasBtp.Access.Features.Organizations.Found;
 /// ADR-ARCH-038 decision 7), then the unit of work. Nothing is written on a refusal.
 /// </summary>
 /// <remarks>
-/// The reference already in use is not told apart yet: the unit of work fails, and its exception
-/// propagates (contract.md §3, the replay, is not made here).
+/// The reference is the idempotency key (BP001-R3, contract.md §3): when the unit of work finds it
+/// already in use, the handler reads, in a new transaction, whether the caller is the current owner
+/// of the organization it identifies. If so, the request is a replay, answered with that
+/// organization, its payload not compared; otherwise the reference is in use. Any other failure
+/// propagates.
 /// </remarks>
 internal sealed class FoundCompanyHandler(ICaller caller, IFoundingUnitOfWork founding)
 {
@@ -57,9 +60,20 @@ internal sealed class FoundCompanyHandler(ICaller caller, IFoundingUnitOfWork fo
             return new FoundCompanyOutcome.NotConfirmed();
         }
 
-        var founded = await founding.FoundAsync(organizationId, company, workspace, current.Subject, cancellationToken)
+        var attempt = await founding.FoundAsync(organizationId, company, workspace, current.Subject, cancellationToken)
             .ConfigureAwait(false);
-        return new FoundCompanyOutcome.Founded(founded);
+        switch (attempt)
+        {
+            case FoundingAttempt.Founded founded:
+                return new FoundCompanyOutcome.Founded(founded.Company);
+
+            case FoundingAttempt.ReferenceInUse:
+                var owned = await founding.FindOwnedAsync(organizationId, current.Subject, cancellationToken).ConfigureAwait(false);
+                return owned is null ? new FoundCompanyOutcome.ReferenceInUse() : new FoundCompanyOutcome.Replayed(owned);
+
+            default:
+                throw new InvalidOperationException($"The founding came to an attempt the handler does not answer: {attempt.GetType().Name}.");
+        }
     }
 }
 
@@ -90,4 +104,11 @@ internal abstract record FoundCompanyOutcome
 
     /// <summary>The caller does not hold the confirmed-contact level (BP001-D1): 403, nothing written.</summary>
     internal sealed record NotConfirmed : FoundCompanyOutcome;
+
+    /// <summary>The reference identifies an organization the caller currently owns: a replay, 200, nothing written (contract.md §3).</summary>
+    /// <param name="Organization">The organization the request founded.</param>
+    internal sealed record Replayed(Organization Organization) : FoundCompanyOutcome;
+
+    /// <summary>The reference identifies any other organization: 409, nothing written, nothing of it revealed (INV-ACCESS-09).</summary>
+    internal sealed record ReferenceInUse : FoundCompanyOutcome;
 }

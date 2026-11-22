@@ -23,6 +23,13 @@
     <ProjectReference Include="../../../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
   </ItemGroup>
 
+  <!-- A direct reference wherever PostgreSQL is reached (Directory.Packages.props): the founding
+       tells its two key conflicts apart by the PostgresException it reads (#221). A package, so the
+       host's project-reference closure and the image are unchanged. -->
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
   <!-- ADR-ARCH-034 §2: the module's integration tests only. -->
   <ItemGroup>
     <InternalsVisibleTo Include="SaasBtp.Access.Adapters.IntegrationTests" />

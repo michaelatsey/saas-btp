@@ -38,9 +38,21 @@ public sealed class OpenApiDocumentTests
             "#/components/schemas/FoundCompanyRequest",
             body.GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
 
-        var statuses = post.GetProperty("responses").EnumerateObject().Select(response => response.Name).Order(StringComparer.Ordinal);
-        Assert.Equal(["201", "400", "401", "403", "422", "500"], statuses);
+        var responses = post.GetProperty("responses");
+        var statuses = responses.EnumerateObject().Select(response => response.Name).Order(StringComparer.Ordinal);
+        Assert.Equal(["200", "201", "400", "401", "403", "409", "422", "500"], statuses);
+
+        // A replay answers 200 with the same representation as the 201 (contract.md §3).
+        Assert.Equal(["application/json"], responses.GetProperty("200").GetProperty("content").EnumerateObject().Select(content => content.Name));
+        Assert.Equal(SchemaOf(responses, "201", "application/json"), SchemaOf(responses, "200", "application/json"));
+
+        // The reference in use answers 409 with problem details only (ADR-ARCH-040).
+        Assert.Equal(["application/problem+json"], responses.GetProperty("409").GetProperty("content").EnumerateObject().Select(content => content.Name));
+        Assert.Equal("#/components/schemas/ProblemDetails", SchemaOf(responses, "409", "application/problem+json"));
     }
+
+    private static string? SchemaOf(JsonElement responses, string status, string contentType) =>
+        responses.GetProperty(status).GetProperty("content").GetProperty(contentType).GetProperty("schema").GetProperty("$ref").GetString();
 
     /// <summary>
     /// The founding's body as contract.md §2 states it: its three properties required and never null,

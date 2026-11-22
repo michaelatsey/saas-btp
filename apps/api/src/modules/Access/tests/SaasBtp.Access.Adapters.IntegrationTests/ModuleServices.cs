@@ -4,9 +4,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
+using SaasBtp.Access.Adapters.Persistence.Founding;
+using SaasBtp.Access.Domain.Founding;
 using SaasBtp.Access.Domain.Organizations;
 using SaasBtp.Access.Domain.Profiles;
 using SaasBtp.Access.Domain.Workspaces;
+using SaasBtp.Access.Features.Ports;
 
 namespace SaasBtp.Access.Adapters.IntegrationTests;
 
@@ -167,4 +170,19 @@ internal sealed record FoundingRequest(Guid User, OrganizationId Reference, Orga
             OrganizationName.TryCreate(name, out var organizationName, out _) ? organizationName : throw new InvalidOperationException(name),
             WorkspaceName.TryCreate(name, out var workspaceName, out _) ? workspaceName : throw new InvalidOperationException(name));
     }
+}
+
+/// <summary>The founding's unit of work, for the tests that expect it to found.</summary>
+internal static class FoundingUnitOfWorkExtensions
+{
+    /// <summary>Founds through <see cref="FoundingUnitOfWork.FoundAsync"/>, and fails unless the company is founded.</summary>
+    public static async Task<FoundedCompany> FoundCompanyAsync(
+        this FoundingUnitOfWork founding,
+        OrganizationId reference,
+        OrganizationName organizationName,
+        WorkspaceName workspaceName,
+        UserId founder,
+        CancellationToken cancellationToken) =>
+        Assert.IsType<FoundingAttempt.Founded>(
+            await founding.FoundAsync(reference, organizationName, workspaceName, founder, cancellationToken)).Company;
 }
