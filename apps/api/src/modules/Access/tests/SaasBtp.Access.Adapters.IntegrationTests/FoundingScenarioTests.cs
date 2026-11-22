@@ -113,7 +113,7 @@ public sealed class FoundingScenarioTests(AccessDatabase database)
         module.Subject.Current = request.User;
         await using var scope = module.Scope();
         return await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-            .FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
+            .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
     }
 
     /// <summary>How many of <paramref name="organizations"/> have the profile's ownership as their current one.</summary>

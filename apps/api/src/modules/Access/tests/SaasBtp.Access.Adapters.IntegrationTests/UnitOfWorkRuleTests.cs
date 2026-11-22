@@ -101,7 +101,7 @@ public sealed class UnitOfWorkRuleTests(AccessDatabase database)
         await using (var scope = module.Scope())
         {
             var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-                .FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
+                .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
             profile = founded.Profile.Id.Value;
         }
 

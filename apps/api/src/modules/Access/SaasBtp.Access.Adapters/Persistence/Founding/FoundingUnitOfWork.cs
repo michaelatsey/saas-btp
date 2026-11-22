@@ -7,6 +7,7 @@ using SaasBtp.Access.Domain.Ownerships;
 using SaasBtp.Access.Domain.Profiles;
 using SaasBtp.Access.Domain.WorkspaceAccesses;
 using SaasBtp.Access.Domain.Workspaces;
+using Npgsql;
 using SaasBtp.Access.Features.Ports;
 
 namespace SaasBtp.Access.Adapters.Persistence.Founding;
@@ -44,8 +45,17 @@ namespace SaasBtp.Access.Adapters.Persistence.Founding;
 /// calls (ADR-ARCH-034 decision 1).
 /// </para>
 /// <para>
-/// No retry: the profile retry of contract.md §4 and the replay of §3 are not made here. The caller
-/// founds for the signed-in person, who is also the unit of work's subject (BP001-R2).
+/// A founding whose reference is already used fails on the organization's primary key, and its
+/// transaction rolls back: it is answered <see cref="FoundingAttempt.ReferenceInUse"/>, and whether
+/// the caller may replay it is read by <see cref="FindOwnedAsync"/>, in a new transaction under the
+/// same subject (contract.md §3). Two first foundings of one person at the same moment conflict on
+/// the profile's unique key: the losing one is run once more, from the profile read, in a new
+/// transaction, whose failed attempt the unit of work has rolled back and whose tracker it has
+/// cleared (contract.md §4). Both attempts are classified alike, so a retried attempt that meets the
+/// organization's primary key is a reference in use too; a second profile conflict is thrown.
+/// </para>
+/// <para>
+/// The caller founds for the signed-in person, who is also the unit of work's subject (BP001-R2).
 /// </para>
 /// </remarks>
 internal sealed class FoundingUnitOfWork(
@@ -58,28 +68,81 @@ internal sealed class FoundingUnitOfWork(
     IWorkspaceRepository workspaces,
     TimeProvider clock) : IFoundingUnitOfWork
 {
+    /// <summary>The organization's primary key (<c>0001__access__create_tables.sql</c>): the reference in use.</summary>
+    private const string OrganizationKey = "pk_organizations";
+
+    /// <summary>The profile's unique key on the person (<c>0001__access__create_tables.sql</c>, INV-ACCESS-01).</summary>
+    private const string ProfileKey = "ux_profiles__user_id";
+
     /// <summary>Founds a company for <paramref name="founder"/> under <paramref name="reference"/>.</summary>
     /// <param name="reference">The request's reference, the organization's identifier.</param>
     /// <param name="organizationName">The company name, measured.</param>
     /// <param name="workspaceName">The first workspace name, measured.</param>
     /// <param name="founder">The signed-in person.</param>
     /// <param name="cancellationToken">Cancels the founding, which is then rolled back.</param>
-    /// <returns>What the founding created, once committed.</returns>
+    /// <returns>
+    /// What the founding created, once committed; or <see cref="FoundingAttempt.ReferenceInUse"/>
+    /// when the organization's primary key refused the reference, nothing committed.
+    /// </returns>
     /// <exception cref="PersistenceException">
-    /// A database failure: a write, a policy or a key, the transaction's begin or its commit. Any other
+    /// A database failure other than the reference in use: a write, a policy or a key, the
+    /// transaction's begin or its commit, a profile conflict on the retried attempt included. Any other
     /// exception raised inside the transaction propagates as it is. In both cases the transaction is
     /// rolled back and nothing was committed.
     /// </exception>
-    public Task<FoundedCompany> FoundAsync(
+    public async Task<FoundingAttempt> FoundAsync(
         OrganizationId reference,
         OrganizationName organizationName,
         WorkspaceName workspaceName,
         UserId founder,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var founded = await unitOfWork.ExecuteAsync(
+                    static (state, ct) => state.Founding.FoundInTransactionAsync(state.Reference, state.OrganizationName, state.WorkspaceName, state.Founder, ct),
+                    (Founding: this, Reference: reference, OrganizationName: organizationName, WorkspaceName: workspaceName, Founder: founder),
+                    cancellationToken).ConfigureAwait(false);
+                return new FoundingAttempt.Founded(founded);
+            }
+            catch (PersistenceException failure) when (IsUniqueViolation(failure, OrganizationKey))
+            {
+                return new FoundingAttempt.ReferenceInUse();
+            }
+            catch (PersistenceException failure) when (attempt == 1 && IsUniqueViolation(failure, ProfileKey))
+            {
+                // Another transaction committed this person's profile first: start again, once.
+            }
+        }
+    }
+
+    /// <summary>The organization under <paramref name="reference"/> when <paramref name="owner"/> is its current owner, read in a new transaction.</summary>
+    /// <param name="reference">The request's reference.</param>
+    /// <param name="owner">The signed-in person, the unit of work's subject.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The organization, or <see langword="null"/>.</returns>
+    /// <exception cref="PersistenceException">A database failure.</exception>
+    public Task<Organization?> FindOwnedAsync(OrganizationId reference, UserId owner, CancellationToken cancellationToken = default) =>
         unitOfWork.ExecuteAsync(
-            static (state, ct) => state.Founding.FoundInTransactionAsync(state.Reference, state.OrganizationName, state.WorkspaceName, state.Founder, ct),
-            (Founding: this, Reference: reference, OrganizationName: organizationName, WorkspaceName: workspaceName, Founder: founder),
+            static async (state, ct) => await state.Organizations.FindCurrentlyOwnedByAsync(state.Reference, state.Owner, ct).ConfigureAwait(false),
+            (Organizations: organizations, Reference: reference, Owner: owner),
             cancellationToken);
+
+    /// <summary>Whether <paramref name="failure"/> comes from a unique violation (23505) of <paramref name="constraint"/>.</summary>
+    private static bool IsUniqueViolation(PersistenceException failure, string constraint)
+    {
+        for (Exception? current = failure; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } violation)
+            {
+                return string.Equals(violation.ConstraintName, constraint, StringComparison.Ordinal);
+            }
+        }
+
+        return false;
+    }
 
     private async Task<FoundedCompany> FoundInTransactionAsync(
         OrganizationId reference,

@@ -332,25 +332,21 @@ public sealed class FoundCompanyEndpointTests(FoundingDatabase database) : IClas
     }
 
     /// <summary>
-    /// A reference already in use is "any other failure" until the replay of contract.md §3 is made
-    /// (#220, Out of scope): 500, with no body and no constraint named, logged with its class.
+    /// Any other failure (contract.md §2): the API pointed at a database it cannot reach, a Unix socket
+    /// directory that does not exist, answers 500 with no body, logged with its class.
     /// </summary>
     [Fact]
     public async Task AFailureIsAnswered500WithNoBodyAndLoggedWithItsClass()
     {
-        await using var api = Start();
-        var claims = Claims(confirmed: true);
+        var factory = new ApiFactory(UnreachableDatabase(), _logs) { Jwks = new TestJwks(_key) };
+        await using var api = new FoundingApi(factory, factory);
         var reference = Guid.CreateVersion7();
-        using var first = await api.PostAsync(Body(reference, "Kouassi BTP", "Siège"), Sign(claims));
-        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
 
-        using var again = await api.PostAsync(Body(reference, "Kouassi BTP", "Siège"), Sign(claims));
+        using var failed = await api.PostAsync(Body(reference, "Kouassi BTP", "Siège"), Sign(Claims(confirmed: true)));
 
-        await AssertNoBodyAsync(again, HttpStatusCode.InternalServerError);
+        await AssertNoBodyAsync(failed, HttpStatusCode.InternalServerError);
         var logged = Assert.Single(_logs.Entries, entry => entry.Contains("answered 500:", StringComparison.Ordinal));
         Assert.Contains("PersistenceException", logged, StringComparison.Ordinal);
-        Assert.DoesNotContain("pk_organizations", logged, StringComparison.Ordinal);
-        Assert.Equal(1L, await database.OrganizationsAsync(reference));
     }
 
     [Fact]
@@ -411,6 +407,13 @@ public sealed class FoundCompanyEndpointTests(FoundingDatabase database) : IClas
         Assert.Equal(["type", "title", "status", "errors"], problem.RootElement.EnumerateObject().Select(property => property.Name));
         return problem.RootElement.GetProperty("errors").Clone();
     }
+
+    /// <summary>
+    /// A connection string to a Unix socket in a directory that does not exist: no process can serve
+    /// it, so the connection fails at once, whatever runs beside the test.
+    /// </summary>
+    private static string UnreachableDatabase() =>
+        $"Host={System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"no-database-{Guid.NewGuid():N}")};Database=postgres;Username=saasbtp_api;Password=unused;Timeout=2";
 
     private string Sign(Dictionary<string, object> claims) => TestTokens.Sign(claims, _key);
 

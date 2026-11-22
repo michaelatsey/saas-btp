@@ -15,6 +15,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The module's endpoints on a test server, so that a founding is answered by the module's own
+         endpoint, handler and adapters as saasbtp_api (#221). -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="xunit.v3" />

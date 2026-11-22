@@ -144,7 +144,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         await using var scope = module.Scope();
 
         await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-            .FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
+            .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
 
         // Six commands, each inserting one row: each row that must precede another is saved in its
         // own SaveChanges.
@@ -169,7 +169,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         await using var scope = module.Scope();
 
         var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-            .FoundAsync(second.Reference, second.OrganizationName, second.WorkspaceName, second.Founder, Token);
+            .FoundCompanyAsync(second.Reference, second.OrganizationName, second.WorkspaceName, second.Founder, Token);
 
         Assert.False(founded.IsProfileCreated);
         Assert.Equal(foundedFirst.Profile.Id, founded.Profile.Id);
@@ -253,7 +253,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         // After a founding: the identifiers and audit values stored are the domain's, from the
         // injected clock and the acting person.
         var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-            .FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
+            .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
 
         var actor = new Actor(request.User.ToString()).Value;
         foreach (var (table, id) in RowsOf(founded))
@@ -302,7 +302,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         module.Subject.Current = request.User;
         await using var scope = module.Scope();
         return await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
-            .FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
+            .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
     }
 
     /// <summary>Fails if any row of the organization, or the profile of its founder, exists.</summary>

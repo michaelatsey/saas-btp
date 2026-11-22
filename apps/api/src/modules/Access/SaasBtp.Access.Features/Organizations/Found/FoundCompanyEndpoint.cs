@@ -18,13 +18,15 @@ namespace SaasBtp.Access.Features.Organizations.Found;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The answers that carry a detail, 422 and 403, are problem details returned here; 400 and 500
-/// carry none (ADR-ARCH-040). The body is read here rather than bound by the framework, so that a
-/// body that cannot be read or bound is answered 400 with no body and logged with its class.
+/// The answers that carry a detail, 422, 403 and 409, are problem details returned here; 400 and
+/// 500 carry none (ADR-ARCH-040). A founding answers 201 with the organization; a replay answers 200
+/// with the same representation (contract.md §3). The body is read here rather than bound by the
+/// framework, so that a body that cannot be read or bound is answered 400 with no body and logged
+/// with its class.
 /// </para>
 /// <para>
-/// Every refusal is logged once with its class, fixed text or exception type names, never a value
-/// of the request or an exception message (ADR-ARCH-032 §5).
+/// Every refusal, and every replay, is logged once with its class, fixed text or exception type
+/// names, never a value of the request or an exception message (ADR-ARCH-032 §5).
 /// </para>
 /// </remarks>
 internal static partial class FoundCompanyEndpoint
@@ -42,6 +44,9 @@ internal static partial class FoundCompanyEndpoint
 
     private const string ContactMustBeConfirmed = "The contact must be confirmed.";
 
+    /// <summary>The 409's title: only that the reference is in use, nothing of what uses it (INV-ACCESS-09).</summary>
+    private const string ReferenceInUse = "The reference is in use.";
+
     public static IEndpointRouteBuilder MapFoundCompany(this IEndpointRouteBuilder endpoints)
     {
         // Typed as a route handler, so that its IResult is written to the response.
@@ -52,10 +57,12 @@ internal static partial class FoundCompanyEndpoint
             .WithName("FoundCompany")
             .WithTags("Organizations")
             .RequireAuthorization(RecentTokenPolicy)
+            .Produces<OrganizationResponse>(StatusCodes.Status200OK)
             .Produces<OrganizationResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity)
             .Produces(StatusCodes.Status500InternalServerError);
 
@@ -96,7 +103,15 @@ internal static partial class FoundCompanyEndpoint
                     var organization = founded.Company.Organization;
                     return TypedResults.Created(
                         $"{context.Request.PathBase}{RouteOf(context)}/{organization.Id.Value:D}",
-                        new OrganizationResponse(organization.Id.Value, organization.Name.Value, StatusToken(organization.Status)));
+                        Represent(organization));
+
+                case FoundCompanyOutcome.Replayed replayed:
+                    Answered(logger, StatusCodes.Status200OK, "replay");
+                    return TypedResults.Ok(Represent(replayed.Organization));
+
+                case FoundCompanyOutcome.ReferenceInUse:
+                    Refused(logger, StatusCodes.Status409Conflict, "identifier in use");
+                    return TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: ReferenceInUse);
 
                 case FoundCompanyOutcome.Invalid invalid:
                     var fields = string.Join(", ", invalid.Fields);
@@ -201,6 +216,10 @@ internal static partial class FoundCompanyEndpoint
         return string.Join(" <- ", parts);
     }
 
+    /// <summary>The representation of an organization, the same for a founding and a replay (contract.md §2).</summary>
+    private static OrganizationResponse Represent(Organization organization) =>
+        new(organization.Id.Value, organization.Name.Value, StatusToken(organization.Status));
+
     /// <summary>The wire token of a status (<c>naming.md</c>, Enum value style).</summary>
     private static string StatusToken(OrganizationStatus status) => status switch
     {
@@ -214,4 +233,7 @@ internal static partial class FoundCompanyEndpoint
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Founding failed, answered {Status}: {Class}")]
     private static partial void Failed(ILogger logger, int status, string @class);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Founding replayed, answered {Status}: {Class}")]
+    private static partial void Answered(ILogger logger, int status, string @class);
 }
