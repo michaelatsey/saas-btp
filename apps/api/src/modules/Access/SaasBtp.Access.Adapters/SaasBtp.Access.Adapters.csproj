@@ -15,6 +15,19 @@
     <ProjectReference Include="../SaasBtp.Access.Features/SaasBtp.Access.Features.csproj" />
   </ItemGroup>
 
+  <!-- The module's EF Core context and unit of work come through the copied PostgreSQL provider,
+       which also registers the interceptors of ADR-ARCH-033 §4 (ADR-ARCH-034 §3, ADR-ARCH-035 §3).
+       The API host already references it, so it adds no project to the closure the API Dockerfile
+       copies (ADR-ARCH-035 §5). -->
+  <ItemGroup>
+    <ProjectReference Include="../../../../../../libraries/MicroKit.Persistence/src/MicroKit.Persistence.EntityFrameworkCore.PostgreSql/MicroKit.Persistence.EntityFrameworkCore.PostgreSql.csproj" />
+  </ItemGroup>
+
+  <!-- ADR-ARCH-034 §2: the module's integration tests only. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="SaasBtp.Access.Adapters.IntegrationTests" />
+  </ItemGroup>
+
   <!-- The persistence analyzer, referenced as an analyzer: it runs in the compiler and reaches
        neither the host's output nor an image (ADR-ARCH-035 §3, §5). -->
   <ItemGroup>

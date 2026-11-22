@@ -13,10 +13,35 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
-  <!-- The runner is started as its own process from the test's output folder (Runner.cs). -->
+  <!-- The runner is started as its own process (Runner.cs). -->
   <ItemGroup>
     <ProjectReference Include="../../database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" />
   </ItemGroup>
+
+  <!--
+    The runner's own build output, every file of it, copied under migration-runner/ in the output of
+    this project and of each project that references it, where Runner.cs starts it. The runner then
+    runs with its own deps.json and dependencies, whatever its consumer runs on: a consumer on the
+    ASP.NET Core shared framework gets no copy of the Microsoft.Extensions.*.Abstractions packages the
+    runner needs, since that framework provides them, and the runner runs on Microsoft.NETCore.App
+    only (#218).
+  -->
+  <Target Name="IncludeMigrationRunner" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveProjectReferences">
+    <MSBuild Projects="../../database/SaasBtp.Migrations/SaasBtp.Migrations.csproj" Targets="GetTargetPath">
+      <Output TaskParameter="TargetOutputs" ItemName="_MigrationRunnerAssembly" />
+    </MSBuild>
+    <PropertyGroup>
+      <_MigrationRunnerDirectory>@(_MigrationRunnerAssembly->'%(RootDir)%(Directory)')</_MigrationRunnerDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <_MigrationRunnerFile Include="$(_MigrationRunnerDirectory)**/*" />
+      <None Include="@(_MigrationRunnerFile)"
+            Link="migration-runner/%(RecursiveDir)%(Filename)%(Extension)"
+            CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(_MigrationRunnerDirectory)SaasBtp.Migrations.deps.json')"
+           Text="The migration runner's build output was not found in '$(_MigrationRunnerDirectory)'." />
+  </Target>
 
   <ItemGroup>
     <Compile Include="../PostgresImage.cs" Link="PostgresImage.cs" />
