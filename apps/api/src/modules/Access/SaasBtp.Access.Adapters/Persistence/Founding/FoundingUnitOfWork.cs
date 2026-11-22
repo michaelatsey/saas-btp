@@ -7,6 +7,7 @@ using SaasBtp.Access.Domain.Ownerships;
 using SaasBtp.Access.Domain.Profiles;
 using SaasBtp.Access.Domain.WorkspaceAccesses;
 using SaasBtp.Access.Domain.Workspaces;
+using SaasBtp.Access.Features.Ports;
 
 namespace SaasBtp.Access.Adapters.Persistence.Founding;
 
@@ -39,6 +40,10 @@ namespace SaasBtp.Access.Adapters.Persistence.Founding;
 /// replace: every command of the founding runs on the Access context, in its transaction.
 /// </para>
 /// <para>
+/// It implements the Features port <see cref="IFoundingUnitOfWork"/>, which the founding's handler
+/// calls (ADR-ARCH-034 decision 1).
+/// </para>
+/// <para>
 /// No retry: the profile retry of contract.md §4 and the replay of §3 are not made here. The caller
 /// founds for the signed-in person, who is also the unit of work's subject (BP001-R2).
 /// </para>
@@ -51,7 +56,7 @@ internal sealed class FoundingUnitOfWork(
     IMembershipRepository memberships,
     IWorkspaceAccessRepository accesses,
     IWorkspaceRepository workspaces,
-    TimeProvider clock)
+    TimeProvider clock) : IFoundingUnitOfWork
 {
     /// <summary>Founds a company for <paramref name="founder"/> under <paramref name="reference"/>.</summary>
     /// <param name="reference">The request's reference, the organization's identifier.</param>
