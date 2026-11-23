@@ -1,0 +1,195 @@
+name: Check Supabase auth settings
+
+# The settings check of ADR-ARCH-038: reads the staging Supabase project's Auth configuration
+# and signing keys from the Management API and fails when the signing key in use is not ES256
+# or RS256, or when e-mail confirmations, phone confirmations or the custom access token hook
+# differ from that decision (scripts/ci/check-supabase-auth-settings.sh). Where it runs and
+# where its credential lives: ADR-ARCH-041.
+#
+# How it is started: every day by the schedule below, against staging; or by hand, from main:
+#   gh workflow run check-supabase-auth-settings.yml --ref main -f environment=staging
+# Only staging is offered. Production is added by its own change once the maintainer has
+# created its Environment and credential (ADR-ORG-004 section 4).
+#
+# Set up by the maintainer, never by this workflow (ADR-ARCH-041; for staging, issue #226):
+#   GitHub Environment "settings-check-staging", deployment branches restricted to the branch
+#   main, holding one secret and nothing else:
+#     DOPPLER_SETTINGS_CHECK_TOKEN  service token of the Doppler config saas-btp-settings-check / stg
+#   The Doppler config holds SUPABASE_ACCESS_TOKEN, a scoped personal access token of the
+#   Management API limited to the staging project with Auth Config (Read) and Auth Signing
+#   Keys (Read) only, and SUPABASE_PROJECT_REF, the staging project's reference.
+# No other workflow references this Environment, and no job here receives the deployment
+# credentials (DOPPLER_MIGRATOR_TOKEN, COOLIFY_API_TOKEN): GitHub makes an environment's
+# secrets "only available to workflow jobs that reference the environment"
+# (docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments).
+# scripts/ci/check-settings-check-environment.test.sh checks both.
+#
+# Until the maintainer has created the Environment restricted to main, every run, the
+# scheduled one included, fails at the environment gate by design: running a workflow that
+# references an environment that does not exist creates it, with no protection rules or
+# secrets (docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/
+# manage-environments), so the check job, which references it, needs the gate. The gate then
+# reports the Environment as missing or, if a run has already created it, as not restricted
+# to main; GitHub does not say at which point of a run the environment is created.
+#
+# The Environment's name is settings-check-<environment>, from the dispatch input, staging for
+# the schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Supabase project to check
+        required: true
+        type: choice
+        options:
+          - staging
+  schedule:
+    # Daily, in UTC (the schedule's time zone by default), at a minute off the hour: GitHub
+    # documents that the schedule event "can be delayed during periods of high loads", that
+    # "High load times include the start of every hour", and advises another time of the hour
+    # (docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows,
+    # schedule). A schedule runs on the default branch only, and in a public repository is
+    # disabled after 60 days without activity.
+    - cron: '23 5 * * *'
+
+permissions: {}
+
+# An explicit bash runs every step with -eo pipefail: a failed command inside a pipe fails the
+# step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  environment-gate:
+    name: environment-gate
+    # A versioned label (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # Reading an environment and its deployment branch policies needs the "Actions"
+    # repository permission, read: GET /repos/{owner}/{repo}/environments/{environment_name}
+    # and .../deployment-branch-policies are listed under "Actions", read
+    # (docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens).
+    # Nothing else: the job checks out no code.
+    permissions:
+      actions: read
+    steps:
+      - name: Check that the Environment exists and is restricted to main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ENVIRONMENT: settings-check-${{ inputs.environment || 'staging' }}
+        run: |
+          # gate:begin
+          fail() { echo "::error::$1"; exit 1; }
+
+          # The name goes into a URL path: an environment of this workflow, nothing else.
+          [[ "$ENVIRONMENT" =~ ^settings-check-[a-z]+$ ]] \
+            || fail "Not an environment of the settings check: $ENVIRONMENT."
+
+          # A dispatch from another branch runs that branch's copy of this workflow, so this
+          # line records the reason in the log; the boundary is the Environment's branch
+          # policy, checked below (ADR-ARCH-041).
+          [[ "$GITHUB_REF" == refs/heads/main ]] \
+            || fail "The settings check runs from main only; this run is on $GITHUB_REF."
+
+          # rest <path below the environment> <file>: the answer's status on stdout.
+          rest() {
+            printf 'header = "Authorization: Bearer %s"\n' "$GITHUB_TOKEN" \
+              | curl --silent --show-error --max-time 30 --config - \
+                --header 'Accept: application/vnd.github+json' \
+                --output "$2" --write-out '%{http_code}' \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/environments/$ENVIRONMENT$1"
+          }
+
+          status=$(rest "" "$RUNNER_TEMP/environment.json") \
+            || fail "Environment $ENVIRONMENT: the REST API gave no answer."
+          case "$status" in
+            200) jq -e 'type == "object"' "$RUNNER_TEMP/environment.json" >/dev/null 2>&1 \
+                   || fail "Environment $ENVIRONMENT: the REST API answered 200 with a body that is not a JSON object." ;;
+            404) fail "Environment $ENVIRONMENT does not exist. The maintainer creates it, restricted to main (ADR-ARCH-041, issue #226); until then this check fails here by design." ;;
+            *) fail "Environment $ENVIRONMENT: the REST API answered $status." ;;
+          esac
+          policy=$(jq -c '.deployment_branch_policy' "$RUNNER_TEMP/environment.json")
+          jq -e '.deployment_branch_policy.custom_branch_policies == true
+                 and .deployment_branch_policy.protected_branches == false' \
+            "$RUNNER_TEMP/environment.json" >/dev/null \
+            || fail "Environment $ENVIRONMENT: deployment branches are not restricted to selected branches (deployment_branch_policy $policy)."
+
+          status=$(rest /deployment-branch-policies "$RUNNER_TEMP/branch-policies.json") \
+            || fail "Environment $ENVIRONMENT: the REST API gave no answer for its branch policies."
+          [[ "$status" == 200 ]] \
+            || fail "Environment $ENVIRONMENT: the REST API answered $status for its branch policies."
+          jq -e 'type == "object"' "$RUNNER_TEMP/branch-policies.json" >/dev/null 2>&1 \
+            || fail "Environment $ENVIRONMENT: the REST API answered 200 for its branch policies with a body that is not a JSON object."
+          policies=$(jq -c '[.branch_policies[]? | {name, type}]' "$RUNNER_TEMP/branch-policies.json")
+          [[ "$policies" == '[{"name":"main","type":"branch"}]' ]] \
+            || fail "Environment $ENVIRONMENT: its deployment branches must be exactly the branch main (read $policies)."
+
+          echo "Environment $ENVIRONMENT exists, and its deployment branches are restricted to main."
+          # gate:end
+
+  test:
+    name: test
+    # A versioned label (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test the check on recorded configurations
+        run: bash scripts/ci/check-supabase-auth-settings.test.sh
+
+      - name: Test the environment gate and the workflow's references
+        run: bash scripts/ci/check-settings-check-environment.test.sh
+
+  check:
+    name: check
+    needs: [environment-gate, test]
+    # A versioned label (ADR-ARCH-036).
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # The job references its Environment as a deployment environment, so that the Environment's
+    # deployment branch policy is the boundary on documented behaviour: "A job that references
+    # an environment must follow any protection rules for the environment before running or
+    # accessing the environment's secrets"
+    # (docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+    # deployment: false is not used: GitHub does not state that the branch policy is enforced
+    # for a job that sets it. The ref checks here and in the gate record the reason in the log
+    # (ADR-ARCH-041). Each run creates a deployment record; no permission is added for it.
+    environment: settings-check-${{ inputs.environment || 'staging' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse a run from another ref than main
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::The settings check runs from main only; this run is on $GITHUB_REF."
+            exit 1
+          fi
+
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Service token: the token fixes the project and the config. Every value is masked in the
+      # log; none is exported to the job's environment.
+      - name: Fetch the check's credential from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_SETTINGS_CHECK_TOKEN }}
+          inject-env-vars: false
+
+      # Only this step receives the Management API token. Any answer other than a success fails
+      # the check, naming the endpoint and the status; a drift names the setting.
+      - name: Check the settings of the Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ steps.doppler.outputs.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ steps.doppler.outputs.SUPABASE_PROJECT_REF }}
+        run: bash scripts/ci/check-supabase-auth-settings.sh
