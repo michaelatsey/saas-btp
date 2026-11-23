@@ -19,7 +19,45 @@ internal static partial class Solution
 
     public static string ModulesDirectory => Path.Combine(RepositoryRoot, "apps", "api", "src", "modules");
 
+    /// <summary>The .NET libraries this repository owns, MicroKit's copy among them (ADR-ARCH-035 §4).</summary>
+    public static string LibrariesDirectory => Path.Combine(RepositoryRoot, "libraries");
+
     public static IReadOnlyList<Module> Modules => Instance.Value.Modules;
+
+    /// <summary>
+    /// Every file of the working tree whose name matches <paramref name="searchPattern"/>, the
+    /// repository root included. Not read: build output (<c>bin</c>, <c>obj</c>),
+    /// <c>node_modules</c>, <c>.git</c>, and any directory below the root that holds a <c>.git</c>
+    /// entry, a worktree or a nested repository, which is a whole other copy with a root
+    /// <c>Directory.Build.props</c> of its own. A link to a directory is followed like a directory,
+    /// with no record of the directories already read: a link back to an ancestor would make the
+    /// walk run until a path is too long.
+    /// </summary>
+    public static IEnumerable<string> SourceFiles(string searchPattern)
+    {
+        var pending = new Stack<string>([RepositoryRoot]);
+        while (pending.Count > 0)
+        {
+            var directory = pending.Pop();
+            foreach (var file in System.IO.Directory.EnumerateFiles(directory, searchPattern))
+            {
+                yield return file;
+            }
+
+            foreach (var child in System.IO.Directory.EnumerateDirectories(directory))
+            {
+                var name = Path.GetFileName(child);
+                if (name is "bin" or "obj" or "node_modules" or ".git"
+                    || File.Exists(Path.Combine(child, ".git"))
+                    || System.IO.Directory.Exists(Path.Combine(child, ".git")))
+                {
+                    continue;
+                }
+
+                pending.Push(child);
+            }
+        }
+    }
 
     public static IReadOnlyList<Host> Hosts => Instance.Value.Hosts;
 
