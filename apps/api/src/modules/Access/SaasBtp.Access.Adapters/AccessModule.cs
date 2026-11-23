@@ -11,7 +11,7 @@ using SaasBtp.Access.Adapters.Persistence.Memberships;
 using SaasBtp.Access.Adapters.Persistence.Organizations;
 using SaasBtp.Access.Adapters.Persistence.Ownerships;
 using SaasBtp.Access.Adapters.Persistence.Profiles;
-using SaasBtp.Access.Adapters.Persistence.Reads;
+using SaasBtp.Access.Adapters.Persistence.Queries;
 using SaasBtp.Access.Adapters.Persistence.WorkspaceAccesses;
 using SaasBtp.Access.Adapters.Persistence.Workspaces;
 using SaasBtp.Access.Domain.Memberships;
@@ -44,7 +44,7 @@ public static class AccessModule
     /// <c>access</c> schema and its unit of work through the copied PostgreSQL provider, which
     /// disables EF Core's automatic transactions, sets each transaction's subject first and refuses a
     /// command outside a transaction (ADR-ARCH-033 §4, ADR-ARCH-034 §3, ADR-ARCH-035 §3); then the
-    /// repositories of the domain's ports, the founding's unit of work with its port, and the reads'
+    /// repositories of the domain's ports, the founding's store with its port, and the queries'
     /// port; then the caller port and the slices' handlers, which need them. The context is not
     /// pooled and its failures are not retried. Each adapter's registrations are grouped in a method of their own; the slices'
     /// handlers and endpoints are Features' own (<c>FeatureRegistration</c>, <c>FeatureEndpoint</c>).
@@ -98,7 +98,7 @@ public static class AccessModule
 
     /// <summary>
     /// The persistence adapter: the module's context and unit of work through the copied PostgreSQL
-    /// provider, the repositories of the domain's ports, the founding's unit of work and the reads.
+    /// provider, the repositories of the domain's ports, the founding's store and the queries.
     /// </summary>
     private static void AddPersistence(this IServiceCollection services, string connectionString)
     {
@@ -112,10 +112,10 @@ public static class AccessModule
         services.AddScoped<IMembershipRepository, MembershipRepository>();
         services.AddScoped<IWorkspaceAccessRepository, WorkspaceAccessRepository>();
         services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
-        // One registration of the founding's unit of work; its port resolves to the same instance.
-        services.AddScoped<FoundingUnitOfWork>();
-        services.AddScoped<IFoundingUnitOfWork>(provider => provider.GetRequiredService<FoundingUnitOfWork>());
-        services.AddScoped<IAccessReads, AccessReads>();
+        // One registration of the founding's store; its port resolves to the same instance.
+        services.AddScoped<FoundingStore>();
+        services.AddScoped<IFoundingStore>(provider => provider.GetRequiredService<FoundingStore>());
+        services.AddScoped<IAccessQueries, AccessQueries>();
     }
 
     /// <summary>

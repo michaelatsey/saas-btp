@@ -8,7 +8,7 @@ namespace SaasBtp.Access.Features.Organizations.Read;
 /// let the caller see it, and nothing otherwise, whether or not it exists (ADR-ARCH-032 §5). The
 /// handler decides no access of its own.
 /// </summary>
-internal sealed class ReadOrganizationHandler(IAccessReads reads)
+internal sealed class ReadOrganizationHandler(IAccessQueries queries)
 {
     /// <summary>The organization <paramref name="id"/> identifies, when the caller may see it.</summary>
     /// <param name="id">The route's identifier, a UUID.</param>
@@ -20,6 +20,6 @@ internal sealed class ReadOrganizationHandler(IAccessReads reads)
     /// </returns>
     public async Task<Organization?> HandleAsync(Guid id, CancellationToken cancellationToken = default) =>
         OrganizationId.TryCreate(id, out var organizationId)
-            ? await reads.FindVisibleOrganizationAsync(organizationId, cancellationToken).ConfigureAwait(false)
+            ? await queries.FindVisibleOrganizationAsync(organizationId, cancellationToken).ConfigureAwait(false)
             : null;
 }

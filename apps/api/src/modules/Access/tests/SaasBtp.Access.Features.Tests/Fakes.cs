@@ -23,7 +23,7 @@ internal sealed class FakeCaller(Caller? current) : ICaller
 /// "nothing written" reads as "never called". A test can make it find the reference in use, say
 /// which organization the caller currently owns, or fail.
 /// </summary>
-internal sealed class FakeFoundingUnitOfWork : IFoundingUnitOfWork
+internal sealed class FakeFoundingStore : IFoundingStore
 {
     private readonly List<(OrganizationId Reference, OrganizationName OrganizationName, WorkspaceName WorkspaceName, UserId Founder)> _calls = [];
 

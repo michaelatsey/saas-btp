@@ -172,12 +172,12 @@ internal sealed record FoundingRequest(Guid User, OrganizationId Reference, Orga
     }
 }
 
-/// <summary>The founding's unit of work, for the tests that expect it to found.</summary>
-internal static class FoundingUnitOfWorkExtensions
+/// <summary>The founding's store, for the tests that expect it to found.</summary>
+internal static class FoundingStoreExtensions
 {
-    /// <summary>Founds through <see cref="FoundingUnitOfWork.FoundAsync"/>, and fails unless the company is founded.</summary>
+    /// <summary>Founds through <see cref="FoundingStore.FoundAsync"/>, and fails unless the company is founded.</summary>
     public static async Task<FoundedCompany> FoundCompanyAsync(
-        this FoundingUnitOfWork founding,
+        this FoundingStore founding,
         OrganizationId reference,
         OrganizationName organizationName,
         WorkspaceName workspaceName,
