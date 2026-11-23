@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Routing;
 using SaasBtp.Access.Features.Organizations.Found;
+using SaasBtp.Access.Features.Organizations.Read;
+using SaasBtp.Access.Features.Workspaces.List;
 
 namespace SaasBtp.Access.Features;
 
@@ -11,5 +13,8 @@ internal static class FeatureEndpoint
 {
     /// <summary>Maps the slices' endpoints on the route builder of the API's major version.</summary>
     public static IEndpointRouteBuilder MapFeatures(this IEndpointRouteBuilder endpoints) =>
-        endpoints.MapFoundCompany();
+        endpoints
+            .MapFoundCompany()
+            .MapReadOrganization()
+            .MapListWorkspaces();
 }

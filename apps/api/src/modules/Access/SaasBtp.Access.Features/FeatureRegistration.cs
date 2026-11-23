@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SaasBtp.Access.Features.Organizations.Found;
+using SaasBtp.Access.Features.Organizations.Read;
+using SaasBtp.Access.Features.Workspaces.List;
 
 namespace SaasBtp.Access.Features;
 
@@ -18,6 +20,8 @@ internal static class FeatureRegistration
     public static IServiceCollection AddFeatures(this IServiceCollection services)
     {
         services.AddScoped<FoundCompanyHandler>();
+        services.AddScoped<ReadOrganizationHandler>();
+        services.AddScoped<ListWorkspacesHandler>();
         return services;
     }
 }

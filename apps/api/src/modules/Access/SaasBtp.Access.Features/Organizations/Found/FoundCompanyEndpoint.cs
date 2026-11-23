@@ -1,4 +1,3 @@
-using System.Data.Common;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -6,7 +5,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SaasBtp.Access.Domain.Organizations;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 namespace SaasBtp.Access.Features.Organizations.Found;
@@ -103,11 +101,11 @@ internal static partial class FoundCompanyEndpoint
                     var organization = founded.Company.Organization;
                     return TypedResults.Created(
                         $"{context.Request.PathBase}{RouteOf(context)}/{organization.Id.Value:D}",
-                        Represent(organization));
+                        OrganizationResponse.Of(organization));
 
                 case FoundCompanyOutcome.Replayed replayed:
                     Answered(logger, StatusCodes.Status200OK, "replay");
-                    return TypedResults.Ok(Represent(replayed.Organization));
+                    return TypedResults.Ok(OrganizationResponse.Of(replayed.Organization));
 
                 case FoundCompanyOutcome.ReferenceInUse:
                     Refused(logger, StatusCodes.Status409Conflict, "identifier in use");
@@ -139,7 +137,7 @@ internal static partial class FoundCompanyEndpoint
         catch (Exception failure)
 #pragma warning restore CA1031
         {
-            Failed(logger, StatusCodes.Status500InternalServerError, ClassOf(failure));
+            Failed(logger, StatusCodes.Status500InternalServerError, EndpointFailure.ClassOf(failure));
             return TypedResults.StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
@@ -203,30 +201,6 @@ internal static partial class FoundCompanyEndpoint
         context.GetEndpoint() is RouteEndpoint { RoutePattern.RawText: { } route }
             ? route.TrimEnd('/')
             : throw new InvalidOperationException("The founding runs outside its route endpoint.");
-
-    /// <summary>The class of a failure: the type names of the exception and its inner ones, and a database's SQLSTATE.</summary>
-    private static string ClassOf(Exception failure)
-    {
-        var parts = new List<string>();
-        for (var current = failure; current is not null; current = current.InnerException)
-        {
-            parts.Add(current is DbException { SqlState: { } state } ? $"{current.GetType().Name} (SQLSTATE {state})" : current.GetType().Name);
-        }
-
-        return string.Join(" <- ", parts);
-    }
-
-    /// <summary>The representation of an organization, the same for a founding and a replay (contract.md §2).</summary>
-    private static OrganizationResponse Represent(Organization organization) =>
-        new(organization.Id.Value, organization.Name.Value, StatusToken(organization.Status));
-
-    /// <summary>The wire token of a status (<c>naming.md</c>, Enum value style).</summary>
-    private static string StatusToken(OrganizationStatus status) => status switch
-    {
-        OrganizationStatus.Declared => "declared",
-        OrganizationStatus.Verified => "verified",
-        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "An organization status has no token."),
-    };
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Founding refused, answered {Status}: {Class}")]
     private static partial void Refused(ILogger logger, int status, string @class);
