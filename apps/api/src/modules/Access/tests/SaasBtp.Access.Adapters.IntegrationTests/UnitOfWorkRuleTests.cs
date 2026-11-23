@@ -100,7 +100,7 @@ public sealed class UnitOfWorkRuleTests(AccessDatabase database)
         Guid profile;
         await using (var scope = module.Scope())
         {
-            var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+            var founded = await scope.ServiceProvider.GetRequiredService<FoundingStore>()
                 .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
             profile = founded.Profile.Id.Value;
         }
@@ -148,7 +148,7 @@ public sealed class UnitOfWorkRuleTests(AccessDatabase database)
                 service.ServiceType == typeof(AccessDbContext)
                 || service.ServiceType == typeof(IUnitOfWork)
                 || service.ServiceType == typeof(ITransactionalUnitOfWork)
-                || service.ServiceType == typeof(FoundingUnitOfWork));
+                || service.ServiceType == typeof(FoundingStore));
         }
     }
 

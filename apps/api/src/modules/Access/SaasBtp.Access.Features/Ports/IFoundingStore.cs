@@ -6,11 +6,13 @@ using SaasBtp.Access.Domain.Workspaces;
 namespace SaasBtp.Access.Features.Ports;
 
 /// <summary>
-/// The founding of a company as one unit of work of the Access module (TSK-2, contract.md §1): it
-/// commits whole or not at all. A port of the Features project, since the handler cannot reach the
-/// Adapters that implement it (ADR-ARCH-034 decision 1).
+/// The persistence of the founding of a company (TSK-2), a process that writes several aggregates:
+/// each attempt runs as one unit of work of the Access module and commits whole or not at all
+/// (contract.md §1), a conflict on the founder's profile being retried once in a new one
+/// (contract.md §4). A port of the Features project, since the handler cannot reach the Adapters
+/// that implement it (ADR-ARCH-034 decision 1).
 /// </summary>
-internal interface IFoundingUnitOfWork
+internal interface IFoundingStore
 {
     /// <summary>Founds a company for <paramref name="founder"/> under <paramref name="reference"/>, and commits.</summary>
     /// <param name="reference">The request's reference, the organization's identifier.</param>
@@ -42,7 +44,7 @@ internal interface IFoundingUnitOfWork
     Task<Organization?> FindOwnedAsync(OrganizationId reference, UserId owner, CancellationToken cancellationToken = default);
 }
 
-/// <summary>What one founding through <see cref="IFoundingUnitOfWork.FoundAsync"/> comes to.</summary>
+/// <summary>What one founding through <see cref="IFoundingStore.FoundAsync"/> comes to.</summary>
 internal abstract record FoundingAttempt
 {
     private FoundingAttempt()

@@ -13,8 +13,9 @@ using SaasBtp.Access.Features.Ports;
 namespace SaasBtp.Access.Adapters.Persistence.Founding;
 
 /// <summary>
-/// The founding of a company (BP-001, TSK-2) as one unit of work of the Access module
-/// (contract.md §1): it commits whole or not at all, profile included, and writes nothing to the
+/// The persistence of the founding of a company (BP-001, TSK-2): each attempt runs as one unit of
+/// work of the Access module and commits whole or not at all, profile included (contract.md §1), a
+/// conflict on the founder's profile being retried once in a new one; nothing is written to the
 /// identity provider (contract.md §4).
 /// </summary>
 /// <remarks>
@@ -41,7 +42,7 @@ namespace SaasBtp.Access.Adapters.Persistence.Founding;
 /// replace: every command of the founding runs on the Access context, in its transaction.
 /// </para>
 /// <para>
-/// It implements the Features port <see cref="IFoundingUnitOfWork"/>, which the founding's handler
+/// It implements the Features port <see cref="IFoundingStore"/>, which the founding's handler
 /// calls (ADR-ARCH-034 decision 1).
 /// </para>
 /// <para>
@@ -58,7 +59,7 @@ namespace SaasBtp.Access.Adapters.Persistence.Founding;
 /// The caller founds for the signed-in person, who is also the unit of work's subject (BP001-R2).
 /// </para>
 /// </remarks>
-internal sealed class FoundingUnitOfWork(
+internal sealed class FoundingStore(
     EfUnitOfWork<AccessDbContext> unitOfWork,
     IProfileRepository profiles,
     IOwnershipRepository ownerships,
@@ -66,7 +67,7 @@ internal sealed class FoundingUnitOfWork(
     IMembershipRepository memberships,
     IWorkspaceAccessRepository accesses,
     IWorkspaceRepository workspaces,
-    TimeProvider clock) : IFoundingUnitOfWork
+    TimeProvider clock) : IFoundingStore
 {
     /// <summary>The organization's primary key (<c>0001__access__create_tables.sql</c>): the reference in use.</summary>
     private const string OrganizationKey = "pk_organizations";

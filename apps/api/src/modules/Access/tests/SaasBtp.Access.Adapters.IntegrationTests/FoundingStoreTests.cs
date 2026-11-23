@@ -18,14 +18,14 @@ using SaasBtp.Access.Domain.Workspaces;
 namespace SaasBtp.Access.Adapters.IntegrationTests;
 
 /// <summary>
-/// The founding written by the Access module's unit of work, through EF Core and the copied
+/// The founding written by the Access module's founding store, through EF Core and the copied
 /// MicroKit.Persistence, as <c>saasbtp_api</c>: the Integration proofs contract.md §7 sets for
 /// INV-ACCESS-03, INV-ACCESS-05 and BP001-AC-17, and the order of ADR-ARCH-033 §5. That an access
 /// naming another organization's workspace grants no sight of it before rollback, the other case
 /// ADR-ARCH-033 §5 requires, stays proven in SQL by
 /// <see cref="FoundingOrderTests.Adr033_AnAccessNamingAnotherOrganizationsWorkspaceGrantsNoSightBeforeRollback"/>.
 /// </summary>
-public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
+public sealed partial class FoundingStoreTests(AccessDatabase database)
 {
     /// <summary>The tables of a founding in the order of ADR-ARCH-033 §5.</summary>
     private static readonly string[] Order =
@@ -87,14 +87,14 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
     {
         var request = FoundingRequest.New();
 
-        // The failure is forced inside the transaction the founding's unit of work owns, after its
+        // The failure is forced inside the transaction the founding's store owns, after its
         // last save and before COMMIT: nothing wraps FoundAsync.
         await using (var failing = ModuleServices.Start(
             database.Api, services => services.ConfigureDbContext<AccessDbContext>(options => options.AddInterceptors(new FailingCommit()))))
         {
             failing.Subject.Current = request.User;
             await using var scope = failing.Scope();
-            var founding = scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>();
+            var founding = scope.ServiceProvider.GetRequiredService<FoundingStore>();
 
             await Assert.ThrowsAsync<ForcedFailureException>(() =>
                 founding.FoundAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token));
@@ -143,7 +143,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         module.Subject.Current = request.User;
         await using var scope = module.Scope();
 
-        await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+        await scope.ServiceProvider.GetRequiredService<FoundingStore>()
             .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
 
         // Six commands, each inserting one row: each row that must precede another is saved in its
@@ -154,7 +154,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
     }
 
     /// <summary>
-    /// The founding's other branch: a person who already has a profile founds again. The unit of work
+    /// The founding's other branch: a person who already has a profile founds again. The store
     /// reads the profile under the subject, inserts no other, and saves the five other rows in order,
     /// changing nothing it read.
     /// </summary>
@@ -168,7 +168,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         module.Subject.Current = second.User;
         await using var scope = module.Scope();
 
-        var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+        var founded = await scope.ServiceProvider.GetRequiredService<FoundingStore>()
             .FoundCompanyAsync(second.Reference, second.OrganizationName, second.WorkspaceName, second.Founder, Token);
 
         Assert.False(founded.IsProfileCreated);
@@ -252,7 +252,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
 
         // After a founding: the identifiers and audit values stored are the domain's, from the
         // injected clock and the acting person.
-        var founded = await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+        var founded = await scope.ServiceProvider.GetRequiredService<FoundingStore>()
             .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
 
         var actor = new Actor(request.User.ToString()).Value;
@@ -301,7 +301,7 @@ public sealed partial class FoundingUnitOfWorkTests(AccessDatabase database)
         await using var module = ModuleServices.Start(database.Api);
         module.Subject.Current = request.User;
         await using var scope = module.Scope();
-        return await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+        return await scope.ServiceProvider.GetRequiredService<FoundingStore>()
             .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
     }
 

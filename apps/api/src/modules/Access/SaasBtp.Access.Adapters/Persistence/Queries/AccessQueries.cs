@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SaasBtp.Access.Domain.Organizations;
 using SaasBtp.Access.Features.Ports;
 
-namespace SaasBtp.Access.Adapters.Persistence.Reads;
+namespace SaasBtp.Access.Adapters.Persistence.Queries;
 
 /// <summary>
 /// The reads of contract.md §2, on the Access context, each in a transaction of its own opened by the
@@ -21,14 +21,14 @@ namespace SaasBtp.Access.Adapters.Persistence.Reads;
 /// a parameter.
 /// </para>
 /// <para>
-/// It implements the Features port <see cref="IAccessReads"/>, which the two reads' handlers call
+/// It implements the Features port <see cref="IAccessQueries"/>, which the two reads' handlers call
 /// (ADR-ARCH-034 decision 1).
 /// </para>
 /// </remarks>
-internal sealed class AccessReads(
+internal sealed class AccessQueries(
     EfUnitOfWork<AccessDbContext> unitOfWork,
     IUnitOfWorkSqlQuery<AccessDbContext> sql,
-    AccessDbContext context) : IAccessReads
+    AccessDbContext context) : IAccessQueries
 {
     /// <remarks>
     /// Defined by <c>access.may_act_in</c> (contract.md §2, §8). The workspaces' select policy lets

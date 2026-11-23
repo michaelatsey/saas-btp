@@ -8,7 +8,7 @@ namespace SaasBtp.Access.Adapters.IntegrationTests;
 
 /// <summary>
 /// The Integration proofs contract.md §7 sets for BP001-AC-03, BP001-AC-04 and BP001-AC-23: the
-/// founding written by the module's unit of work as <c>saasbtp_api</c>, the port the founding's
+/// founding written by the module's founding store as <c>saasbtp_api</c>, the port the founding's
 /// handler calls.
 /// </summary>
 public sealed class FoundingScenarioTests(AccessDatabase database)
@@ -112,7 +112,7 @@ public sealed class FoundingScenarioTests(AccessDatabase database)
         await using var module = ModuleServices.Start(database.Api);
         module.Subject.Current = request.User;
         await using var scope = module.Scope();
-        return await scope.ServiceProvider.GetRequiredService<FoundingUnitOfWork>()
+        return await scope.ServiceProvider.GetRequiredService<FoundingStore>()
             .FoundCompanyAsync(request.Reference, request.OrganizationName, request.WorkspaceName, request.Founder, Token);
     }
 

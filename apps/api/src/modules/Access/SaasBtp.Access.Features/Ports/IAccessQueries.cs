@@ -9,7 +9,7 @@ namespace SaasBtp.Access.Features.Ports;
 /// read runs in a transaction of its own, on the unit of work's connection, its subject set first
 /// (ADR-ARCH-034 decision 3).
 /// </summary>
-internal interface IAccessReads
+internal interface IAccessQueries
 {
     /// <summary>The workspaces for which <c>access.may_act_in</c> is true for the subject, with no filter and no pagination.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>

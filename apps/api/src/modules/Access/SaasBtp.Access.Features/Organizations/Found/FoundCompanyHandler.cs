@@ -8,16 +8,16 @@ namespace SaasBtp.Access.Features.Organizations.Found;
 /// <summary>
 /// Founds a company for the caller (BP-001, TSK-1 and TSK-2), in the order of contract.md §2 once
 /// the host has authenticated the request: the body (422), then the identity level (403,
-/// ADR-ARCH-038 decision 7), then the unit of work. Nothing is written on a refusal.
+/// ADR-ARCH-038 decision 7), then the founding's store. Nothing is written on a refusal.
 /// </summary>
 /// <remarks>
-/// The reference is the idempotency key (BP001-R3, contract.md §3): when the unit of work finds it
-/// already in use, the handler reads, in a new transaction, whether the caller is the current owner
-/// of the organization it identifies. If so, the request is a replay, answered with that
+/// The reference is the idempotency key (BP001-R3, contract.md §3): when the founding's store finds
+/// it already in use, the handler reads, in a new transaction, whether the caller is the current
+/// owner of the organization it identifies. If so, the request is a replay, answered with that
 /// organization, its payload not compared; otherwise the reference is in use. Any other failure
 /// propagates.
 /// </remarks>
-internal sealed class FoundCompanyHandler(ICaller caller, IFoundingUnitOfWork founding)
+internal sealed class FoundCompanyHandler(ICaller caller, IFoundingStore founding)
 {
     /// <summary>Checks the request, then founds the company for the caller.</summary>
     /// <param name="reference">The body's <c>organizationId</c>, a UUID.</param>

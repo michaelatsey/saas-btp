@@ -24,8 +24,10 @@ repository (`<Aggregate>Repository`) and the converters of its identifiers and v
 (`<Aggregate>Converters.cs`). The mapping every table shares (schema, lengths, key and audit
 columns) is one internal class beside the context. The context applies each configuration by one
 explicit `ApplyConfiguration`, never `ApplyConfigurationsFromAssembly` (ADR-ARCH-034 decisions 2
-and 7), and keeps `ConfigureConventions`, since a conversion applies to the whole model. A unit of
-work that spans aggregates has a folder of its own, named after its process (`Founding/`).
+and 7), and keeps `ConfigureConventions`, since a conversion applies to the whole model. The
+persistence of a process that writes several aggregates has a folder of its own, named after the
+process (`Founding/`), and the reads that decide nothing have `Queries/` (Ports and their adapters,
+below).
 
 A module's Features project registers and maps its own slices in two internal static classes at its
 root: `FeatureRegistration.AddFeatures`, the handlers, and `FeatureEndpoint.MapFeatures`, the
@@ -33,6 +35,54 @@ endpoints, so that only an `*Endpoint` type depends on ASP.NET Core (`OnlyEndpoi
 ADR-ARCH-034 decision 7). The module's entry point calls both explicitly, with no scanning
 (ADR-ARCH-034 decision 2). A slice is a folder `<Feature>/<UseCase>/` holding its `*Endpoint` and its `*Handler`
 (ADR-ARCH-034 decision 1); adding one changes its folder and these two classes only.
+
+---
+
+## Ports and their adapters
+
+A port is named after the role it plays for its use case, never after the unit of work it runs
+in. Ports live where ADR-ARCH-034 decision 1 puts them: a repository's in Domain, every other one
+in the Features project's `Ports/`; their implementations in the Adapters project, one folder per
+adapter.
+
+- **A domain service** carries a business name, after the rule it holds, never after a pattern:
+  `CompanyFounding` (`SaasBtp.Access.Domain/Founding/`). It lives in Domain, which holds the
+  business rules (ADR-ARCH-034 decision 1); the name is this repository's own choice.
+- **The persistence of one aggregate** is `I<Aggregate>Repository`, in Domain, implemented by
+  `<Aggregate>Repository` under `Persistence/<Aggregates>/` (`IProfileRepository`,
+  `ProfileRepository`, `Persistence/Profiles/`): one repository per aggregate, whose interface
+  comes from the domain model, with the EF Core `DbContext` as the unit of work
+  ([Implement the infrastructure persistence layer with Entity Framework Core](https://learn.microsoft.com/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/infrastructure-persistence-layer-implementation-entity-framework-core)).
+- **The persistence of a process that writes several aggregates** is `I<Process>Store`, a port of
+  Features, implemented by `<Process>Store` under `Persistence/<Process>/`: the founding's
+  `IFoundingStore`, implemented by `FoundingStore` under `Persistence/Founding/`. "Store" is the
+  term .NET uses for a persistence abstraction over a set of data, as in `IUserStore<TUser>`, "an
+  abstraction for a store which manages user accounts"
+  ([IUserStore<TUser> Interface](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.identity.iuserstore-1));
+  that page is cited for the term only, not as a recommendation for a process port.
+- **The reads that decide nothing** (ADR-ARCH-032 §5: what the subject sees is what the policies
+  let it read) are `I<Context>Queries`, a port of Features, implemented by `<Context>Queries` under
+  `Persistence/Queries/`: `IAccessQueries`, implemented by `AccessQueries`. The name, and keeping
+  the reads apart from the transactional side, follow the simplified CQRS of
+  [Implement reads/queries in a CQRS microservice](https://learn.microsoft.com/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/cqrs-microservice-reads)
+  (`OrderQueries : IOrderQueries`); the folder `Queries/` is a sub-folder of the `Persistence/`
+  adapter folder of ADR-ARCH-034 decision 1, not something that page prescribes.
+- **Any other port** is named after what it gives the use case: `ICaller`, the person who submits
+  the request (ADR-ARCH-038 decision 5), implemented by `TokenCaller` under `Caller/`. It lives in
+  the Features project's `Ports/` (ADR-ARCH-034 decision 1); the name is this repository's own
+  choice.
+- **"Unit of work"** names only the transaction of ADR-ARCH-033 §4, which MicroKit's `IUnitOfWork`
+  carries out, never a module type. A store may run several units of work: the founding retries a
+  profile conflict in a new one (contract.md §4) and reads the current ownership in another
+  (contract.md §3).
+
+Two architecture tests of `SaasBtp.Architecture.Tests` check this rule on every module project:
+`ModuleNamingTests.NoModuleTypeIsNamedAfterAUnitOfWork` fails when a type's name ends in
+`UnitOfWork`, and `ModuleNamingTests.PersistencePortsAreStoresOrQueriesNamedLikeTheirAdapter` fails
+when an interface of a Features `Ports` namespace that an Adapters `Persistence` class implements is
+not named `I<Name>Store` or `I<Name>Queries`, or when that class is not named after it without `I`.
+A name that contains `UnitOfWork` elsewhere than at its end, the domain-service name, the repository
+name, the other ports' names and the folders are checked in review, because no test checks them.
 
 ---
 

@@ -23,7 +23,7 @@ public sealed class FoundCompanyHandlerTests
     [InlineData(null)]
     public async Task BP001_AC_07_AnEmptyCompanyNameIsAnswered422NamingOrganizationName(string? organizationName)
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         var outcome = await Handler(FakeCaller.Confirmed(), founding).HandleAsync(Reference(), organizationName, Valid, Token);
 
@@ -36,7 +36,7 @@ public sealed class FoundCompanyHandlerTests
     [InlineData("  ")]
     public async Task BP001_AC_08_AnEmptyWorkspaceNameIsAnswered422NamingWorkspaceName(string workspaceName)
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         var outcome = await Handler(FakeCaller.Confirmed(), founding).HandleAsync(Reference(), Valid, workspaceName, Token);
 
@@ -99,7 +99,7 @@ public sealed class FoundCompanyHandlerTests
     [InlineData("00000000-0000-0000-0000-000000000000")]
     public async Task ANonVersion7ReferenceIsAnswered422NamingOrganizationId(string reference)
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         var outcome = await Handler(FakeCaller.Confirmed(), founding).HandleAsync(Guid.Parse(reference), Valid, Valid, Token);
 
@@ -110,7 +110,7 @@ public sealed class FoundCompanyHandlerTests
     [Fact]
     public async Task EveryFieldAtFaultIsNamedInTheOrderOfTheBody()
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         var outcome = await Handler(FakeCaller.Confirmed(), founding).HandleAsync(Guid.NewGuid(), " ", "", Token);
 
@@ -123,7 +123,7 @@ public sealed class FoundCompanyHandlerTests
     [Fact]
     public async Task ACallerWithoutTheLevelIsAnswered403AfterTheBody()
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
         var handler = Handler(FakeCaller.Unconfirmed(), founding);
 
         Assert.IsType<FoundCompanyOutcome.NotConfirmed>(await handler.HandleAsync(Reference(), Valid, Valid, Token));
@@ -139,7 +139,7 @@ public sealed class FoundCompanyHandlerTests
     [Fact]
     public async Task ARequestWithoutACallerFoundsNothing()
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => Handler(new FakeCaller(null), founding).HandleAsync(Reference(), Valid, Valid, Token));
@@ -151,7 +151,7 @@ public sealed class FoundCompanyHandlerTests
     public async Task TheFoundingIsForTheCallerUnderTheReferenceWithTheMeasuredNames()
     {
         var caller = FakeCaller.Confirmed();
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
         var reference = Reference();
 
         var outcome = await Handler(caller, founding).HandleAsync(reference, "  Kouassi BTP ", " Siège ", Token);
@@ -172,7 +172,7 @@ public sealed class FoundCompanyHandlerTests
         var caller = FakeCaller.Confirmed();
         var reference = Reference();
         var owned = OrganizationUnder(reference, caller);
-        var founding = new FakeFoundingUnitOfWork { ReferenceInUse = true, Owned = owned };
+        var founding = new FakeFoundingStore { ReferenceInUse = true, Owned = owned };
 
         var outcome = await Handler(caller, founding).HandleAsync(reference, "Another name", "Another site", Token);
 
@@ -186,7 +186,7 @@ public sealed class FoundCompanyHandlerTests
     public async Task AReferenceInUseByAnOrganizationTheCallerDoesNotOwnIsInUse()
     {
         var caller = FakeCaller.Confirmed();
-        var founding = new FakeFoundingUnitOfWork { ReferenceInUse = true, Owned = null };
+        var founding = new FakeFoundingStore { ReferenceInUse = true, Owned = null };
 
         var outcome = await Handler(caller, founding).HandleAsync(Reference(), Valid, Valid, Token);
 
@@ -198,8 +198,8 @@ public sealed class FoundCompanyHandlerTests
     public async Task AFailureOfTheFoundingOrOfTheOwnershipReadPropagates()
     {
         var failure = new InvalidOperationException("forced by the test");
-        var failingFounding = new FakeFoundingUnitOfWork { FoundingFailure = failure };
-        var failingRead = new FakeFoundingUnitOfWork { ReferenceInUse = true, ReadFailure = failure };
+        var failingFounding = new FakeFoundingStore { FoundingFailure = failure };
+        var failingRead = new FakeFoundingStore { ReferenceInUse = true, ReadFailure = failure };
 
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Handler(FakeCaller.Confirmed(), failingFounding).HandleAsync(Reference(), Valid, Valid, Token)));
@@ -217,11 +217,11 @@ public sealed class FoundCompanyHandlerTests
             founderProfile: null,
             TimeProvider.System).Organization;
 
-    private static FoundCompanyHandler Handler(FakeCaller caller, FakeFoundingUnitOfWork founding) => new(caller, founding);
+    private static FoundCompanyHandler Handler(FakeCaller caller, FakeFoundingStore founding) => new(caller, founding);
 
     private static Guid Reference() => Guid.CreateVersion7();
 
-    private static Task<FoundCompanyOutcome> SubmitAsync(FakeFoundingUnitOfWork founding, string field, string name) =>
+    private static Task<FoundCompanyOutcome> SubmitAsync(FakeFoundingStore founding, string field, string name) =>
         Handler(FakeCaller.Confirmed(), founding).HandleAsync(
             Reference(),
             field == FoundCompanyField.OrganizationName ? name : Valid,
@@ -230,7 +230,7 @@ public sealed class FoundCompanyHandlerTests
 
     private static async Task AssertRefusedAsync(string field, string name)
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         var outcome = await SubmitAsync(founding, field, name);
 
@@ -240,7 +240,7 @@ public sealed class FoundCompanyHandlerTests
 
     private static async Task AssertFoundedAsync(string field, string name, string written)
     {
-        var founding = new FakeFoundingUnitOfWork();
+        var founding = new FakeFoundingStore();
 
         Assert.IsType<FoundCompanyOutcome.Founded>(await SubmitAsync(founding, field, name));
 
