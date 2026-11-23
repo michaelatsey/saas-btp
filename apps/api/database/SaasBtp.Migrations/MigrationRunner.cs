@@ -29,9 +29,70 @@ internal static class MigrationRunner
     // ADR-ARCH-027), so that the server cancels a long statement first and reports why.
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(120);
 
-    /// <summary>Runs every script the journal does not hold yet, in the order of their names.</summary>
+    /// <summary>The argument that excludes one script, followed by its file name.</summary>
+    public const string ExcludeArgument = "--exclude";
+
+    // The prefix of an embedded script's resource name, which DbUp uses as the script's name and
+    // journals: the assembly's root namespace, then the Scripts folder.
+    private const string ScriptResourcePrefix = "SaasBtp.Migrations.Scripts.";
+
+    /// <summary>
+    /// Reads the scripts to exclude from the command-line arguments. The only argument is
+    /// <c>--exclude &lt;file name&gt;</c>, repeatable; each file name must be exactly, case included,
+    /// the file name of a script the runner carries.
+    /// </summary>
+    /// <param name="arguments">The process's command-line arguments.</param>
+    /// <param name="excluded">The resource names of the excluded scripts, when the arguments are valid.</param>
+    /// <param name="refusal">Why the arguments are refused, when they are not valid.</param>
+    /// <returns>True when every argument is valid.</returns>
+    public static bool TryReadExclusions(string[] arguments, out IReadOnlySet<string> excluded, out string refusal)
+    {
+        var scripts = typeof(MigrationRunner).Assembly.GetManifestResourceNames()
+            .Where(IsScript)
+            .ToHashSet(StringComparer.Ordinal);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        excluded = names;
+        refusal = string.Empty;
+
+        for (var index = 0; index < arguments.Length; index++)
+        {
+            if (!string.Equals(arguments[index], ExcludeArgument, StringComparison.Ordinal))
+            {
+                refusal = $"Unknown argument: {arguments[index]}. The only argument is {ExcludeArgument} <script file name>.";
+
+                return false;
+            }
+
+            if (index + 1 == arguments.Length || arguments[index + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                refusal = $"{ExcludeArgument} needs the file name of a script, such as 0001__access__create_tables.sql.";
+
+                return false;
+            }
+
+            var fileName = arguments[++index];
+            if (!scripts.Contains(ScriptResourcePrefix + fileName))
+            {
+                refusal = $"{ExcludeArgument} names no script of the runner: {fileName}";
+
+                return false;
+            }
+
+            names.Add(ScriptResourcePrefix + fileName);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Runs every script the journal does not hold yet, in the order of their names, except the
+    /// excluded ones: those are neither applied nor journaled, so a later run without the exclusion
+    /// applies them.
+    /// </summary>
+    /// <param name="connectionString">The runner's connection string.</param>
+    /// <param name="excluded">The resource names of the scripts to exclude (<see cref="TryReadExclusions"/>).</param>
     /// <returns>The process exit code: zero only when every pending script was applied.</returns>
-    public static int Run(string connectionString)
+    public static int Run(string connectionString, IReadOnlySet<string> excluded)
     {
         if (!IsValid(connectionString))
         {
@@ -54,12 +115,18 @@ internal static class MigrationRunner
                 .JournalTo(journal)
                 .WithScriptsEmbeddedInAssembly(
                     typeof(MigrationRunner).Assembly,
-                    resourceName => resourceName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    resourceName => IsScript(resourceName) && !excluded.Contains(resourceName))
                 .WithTransactionPerScript()
                 .WithExecutionTimeout(CommandTimeout)
                 .WithVariablesDisabled()
                 .LogTo(log)
                 .Build();
+
+            // Never silent: each excluded script is named before anything runs.
+            foreach (var resourceName in excluded.Order(StringComparer.Ordinal))
+            {
+                Console.WriteLine($"Excluded, not applied: {resourceName[ScriptResourcePrefix.Length..]}");
+            }
 
             EnsureJournal(connectionManager, journal, log);
 
@@ -84,6 +151,9 @@ internal static class MigrationRunner
             return ExitCodeFailure;
         }
     }
+
+    private static bool IsScript(string resourceName) =>
+        resourceName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Parses the connection string before anything else uses it. The driver quotes what it

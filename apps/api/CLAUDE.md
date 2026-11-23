@@ -81,9 +81,12 @@ dotnet run --project apps/api/src/hosts/SaasBtp.Api -- --urls http://127.0.0.1:5
 
 ```bash
 export ConnectionStrings__Migrations="Host=127.0.0.1;Port=5432;Database=postgres;Username=saasbtp_migrator;Password=$SAASBTP_MIGRATOR_PASSWORD"
-dotnet run --project apps/api/database/SaasBtp.Migrations
+dotnet run --project apps/api/database/SaasBtp.Migrations -- --exclude 0004__access__create_access_token_hook.sql
 ```
 
+- The compose PostgreSQL has no Supabase Auth role, so the step excludes, as every
+  Testcontainers run does, the auth-coupled scripts listed in
+  `apps/api/tests/SaasBtp.Testing/AuthCoupledScripts.cs`; a deployment excludes none.
 - The runner connects as `saasbtp_migrator`, which owns the schema (ADR-ARCH-027). The scripts
   grant to `saasbtp_api`, so they fail on a database without the roles of `roles.sql`.
 - The runner exits with a non-zero code on any failure, a missing connection string

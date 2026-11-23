@@ -71,7 +71,10 @@ public sealed class RolesDatabase : IAsyncDisposable
         }
     }
 
-    /// <summary>Runs the migration runner on this database as <c>saasbtp_migrator</c>.</summary>
+    /// <summary>
+    /// Runs the migration runner on this database as <c>saasbtp_migrator</c>, excluding the
+    /// auth-coupled scripts (<see cref="AuthCoupledScripts"/>).
+    /// </summary>
     /// <param name="cancellationToken">Stops the wait for the runner.</param>
     /// <returns>The runner's exit code and output.</returns>
     public Task<RunnerResult> MigrateAsync(CancellationToken cancellationToken) =>

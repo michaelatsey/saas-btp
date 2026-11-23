@@ -19,6 +19,10 @@
   <ItemGroup>
     <Compile Include="../PostgresImage.cs" Link="PostgresImage.cs" />
     <AssemblyMetadata Include="ComposeFilePath" Value="$(MSBuildProjectDirectory)/../../../../infra/docker/compose.dev.yml" />
+    <!-- Files the auth-coupled script tests read: they keep the local Migrate step, the staging deployment and roles.sql in step with the exclusion list. -->
+    <AssemblyMetadata Include="ApiGuidePath" Value="$(MSBuildProjectDirectory)/../../CLAUDE.md" />
+    <AssemblyMetadata Include="DeployStagingWorkflowPath" Value="$(MSBuildProjectDirectory)/../../../../.github/workflows/deploy-api-staging.yml" />
+    <AssemblyMetadata Include="RolesScriptPath" Value="$(MSBuildProjectDirectory)/../../../../infra/supabase/roles.sql" />
     <Using Include="Xunit" />
   </ItemGroup>
 
