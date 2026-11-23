@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- CA1707: test names carry the identifier they prove, with underscores: the scenario
+         identifiers (BP001_AC_11_...) as issues-convention.md §12 states, and, by this project's
+         naming, the ADR whose decision a test checks (Adr038_...). -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
