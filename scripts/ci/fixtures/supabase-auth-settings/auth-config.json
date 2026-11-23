@@ -1,0 +1,16 @@
+{
+  "site_url": "https://example.invalid",
+  "disable_signup": false,
+  "external_email_enabled": true,
+  "external_phone_enabled": true,
+  "external_anonymous_users_enabled": false,
+  "jwt_exp": 3600,
+  "mailer_autoconfirm": false,
+  "mailer_secure_email_change_enabled": true,
+  "sms_autoconfirm": false,
+  "hook_custom_access_token_enabled": true,
+  "hook_custom_access_token_uri": "pg-functions://postgres/access/custom_access_token_hook",
+  "hook_custom_access_token_secrets": null,
+  "hook_send_sms_enabled": false,
+  "hook_send_sms_uri": null
+}

@@ -1,0 +1,27 @@
+{
+  "keys": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "algorithm": "ES256",
+      "status": "in_use",
+      "public_jwk": {
+        "kty": "EC",
+        "crv": "P-256",
+        "alg": "ES256",
+        "kid": "00000000-0000-4000-8000-000000000001",
+        "x": "placeholder-x",
+        "y": "placeholder-y"
+      },
+      "created_at": "2026-11-01T00:00:00Z",
+      "updated_at": "2026-11-01T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "algorithm": "HS256",
+      "status": "previously_used",
+      "public_jwk": null,
+      "created_at": "2026-10-01T00:00:00Z",
+      "updated_at": "2026-11-01T00:00:00Z"
+    }
+  ]
+}
