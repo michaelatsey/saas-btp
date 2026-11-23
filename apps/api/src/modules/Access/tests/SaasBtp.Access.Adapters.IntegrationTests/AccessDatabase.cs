@@ -64,4 +64,26 @@ public sealed class AccessDatabase : IAsyncLifetime
 
         return (long)(await command.ExecuteScalarAsync(cancellationToken))!;
     }
+
+    /// <summary>Reads the identifiers of the first column as the container's superuser, past row level security.</summary>
+    internal async Task<IReadOnlyList<Guid>> IdentifiersAsSuperuserAsync(string sql, params (string Name, object? Value)[] parameters)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var connection = new NpgsqlConnection(Superuser);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        }
+
+        var identifiers = new List<Guid>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            identifiers.Add(reader.GetGuid(0));
+        }
+
+        return identifiers;
+    }
 }

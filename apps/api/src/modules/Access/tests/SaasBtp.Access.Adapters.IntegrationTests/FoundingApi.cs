@@ -20,7 +20,8 @@ namespace SaasBtp.Access.Adapters.IntegrationTests;
 
 /// <summary>
 /// The Access module's endpoints on a test server, connected as <c>saasbtp_api</c> to the migrated
-/// database, so that a founding is answered by the module's own endpoint, handler and adapters.
+/// database, so that a founding and the reads are answered by the module's own endpoints, handlers
+/// and adapters.
 /// </summary>
 /// <remarks>
 /// What the API host provides around the module is stood in for, and only that: the caller is
@@ -93,17 +94,30 @@ internal sealed class FoundingApi : IAsyncDisposable
         };
         request.Headers.Add(TestCaller.SubjectHeader, caller.ToString("D"));
 
-        using var response = await _client.SendAsync(request, Token);
-        return new Answer(
-            response.StatusCode,
-            response.Content.Headers.ContentType?.ToString(),
-            await response.Content.ReadAsStringAsync(Token));
+        return await SendAsync(request);
+    }
+
+    /// <summary>Sends <c>GET</c> on <paramref name="path"/> as <paramref name="caller"/>.</summary>
+    public async Task<Answer> GetAsync(Guid caller, string path)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
+        request.Headers.Add(TestCaller.SubjectHeader, caller.ToString("D"));
+        return await SendAsync(request);
     }
 
     public async ValueTask DisposeAsync()
     {
         _client.Dispose();
         await _app.DisposeAsync();
+    }
+
+    private async Task<Answer> SendAsync(HttpRequestMessage request)
+    {
+        using var response = await _client.SendAsync(request, Token);
+        return new Answer(
+            response.StatusCode,
+            response.Content.Headers.ContentType?.ToString(),
+            await response.Content.ReadAsStringAsync(Token));
     }
 }
 
@@ -119,6 +133,24 @@ internal sealed record Answer(HttpStatusCode Status, string? ContentType, string
             var root = document.RootElement;
             Assert.Equal(["id", "name", "status"], root.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
             return (root.GetProperty("id").GetGuid(), root.GetProperty("name").GetString()!, root.GetProperty("status").GetString()!);
+        }
+    }
+
+    /// <summary>The workspaces the body lists, in its order: each <c>id</c>, <c>name</c>, <c>organizationId</c>, and nothing else.</summary>
+    public IReadOnlyList<(Guid Id, string Name, Guid OrganizationId)> Workspaces
+    {
+        get
+        {
+            using var document = JsonDocument.Parse(Body);
+            Assert.Equal(JsonValueKind.Array, document.RootElement.ValueKind);
+            return
+            [
+                .. document.RootElement.EnumerateArray().Select(workspace =>
+                {
+                    Assert.Equal(["id", "name", "organizationId"], workspace.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+                    return (workspace.GetProperty("id").GetGuid(), workspace.GetProperty("name").GetString()!, workspace.GetProperty("organizationId").GetGuid());
+                }),
+            ];
         }
     }
 }
