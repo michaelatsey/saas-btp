@@ -20,7 +20,10 @@ namespace SaasBtp.Api.IntegrationTests;
 /// migrated by the runner, the API connected as <c>saasbtp_api</c>; rows are counted as the
 /// container's superuser.
 /// </summary>
-/// <remarks>BP-001's other host proofs (BP001-AC-06 to BP001-AC-11, BP001-AC-23) are their own sub-issue.</remarks>
+/// <remarks>
+/// BP-001's host proofs (BP001-AC-06 to BP001-AC-11 and BP001-AC-23, contract.md §7), and the host
+/// part of BP001-AC-17 moved from #218, are <see cref="FoundCompanyScenarioTests"/>.
+/// </remarks>
 public sealed class FoundCompanyEndpointTests(FoundingDatabase database) : IClassFixture<FoundingDatabase>, IDisposable
 {
     private const string Path = "/api/v1/organizations";
@@ -548,12 +551,153 @@ public sealed class FoundingDatabase : IAsyncLifetime
     internal Task<long> ProfilesOfAsync(Guid user) =>
         CountAsync("select count(*) from access.profiles where user_id = @id", user);
 
+    /// <summary>
+    /// The rows of each of the six Access tables, in the order profiles, ownerships, organizations,
+    /// memberships, workspace accesses, workspaces, counted past row level security: equal before
+    /// and after a request, they show that it wrote nothing, on a database no other test writes to
+    /// meanwhile.
+    /// </summary>
+    internal async Task<long[]> AccessRowsAsync()
+    {
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(
+            """
+            select (select count(*) from access.profiles),
+                   (select count(*) from access.ownerships),
+                   (select count(*) from access.organizations),
+                   (select count(*) from access.memberships),
+                   (select count(*) from access.workspace_accesses),
+                   (select count(*) from access.workspaces)
+            """,
+            connection);
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await reader.ReadAsync(TestContext.Current.CancellationToken));
+        return [.. Enumerable.Range(0, reader.FieldCount).Select(reader.GetInt64)];
+    }
+
+    /// <summary>The identifier of the profile of <paramref name="user"/>, read past row level security.</summary>
+    internal async Task<Guid> ProfileIdOfAsync(Guid user) =>
+        Assert.Single(await GuidsAsync("select id from access.profiles where user_id = @id", user));
+
+    /// <summary>
+    /// The people related to the organization <paramref name="reference"/>, each as the provider's
+    /// user identifier of their profile, read past row level security.
+    /// </summary>
+    internal async Task<OrganizationRelations> RelationsOfAsync(Guid reference) => new(
+        CurrentOwner: await GuidsAsync(
+            """
+            select p.user_id from access.organizations o
+            join access.ownerships w on w.id = o.current_ownership_id
+            join access.profiles p on p.id = w.profile_id
+            where o.id = @id
+            """, reference),
+        Owners: await GuidsAsync(
+            "select p.user_id from access.ownerships w join access.profiles p on p.id = w.profile_id where w.organization_id = @id",
+            reference),
+        Members: await GuidsAsync(
+            "select p.user_id from access.memberships m join access.profiles p on p.id = m.profile_id where m.organization_id = @id",
+            reference),
+        Authorized: await GuidsAsync(
+            "select p.user_id from access.workspace_accesses a join access.profiles p on p.id = a.profile_id where a.organization_id = @id",
+            reference),
+        AccessWorkspaces: await GuidsAsync("select workspace_id from access.workspace_accesses where organization_id = @id", reference),
+        Workspaces: await GuidsAsync("select id from access.workspaces where organization_id = @id", reference));
+
+    /// <summary>
+    /// Makes the commit of any transaction that inserts the first workspace of
+    /// <paramref name="reference"/> fail: a deferred constraint trigger on <c>access.workspaces</c>,
+    /// created as the container's superuser, raises an exception when the transaction commits,
+    /// after its inserts, so that the transaction rolls back whole. Before it raises, it advances a
+    /// sequence, which a rollback does not undo, so that the test can tell that this failure, and no
+    /// earlier one, failed the transaction. The function runs as its owner, the superuser, so that
+    /// <c>saasbtp_api</c> needs no grant on the sequence. Disposing the result drops the trigger,
+    /// its function and the sequence.
+    /// </summary>
+    internal async Task<ForcedCommitFailure> FailCommitOfAsync(Guid reference)
+    {
+        var function = $"public.fail_commit_{reference:N}";
+        var fired = $"public.fail_commit_{reference:N}_fired";
+        await ExecuteAsync(
+            $$"""
+            create sequence {{fired}};
+            create function {{function}}() returns trigger language plpgsql
+              security definer set search_path = pg_catalog as $$
+            begin
+              perform nextval('{{fired}}');
+              raise exception 'A failure forced before commit by the test.';
+            end
+            $$;
+            create constraint trigger fail_commit_{{reference:N}}
+              after insert on access.workspaces
+              deferrable initially deferred
+              for each row when (new.organization_id = '{{reference:D}}'::uuid)
+              execute function {{function}}();
+            """);
+
+        return new ForcedCommitFailure(
+            async () => (bool)(await ScalarAsync($"select is_called from {fired}"))!,
+            () => ExecuteAsync($"drop function {function}() cascade; drop sequence {fired};"));
+    }
+
     private async Task<long> CountAsync(string sql, Guid id)
     {
-        await using var connection = new NpgsqlConnection(Database.SuperuserConnectionString);
-        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var connection = await OpenAsync();
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", id);
         return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
+
+    private async Task<List<Guid>> GuidsAsync(string sql, Guid id)
+    {
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", id);
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        var values = new List<Guid>();
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            values.Add(reader.GetGuid(0));
+        }
+
+        return values;
+    }
+
+    private async Task ExecuteAsync(string sql)
+    {
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<object?> ScalarAsync(string sql)
+    {
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<NpgsqlConnection> OpenAsync()
+    {
+        var connection = new NpgsqlConnection(Database.SuperuserConnectionString);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        return connection;
+    }
 }
+
+/// <summary>The failure <see cref="FoundingDatabase.FailCommitOfAsync"/> forces; disposing it removes it.</summary>
+internal sealed class ForcedCommitFailure(Func<Task<bool>> fired, Func<Task> drop) : IAsyncDisposable
+{
+    /// <summary>Whether the trigger has raised its failure at least once.</summary>
+    public Task<bool> FiredAsync() => fired();
+
+    public async ValueTask DisposeAsync() => await drop();
+}
+
+/// <summary>The people related to one organization, each as their user identifier, and its workspaces.</summary>
+internal sealed record OrganizationRelations(
+    IReadOnlyList<Guid> CurrentOwner,
+    IReadOnlyList<Guid> Owners,
+    IReadOnlyList<Guid> Members,
+    IReadOnlyList<Guid> Authorized,
+    IReadOnlyList<Guid> AccessWorkspaces,
+    IReadOnlyList<Guid> Workspaces);
