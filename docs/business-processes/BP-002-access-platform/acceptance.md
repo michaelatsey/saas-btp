@@ -1,8 +1,8 @@
 ---
 id: BP-002-acceptance
-status: draft
-validated_by:
-validated_on:
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-11-24
 applies: [BP-002, INV-ACCESS-01, INV-ACCESS-10, INV-ACCESS-11]
 ---
 

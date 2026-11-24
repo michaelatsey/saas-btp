@@ -1,9 +1,9 @@
 ---
 id: BP-002
 title: Access the platform
-status: draft
-validated_by:
-validated_on:
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-11-24
 issue: 163
 applies: [INV-ACCESS-01, INV-ACCESS-10, INV-ACCESS-11, ADR-ARCH-031]
 ---

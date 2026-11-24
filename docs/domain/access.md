@@ -1,8 +1,8 @@
 ---
 id: domain-access
-status: draft
-validated_by:
-validated_on:
+status: validated
+validated_by: michaelatsey
+validated_on: 2026-11-24
 applies: [ADR-PROD-002, ADR-ARCH-031]
 ---
 
