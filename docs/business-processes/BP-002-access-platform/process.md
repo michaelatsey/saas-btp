@@ -3,9 +3,9 @@ id: BP-002
 title: Access the platform
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-11-24
+validated_on: 2026-11-28
 issue: 163
-applies: [INV-ACCESS-01, INV-ACCESS-10, INV-ACCESS-11, ADR-ARCH-031]
+applies: [INV-ACCESS-01, INV-ACCESS-10, INV-ACCESS-11, ADR-ARCH-042]
 ---
 
 # BP-002 — Access the platform
@@ -53,8 +53,8 @@ Out of this process:
 | Verifying a civil identity | No process requires one |
 | Synchronizing what was captured, once it may be sent | The process that captures it |
 
-The person is external to the product (ADR-ARCH-031 §2); their account, its contacts and its
-stronger factor sit with them, outside Access (`docs/domain/access.md`, section Identity).
+The person's account, its contacts and its stronger factor belong to the Identity context of the
+platform, outside Access (ADR-ARCH-042 decision 4; `docs/domain/access.md`, section Identity).
 
 ## Precondition
 
@@ -552,8 +552,9 @@ accepted with it.
   decisions BP002-D1 to BP002-D5 and rules BP002-R1 to BP002-R16, or in `docs/domain/access.md`
   (INV-ACCESS-10, INV-ACCESS-11). None needs an ADR of its own: no decision is cross-cutting
   beyond this process and the domain file. Who owns the account, its contacts and its stronger
-  factor follows ADR-ARCH-031 §2: the person is external to the product, and authentication is
-  not a bounded context of the product.
+  factor follows ADR-ARCH-042 decision 4: they belong to the Identity context of the platform;
+  the identity provider establishes who a person is, and Access knows a person only through their
+  profile.
 - **Category B, technical.** The decisions that depend on infrastructure are identified, not
   taken, by this process. They are listed for the identity decisions that follow it, outside this
   document.

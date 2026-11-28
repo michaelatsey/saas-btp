@@ -2,8 +2,8 @@
 id: domain-access
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-11-24
-applies: [ADR-PROD-002, ADR-ARCH-031]
+validated_on: 2026-11-28
+applies: [ADR-PROD-002, ADR-ARCH-031, ADR-ARCH-042]
 ---
 
 # Access domain
@@ -16,8 +16,9 @@ This file holds what several processes share. A rule that only one process uses 
 process's `process.md`.
 
 Bounded context: Access owns every concept below except the person, whom the identity provider
-establishes (ADR-ARCH-031 §2), and the person's account, with its contacts and stronger factor
-(section Identity). The workspace is the tenant: other modules isolate their data by workspace.
+establishes, and the person's account, with its contacts and stronger factor, which belong to the
+Identity context of the platform (ADR-ARCH-042 decision 4; section Identity). The workspace is the
+tenant: other modules isolate their data by workspace.
 Roles and permissions are not modelled here: no process produces them yet.
 
 ## Concepts
@@ -74,12 +75,12 @@ flowchart TD
 
 ## Identity
 
-A person's account, its contacts and its stronger factor sit outside Access, with the identity
-provider. ADR-ARCH-031 §2 places the person there and states that authentication is not a
-bounded context of the product; an account's contacts and stronger factor are its means of
-authentication. BP-002 is the process that creates and changes them. Access does not own the
-facts below; it reads them, through the levels of INV-ACCESS-11, when a process requires a
-level.
+A person's account, its contacts and its stronger factor sit outside Access: they belong to the
+Identity context of the platform (ADR-ARCH-042 decision 4). An account's contacts and stronger
+factor are its means of authentication; BP-002 is the process that creates and changes them. The
+identity provider establishes who a person is, and Access knows a person only through their
+profile: it owns no account and none of the facts below, and reads them, through the levels of
+INV-ACCESS-11, when a process requires a level.
 
 | Concept | Meaning |
 |---|---|
