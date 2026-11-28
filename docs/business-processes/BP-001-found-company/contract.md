@@ -2,7 +2,7 @@
 id: BP-001-contract
 status: validated
 validated_by: michaelatsey
-validated_on: 2026-11-16
+validated_on: 2026-11-28
 issue: 178
 applies: [INV-ACCESS-01, INV-ACCESS-02, INV-ACCESS-03, INV-ACCESS-04, INV-ACCESS-05, INV-ACCESS-06, INV-ACCESS-07, INV-ACCESS-08, INV-ACCESS-09, ADR-PROD-002, ADR-ARCH-018, ADR-ARCH-021, ADR-ARCH-027, ADR-ARCH-028, ADR-ARCH-031, ADR-ARCH-032, ADR-ARCH-033, ADR-ARCH-034, ADR-ARCH-035, ADR-ARCH-037, ADR-ARCH-038, ADR-ARCH-040, naming.md#aggregate-identifiers, sql.md#rls, sql.md#audit--lifecycle]
 ---
@@ -20,7 +20,7 @@ and its rejection of copying a library as it is; those parts are history.
 
 - Every server element of this process belongs to the Access module and its `access` schema
   (ADR-ARCH-031 §1). The person is known only through the identity provider's user identifier
-  and their profile (ADR-ARCH-031 §2).
+  (ADR-ARCH-038 decision 3) and their profile (`docs/domain/access.md`, Profile).
 - The founding-request store (§6) belongs to the client application.
 - TSK-2 is one unit of work of Access (ADR-ARCH-033 §4). No other module takes part.
 - "Company founded" publishes no integration event: no consumer needs one (ADR-ARCH-032 §1).
