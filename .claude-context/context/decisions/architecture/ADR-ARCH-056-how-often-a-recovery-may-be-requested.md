@@ -13,7 +13,8 @@ each can be stopped from its notice without signing in. BP002-R9: the recovery i
 to an account. BP002-R12: one pending recovery per account; a request on an account where a recovery
 is pending has no effect. A self-service recovery is requested signed in (TSK-6); an assisted one
 through the operator (TSK-9, ADR-ARCH-050). This decision was decision 6 of ADR-ARCH-047 before
-ADR-ARCH-047 was split into one ADR per problem (the maintainer's decision of 2026-11-28 on #248).
+ADR-ARCH-047 was split into one ADR per problem (the maintainer's decision of
+2026-11-28 in the /fix-issue 248 session).
 
 ## Decision
 1. **The limits.** No budget is kept per account, so that nobody else can use up the person's own way

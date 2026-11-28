@@ -187,13 +187,14 @@ the suspension and the stop to code of ours.
   protects the data, and no check watches it: what protects it is that `anon` and `authenticated`
   hold no privilege on `identity` nor on any application schema (ADR-ARCH-028 §5, extended to
   `identity` by ADR-ARCH-053), which the delivery tests.
-- No environment holds real users (the maintainer, 2026-11-27, on #248). The environments are
+- No environment holds real users (the maintainer, 2026-11-27, in the /fix-issue 248 session). The environments are
   therefore reset when the identity service is deployed; no import of Supabase Auth users is built.
   A profile that referenced a Supabase Auth user identifier does not survive the reset.
 - `process.md` (Boundary; "Decision discovery (step 6)") and `docs/domain/access.md` (section
   Identity) cite ADR-ARCH-031 §2 for the sentence decision 4 supersedes. They are not changed here
-  (#248, Out of scope); their amendment has its own issue, before #249, so that the contract does not
-  consume a superseded reference (`issues-convention.md` §12).
+  (#248, Out of scope), nor is BP-001's `contract.md`, which cites it too; their amendment is #251,
+  which blocks #249, so that the contract does not consume a superseded reference
+  (`issues-convention.md` §12).
 - Architecture tests of ADR-ARCH-034 are extended by the delivery: no module other than Identity
   references OpenIddict or ASP.NET Core Identity; the API host does not reference the Identity module.
 

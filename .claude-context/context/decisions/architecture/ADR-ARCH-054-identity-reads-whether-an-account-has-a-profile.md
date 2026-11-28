@@ -106,8 +106,8 @@ What the sources state, read on 2026-11-28:
    a signed 64-bit integer, computed by one function shared by the API and Identity and passed as a
    parameter. Two accounts with the same key only wait on each other during an effect; correctness
    does not depend on keys being distinct.
-6. **Why the lock rather than `transaction_timeout`.** The maintainer's direction of 2026-11-28 on #248
-   preferred an enforced timeout: `transaction_timeout` on the API's role, the effect suspending the
+6. **Why the lock rather than `transaction_timeout`.** The maintainer's direction of 2026-11-28, in the
+   /fix-issue 248 session, preferred an enforced timeout: `transaction_timeout` on the API's role, the effect suspending the
    other account's sessions, waiting longer than that bound, then reading the profile; and directed to
    keep the lock if PostgreSQL 17 on the server or the setting's reach through the pooler could not be
    guaranteed from the provider's documentation. Neither can:

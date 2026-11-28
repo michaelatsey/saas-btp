@@ -12,12 +12,12 @@ message (ADR-ARCH-045), and BP002-R2 requires that "The answers to asking for a 
 to an expired code and to a lock are the same whether or not an account holds the contact". An
 earlier draft relied on a hard daily cap of 200 SMS codes; with the per-contact and per-IP limits
 alone, about 40 numbers from one IP address emptied it in about two hours, and every phone-only person
-was then kept from signing in until the next day. The maintainer's direction of 2026-11-28 on #248
-rejects that: a cap anyone can drain cheaply "turns a spending limit into a cheap denial of sign-in";
+was then kept from signing in until the next day. The maintainer's direction of 2026-11-28, in the /fix-issue
+248 session, rejects that: a cap anyone can drain cheaply "turns a spending limit into a cheap denial of sign-in";
 it directs a Cloudflare Turnstile check on every code request, a destination list set in a setting and
 at the provider, and the cap kept as a spending ceiling only. This decision was decision 4 of
 ADR-ARCH-047 before ADR-ARCH-047 was split into one ADR per problem (the maintainer's decision of
-2026-11-28 on #248).
+2026-11-28 in the /fix-issue 248 session).
 
 What the sources state, read on 2026-11-28:
 - Cloudflare Turnstile, plans (https://developers.cloudflare.com/turnstile/plans/): Free, "Up to 20

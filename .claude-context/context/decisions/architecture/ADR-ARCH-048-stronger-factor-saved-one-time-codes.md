@@ -88,8 +88,8 @@ What the sources state, read on 2026-11-27:
      - replacing or removing them requires the codes, or proving every contact of the account now
        (BP002-R7);
      - every change is notified to every contact of the account (BP002-R15).
-   - The maintainer accepted this deviation on 2026-11-28 (#248, decision on finding G8 of the
-     diff review), to be confirmed on the pull request.
+   - The maintainer decided it on 2026-11-28 in the /fix-issue 248 session (finding G8 of the diff
+     review); the approval is recorded on pull request #252.
 5. **An e-mail code cannot be the unrestricted alternative.** §3.1.3.1: "Email SHALL NOT be used for
    out-of-band authentication". An e-mail address stays a contact (BP002-D1); it is not the stronger
    factor.

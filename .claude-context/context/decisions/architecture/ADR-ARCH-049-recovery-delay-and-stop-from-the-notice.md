@@ -21,7 +21,7 @@ the stop as "entering a code sent to E1, without signing in" (BP002-AC-41, AC-43
 proving her stronger factor" (BP002-AC-55); BP002-AC-36 has each contact, the requester's kept E1
 included, receive "a notice of the pending recovery, with the way to stop it".
 
-The maintainer's direction of 2026-11-27 on #248: "A request for a new stop code stays limited per
+The maintainer's direction of 2026-11-27, in the /fix-issue 248 session: "A request for a new stop code stays limited per
 contact by a minimum interval (BP002-R3), never by a lock (BP002-R11)."
 
 ## Decision
@@ -105,4 +105,4 @@ contact by a minimum interval (BP002-R3), never by a lock (BP002-R11)."
 
 ## References
 - BP-002 `process.md` and `acceptance.md` (validated 2026-11-24).
-- The maintainer's direction on #248, 2026-11-27, point 4.
+- The maintainer's direction of 2026-11-27, point 4, in the /fix-issue 248 session.
